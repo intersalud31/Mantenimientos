@@ -59,6 +59,10 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
+                \PDO::ATTR_TIMEOUT => (int) env('DB_TIMEOUT', 5),
+                defined('Pdo\\Mysql::ATTR_INIT_COMMAND')
+                    ? \Pdo\Mysql::ATTR_INIT_COMMAND
+                    : \PDO::MYSQL_ATTR_INIT_COMMAND => 'SET SESSION innodb_lock_wait_timeout=5',
                 defined('Pdo\\Mysql::ATTR_SSL_CA')
                     ? \Pdo\Mysql::ATTR_SSL_CA
                     : \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),

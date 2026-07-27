@@ -11,7 +11,7 @@
         padding-top: 0 !important;
         margin-block-start: 0 !important;
         padding-block-start: 0 !important;
-        font-family: Inter, Segoe UI, sans-serif;
+        font-family: var(--panel-font-base);
         min-height: 100vh;
         overflow-x: hidden;
         background:
@@ -28,7 +28,7 @@
     body.dashboard-modern .wrap {
         max-width: 1360px;
         margin: 0 auto;
-        padding: 26px 20px 56px;
+        padding: 22px 20px 48px;
     }
 
     body.dashboard-modern .topbar-shell {
@@ -365,8 +365,8 @@
         border: 1px solid rgba(148, 163, 184, .18);
         border-radius: 28px;
         box-shadow: 0 18px 50px rgba(15, 23, 42, .06);
-        padding: 26px;
-        margin-bottom: 20px;
+        padding: 22px;
+        margin-bottom: 18px;
     }
 
     body.dashboard-modern .topline {
@@ -432,13 +432,73 @@
         color: #0f172a;
         font-size: clamp(1.7rem, 2.2vw, 2.25rem);
         line-height: 1.08;
-        letter-spacing: -.03em;
+        letter-spacing: 0;
     }
 
     body.dashboard-modern .module-header-subtitle {
         margin: 0;
         color: #64748b;
         max-width: 760px;
+    }
+
+    body.dashboard-modern .dashboard-welcome-wrap {
+        min-height: calc(100vh - 130px);
+        display: grid;
+        align-items: center;
+    }
+
+    body.dashboard-modern .dashboard-welcome {
+        display: grid;
+        gap: 34px;
+        justify-items: center;
+        text-align: center;
+    }
+
+    body.dashboard-modern .dashboard-welcome-copy {
+        max-width: 820px;
+    }
+
+    body.dashboard-modern .dashboard-welcome-copy h1 {
+        margin: 0;
+        color: #0f2f57;
+        font-size: clamp(1.8rem, 2.3vw, 2.6rem);
+        line-height: 1.15;
+        letter-spacing: 0;
+    }
+
+    body.dashboard-modern .dashboard-welcome-copy p:not(.module-header-kicker) {
+        margin: 12px auto 0;
+        color: #475569;
+        max-width: 680px;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    body.dashboard-modern .dashboard-welcome-media {
+        width: min(980px, 100%);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #e2e8f0;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, .14);
+    }
+
+    body.dashboard-modern .dashboard-welcome-media img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1200 / 520;
+        object-fit: cover;
+    }
+
+    @media (max-width: 760px) {
+        body.dashboard-modern .dashboard-welcome-wrap {
+            align-items: start;
+            padding-top: 28px;
+        }
+
+        body.dashboard-modern .dashboard-welcome {
+            gap: 22px;
+        }
     }
 
     body.dashboard-modern .hero-meta,
@@ -810,8 +870,71 @@
         flex: none;
     }
 
+    body.dashboard-modern .modal-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+    }
+
+    body.dashboard-modern .modal-panel-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, .58);
+    }
+
+    body.dashboard-modern .modal-panel-dialogo {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 920px);
+        max-height: calc(100vh - 36px);
+        overflow: auto;
+        border-radius: 24px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, .20);
+        padding: 24px;
+    }
+
+    body.dashboard-modern .modal-panel-dialogo-operativo {
+        width: min(100%, 920px);
+    }
+
+    body.dashboard-modern .modal-panel-cabecera {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 18px;
+    }
+
+    body.dashboard-modern .modal-panel-cerrar {
+        min-width: 40px;
+        height: 40px;
+        padding: 0 14px;
+        border-radius: 12px;
+        border: 1px solid #dbe4f0;
+        background: #fff;
+        color: #0f172a;
+        cursor: pointer;
+        flex: none;
+        font-weight: 700;
+    }
+
+    body.dashboard-modern .modal-panel-cerrar:hover,
+    body.dashboard-modern .modal-panel-cerrar:focus-visible {
+        border-color: #bfd4ff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+
     body.dashboard-modern .modal-panel-estatico {
-        background: rgba(15, 23, 42, .48);
+        background: rgba(15, 23, 42, .58);
     }
 
     body.dashboard-modern .modal-panel-dialogo {
@@ -822,6 +945,28 @@
 
     body.dashboard-modern .modal-panel-kicker {
         color: #2563eb;
+        margin: 0 0 10px;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+    }
+
+    body.dashboard-modern .modal-panel-cabecera h4 {
+        margin: 0 0 8px;
+        color: #0f172a;
+        font-size: 1.25rem;
+        line-height: 1.2;
+        letter-spacing: 0;
+    }
+
+    body.dashboard-modern .tabla-programados-nombre {
+        font-weight: 400;
+        color: #0f172a;
+    }
+
+    body.dashboard-modern .tabla-programados-columna-fecha {
+        text-align: center;
     }
 
     body.dashboard-modern .modal-panel-texto,
@@ -839,6 +984,356 @@
     body.dashboard-modern .input-fecha-programar,
     body.dashboard-modern .campo-fecha-inline textarea {
         background: #fff;
+    }
+
+    body.dashboard-modern .maintenance-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    body.dashboard-modern .maintenance-modal-full {
+        grid-column: 1 / -1;
+    }
+
+    body.dashboard-modern .maintenance-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    body.dashboard-modern .maintenance-date-field {
+        position: relative;
+    }
+
+    body.dashboard-modern .maintenance-date-trigger {
+        width: 100%;
+        min-height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid #dfe7f2;
+        background: #fff;
+        color: #0f172a;
+        font-family: var(--panel-font-base);
+        font-size: .92rem;
+        line-height: 1.4;
+        text-align: left;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+        cursor: pointer;
+    }
+
+    body.dashboard-modern .maintenance-date-trigger:hover {
+        border-color: #bfd4ff;
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, .05), inset 0 1px 0 rgba(255,255,255,.65);
+    }
+
+    body.dashboard-modern .maintenance-date-trigger:focus-visible {
+        outline: none;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+    }
+
+    body.dashboard-modern .maintenance-date-trigger-text {
+        min-width: 0;
+    }
+
+    body.dashboard-modern .maintenance-date-trigger-icon {
+        width: 18px;
+        height: 18px;
+        display: inline-grid;
+        place-items: center;
+        color: #2563eb;
+        flex: none;
+    }
+
+    body.dashboard-modern .maintenance-date-trigger-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    body.dashboard-modern .maintenance-date-picker {
+        position: fixed;
+        z-index: 150;
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid #dfe7f2;
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+        overflow: auto;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-nav,
+    body.dashboard-modern .maintenance-date-picker-close,
+    body.dashboard-modern .maintenance-date-picker-today {
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 12px;
+        border: 1px solid #dfe7f2;
+        background: #fff;
+        color: #334155;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-nav:hover,
+    body.dashboard-modern .maintenance-date-picker-close:hover,
+    body.dashboard-modern .maintenance-date-picker-today:hover {
+        border-color: #bfd4ff;
+        color: #0f172a;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-nav:focus-visible,
+    body.dashboard-modern .maintenance-date-picker-close:focus-visible,
+    body.dashboard-modern .maintenance-date-picker-today:focus-visible,
+    body.dashboard-modern .maintenance-date-picker-year:focus-visible,
+    body.dashboard-modern .maintenance-date-picker-day:focus-visible {
+        outline: none;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+    }
+
+    body.dashboard-modern .maintenance-date-picker-title-block {
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-title {
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-year-label {
+        font-size: .78rem;
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-year {
+        min-width: 100px;
+        min-height: 40px;
+        padding: 8px 36px 8px 12px;
+        border-radius: 12px;
+        border: 1px solid #dfe7f2;
+        background: #fff;
+        color: #0f172a;
+        font-family: var(--panel-font-base);
+    }
+
+    body.dashboard-modern .maintenance-date-picker-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: .02em;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-day {
+        min-height: 40px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: var(--panel-font-base);
+        font-size: .92rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-day:hover {
+        background: #eef4ff;
+        border-color: #bfd4ff;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-day--outside {
+        color: #94a3b8;
+        background: #fbfdff;
+    }
+
+    body.dashboard-modern .maintenance-date-picker-day--today {
+        border-color: #93c5fd;
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .12);
+    }
+
+    body.dashboard-modern .maintenance-date-picker-day--selected {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+        box-shadow: 0 10px 18px rgba(37, 99, 235, .18);
+    }
+
+    body.dashboard-modern .maintenance-date-picker-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    body.dashboard-modern .maintenance-date-picker .btn.btn-ghost {
+        background: #fff;
+        color: #334155;
+    }
+
+    body.dashboard-modern .maintenance-modal-select {
+        font-family: var(--panel-font-base);
+        appearance: none;
+        background-image:
+            linear-gradient(45deg, transparent 50%, #64748b 50%),
+            linear-gradient(135deg, #64748b 50%, transparent 50%),
+            linear-gradient(to right, transparent, transparent);
+        background-position:
+            calc(100% - 18px) calc(1em + 1px),
+            calc(100% - 13px) calc(1em + 1px),
+            100% 0;
+        background-size:
+            5px 5px,
+            5px 5px,
+            2.5em 2.5em;
+        background-repeat: no-repeat;
+        padding-right: 42px;
+    }
+
+    body.dashboard-modern .maintenance-upload {
+        display: grid;
+        gap: 10px;
+    }
+
+    body.dashboard-modern .maintenance-upload-stage {
+        position: relative;
+        min-height: 132px;
+    }
+
+    body.dashboard-modern .maintenance-upload-input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+    body.dashboard-modern .maintenance-upload-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 14px;
+        align-items: center;
+        min-height: 132px;
+        padding: 18px 18px 18px 16px;
+        border-radius: 18px;
+        border: 1px dashed #bfd4ff;
+        background: linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85);
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+    }
+
+    body.dashboard-modern .maintenance-upload-card:hover {
+        transform: translateY(-1px);
+        border-color: #93c5fd;
+    }
+
+    body.dashboard-modern .maintenance-upload-input:focus-visible + .maintenance-upload-card,
+    body.dashboard-modern .maintenance-upload-stage:focus-within .maintenance-upload-card {
+        outline: none;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .12), inset 0 1px 0 rgba(255, 255, 255, .85);
+    }
+
+    body.dashboard-modern .maintenance-upload--dragover .maintenance-upload-card {
+        border-color: #2563eb;
+        background: #f8fbff;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+    }
+
+    body.dashboard-modern .maintenance-upload--has-file .maintenance-upload-card {
+        border-style: solid;
+        background: #f8fbff;
+    }
+
+    body.dashboard-modern .maintenance-upload-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        display: inline-grid;
+        place-items: center;
+        background: #eef4ff;
+        color: #1d4ed8;
+        flex: none;
+    }
+
+    body.dashboard-modern .maintenance-upload-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    body.dashboard-modern .maintenance-upload-copy strong,
+    body.dashboard-modern .maintenance-upload-copy span,
+    body.dashboard-modern .maintenance-upload-copy small {
+        display: block;
+    }
+
+    body.dashboard-modern .maintenance-upload-copy strong {
+        color: #0f172a;
+        font-size: .98rem;
+        font-weight: 700;
+    }
+
+    body.dashboard-modern .maintenance-upload-copy span {
+        margin-top: 3px;
+        color: #64748b;
+        font-size: .92rem;
+    }
+
+    body.dashboard-modern .maintenance-upload-copy small {
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: .78rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+    }
+
+    body.dashboard-modern .maintenance-upload-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    body.dashboard-modern .maintenance-upload-name {
+        color: #334155;
+        font-size: .92rem;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    body.dashboard-modern .maintenance-upload-clear {
+        white-space: nowrap;
     }
 
     @media (max-width: 1024px) {
@@ -859,6 +1354,15 @@
 
         body.dashboard-modern .filters {
             grid-template-columns: 1fr;
+        }
+
+        body.dashboard-modern .maintenance-upload-card {
+            grid-template-columns: 1fr;
+            min-height: 0;
+        }
+
+        body.dashboard-modern .maintenance-upload-footer {
+            align-items: flex-start;
         }
 
         body.dashboard-modern .panel-navigation .btn-link {

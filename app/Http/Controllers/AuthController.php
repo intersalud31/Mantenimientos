@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LegacyAuthBridge;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Contracts\View\View;
-use App\Support\LegacyAuthBridge;
 
 class AuthController extends Controller
 {
-    public function create()
+    public function create(): View|RedirectResponse
     {
-        if (session()->has('usuario_autenticado') || auth()->check()) {
+        if (auth()->check()) {
             return redirect()->route('panel');
         }
 
@@ -29,10 +30,16 @@ class AuthController extends Controller
         ]);
 
         $correo = mb_strtolower(trim($data['correo']));
-        $usuario = DB::table('usuarios_sistema')
-            ->select('id', 'nombre', 'correo', 'password_hash', 'rol', 'estado')
-            ->whereRaw('LOWER(correo) = ?', [$correo])
-            ->first();
+        try {
+            $usuario = DB::table('usuarios_sistema')
+                ->select('id', 'nombre', 'correo', 'password_hash', 'rol', 'estado')
+                ->whereRaw('LOWER(correo) = ?', [$correo])
+                ->first();
+        } catch (QueryException) {
+            return back()
+                ->withInput($request->only('correo'))
+                ->with('error_login', 'La base de datos no respondio. Reinicia MySQL en XAMPP e intenta nuevamente.');
+        }
 
         if (!$usuario || (int) $usuario->estado !== 1 || !Hash::check($data['password'], (string) $usuario->password_hash)) {
             return back()
@@ -51,9 +58,13 @@ class AuthController extends Controller
             'usuario_autenticado' => LegacyAuthBridge::payloadFromUser(Auth::user()),
         ]);
 
-        DB::table('usuarios_sistema')
-            ->where('id', $usuario->id)
-            ->update(['ultimo_acceso' => now()]);
+        try {
+            DB::table('usuarios_sistema')
+                ->where('id', $usuario->id)
+                ->update(['ultimo_acceso' => now()]);
+        } catch (QueryException $exception) {
+            report($exception);
+        }
 
         return redirect()->route('panel');
     }

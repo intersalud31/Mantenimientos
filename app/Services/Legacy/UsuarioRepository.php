@@ -12,7 +12,7 @@ class UsuarioRepository
     {
     }
 
-    public function listarTodos(?int $areaId = null, string $busqueda = ''): array
+    public function listarTodos(?string $busqueda = ''): array
     {
         $query = DB::table('usuarios as u')
             ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
@@ -29,17 +29,23 @@ class UsuarioRepository
             ->orderBy('area_nombre')
             ->orderBy('u.nombre');
 
-        if ($areaId !== null && $areaId > 0) {
-            $query->where('u.area_id', $areaId);
-        }
-
-        $busqueda = trim($busqueda);
+        $busqueda = trim((string) $busqueda);
         if ($busqueda !== '') {
-            if (ctype_digit($busqueda)) {
-                $query->where('u.codigo_activo', (int) $busqueda);
-            } else {
-                $query->where('u.nombre', 'like', '%' . $busqueda . '%');
-            }
+            $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+            $query->where(function ($subquery) use ($busqueda): void {
+                $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+
+                $subquery
+                    ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('LOWER(u.serial_equipo) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%']);
+
+                if (ctype_digit($busqueda)) {
+                    $subquery->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+                } else {
+                    $subquery->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busquedaNormalizada . '%']);
+                }
+            });
         }
 
         return $query->get()->map(static fn ($row) => (array) $row)->all();

@@ -18,29 +18,29 @@
     body.dashboard-modern .users-toolbar--integrated {
         margin-top: 14px;
         padding-top: 16px;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid #dfe7f2;
     }
 
     body.dashboard-modern .users-module-shell {
-        margin-bottom: 0;
-        border-radius: 0;
-        border-left-color: #e2e8f0;
-        border-right-color: #e2e8f0;
-        box-shadow: none;
+        margin-bottom: 18px;
+        border-radius: 20px;
+        border-left-color: #dfe7f2;
+        border-right-color: #dfe7f2;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .055);
     }
 
     body.dashboard-modern .users-module-shell--head {
-        border-bottom: 0;
-        border-top-left-radius: 28px;
-        border-top-right-radius: 28px;
+        border-bottom: 1px solid #dfe7f2;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
     }
 
     body.dashboard-modern .users-module-shell--table {
-        margin-top: -1px;
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-        border-bottom-left-radius: 28px;
-        border-bottom-right-radius: 28px;
+        margin-top: 0;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
         padding-top: 18px;
     }
 
@@ -48,9 +48,9 @@
         margin-top: 14px;
         padding: 16px;
         border-radius: 20px;
-        background: linear-gradient(180deg, #ffffff, #f8fafc);
-        border: 1px solid #e2e8f0;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
+        background: #fff;
+        border: 1px solid #dfe7f2;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, .04);
     }
 
     body.dashboard-modern .users-group {
@@ -66,9 +66,8 @@
         gap: 10px;
         padding: 12px 14px;
         border-radius: 18px;
-        background: linear-gradient(180deg, #f8fafc, #eef4ff);
-        border: 1px solid #dbe7ff;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75);
+        background: #f8fafc;
+        border: 1px solid #dfe7f2;
     }
 
     body.dashboard-modern .users-group-title {
@@ -129,10 +128,14 @@
         transform: rotate(180deg);
     }
 
+    body.dashboard-modern .users-group-shell[data-open='false'] .user-record {
+        display: none;
+    }
+
     body.dashboard-modern .user-row-name {
         display: block;
         color: #0f172a;
-        font-weight: 800;
+        font-weight: 600;
     }
 
     body.dashboard-modern .user-table tbody tr:hover {
@@ -148,7 +151,7 @@
     body.dashboard-modern .user-badge-area {
         display: inline-flex;
         align-items: center;
-        padding: 5px 10px;
+        padding: 6px 10px;
         border-radius: 999px;
         font-size: .76rem;
         font-weight: 700;
@@ -194,7 +197,7 @@
         width: 40px;
         height: 40px;
         border-radius: 12px;
-        border: 1px solid #dbe4f0;
+        border: 1px solid #dfe7f2;
         background: #fff;
         display: inline-flex;
         align-items: center;
@@ -227,16 +230,16 @@
     body.dashboard-modern .user-actions-panel {
         position: absolute;
         right: 0;
-        top: calc(100% + 8px);
+        bottom: calc(100% + 8px);
         min-width: 220px;
         padding: 12px;
         border-radius: 18px;
         background: #fff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #dfe7f2;
         box-shadow: 0 20px 50px rgba(15, 23, 42, .12);
         display: grid;
         gap: 8px;
-        z-index: 20;
+        z-index: 80;
     }
 
     body.dashboard-modern .user-action-item {
@@ -255,7 +258,7 @@
     }
 
     body.dashboard-modern .user-action-item:hover {
-        background: #eff6ff;
+        background: #eef4ff;
         transform: translateX(2px);
     }
 
@@ -264,30 +267,33 @@
     }
 
     body.dashboard-modern .user-modal-backdrop {
-        position: fixed;
+        position: absolute;
         inset: 0;
-        background: rgba(15, 23, 42, .45);
-        z-index: 60;
+        background: rgba(15, 23, 42, .58);
+        z-index: 0;
     }
 
     body.dashboard-modern .user-modal-shell {
         position: fixed;
         inset: 0;
-        z-index: 60;
-        display: grid;
-        place-items: center;
-        padding: 18px;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        isolation: isolate;
     }
 
+    body.dashboard-modern .user-modal-panel,
     body.dashboard-modern .user-modal-dialog {
         position: relative;
         z-index: 1;
         width: min(100%, 920px);
-        max-height: calc(100vh - 36px);
+        max-height: calc(100vh - 48px);
         overflow: auto;
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 24px;
+        border: 1px solid #dfe7f2;
+        border-radius: 22px;
         box-shadow: 0 30px 80px rgba(15, 23, 42, .2);
         padding: 22px;
     }
@@ -340,5 +346,20 @@
 
     body.dashboard-modern .user-table tbody tr.user-record:hover td {
         background: #f8fbff;
+    }
+
+    @media (max-width: 720px) {
+        body.dashboard-modern .user-modal-shell {
+            padding: 12px;
+        }
+
+        body.dashboard-modern .user-modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        body.dashboard-modern .user-modal-grid .field-wide,
+        body.dashboard-modern .user-modal-grid .field-actions {
+            grid-column: 1 / -1;
+        }
     }
 </style>

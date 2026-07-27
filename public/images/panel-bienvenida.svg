@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Imagen de bienvenida para mantenimiento TI</title>
+  <desc id="desc">Composicion visual de cuatro areas operativas para el panel principal.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1f5fbf"/>
+      <stop offset="1" stop-color="#0f2f6b"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1d9aa5"/>
+      <stop offset="1" stop-color="#166c88"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#22b8a9"/>
+      <stop offset="1" stop-color="#177a8b"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2a7f79"/>
+      <stop offset="1" stop-color="#124f65"/>
+    </linearGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="520" rx="8" fill="#eef4f8"/>
+  <g>
+    <rect x="0" y="0" width="300" height="520" fill="url(#g1)"/>
+    <rect x="300" y="0" width="300" height="520" fill="url(#g2)"/>
+    <rect x="600" y="0" width="300" height="520" fill="url(#g3)"/>
+    <rect x="900" y="0" width="300" height="520" fill="url(#g4)"/>
+    <rect width="1200" height="520" fill="url(#grid)" opacity=".38"/>
+  </g>
+  <g fill="rgba(255,255,255,.18)">
+    <circle cx="150" cy="155" r="76"/>
+    <circle cx="450" cy="146" r="68"/>
+    <circle cx="750" cy="142" r="72"/>
+    <circle cx="1050" cy="154" r="74"/>
+  </g>
+  <g fill="none" stroke="rgba(255,255,255,.42)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M114 245h72m-36-66v132"/>
+    <path d="M412 228h76l-12 96h-52z"/>
+    <path d="M706 220h88v86h-88zM728 306v42h44v-42"/>
+    <path d="M1010 238h82v78h-82zM1030 238v-28h42v28"/>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif" font-weight="800" font-size="31" fill="#fff">
+    <text transform="translate(70 465) rotate(-90)">USUARIOS Y ACTIVOS</text>
+    <text transform="translate(370 465) rotate(-90)">PROGRAMACION</text>
+    <text transform="translate(670 465) rotate(-90)">EJECUCION</text>
+    <text transform="translate(970 465) rotate(-90)">REPORTES</text>
+  </g>
+</svg>

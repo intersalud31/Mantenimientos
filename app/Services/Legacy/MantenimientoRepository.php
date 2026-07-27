@@ -182,6 +182,230 @@ class MantenimientoRepository
         return array_slice($actividad, 0, $limite);
     }
 
+    public function contarProximosPorPeriodo(string $busqueda = '', ?array $periodo = null): int
+    {
+        $this->sincronizarPendientesProximosPorPeriodo($periodo);
+
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
+            ->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+                $subquery->select(DB::raw(1))
+                    ->from('mantenimientos as bloqueador')
+                    ->whereColumn('bloqueador.usuario_id', 'u.id')
+                    ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                    ->where(function ($query) use ($inicio, $fin): void {
+                        $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
+                            ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
+                    });
+            });
+
+        $busqueda = trim($busqueda);
+        if ($busqueda !== '') {
+            $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+            $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+                $subquery
+                    ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('LOWER(u.serial_equipo) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+            });
+        }
+
+        return (int) $query->count('u.id');
+    }
+
+    public function listarProximosPorPeriodo(int $limite, int $desplazamiento, string $busqueda = '', ?array $periodo = null): array
+    {
+        $this->sincronizarPendientesProximosPorPeriodo($periodo);
+
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->leftJoin('mantenimientos as m', function ($join) use ($inicio, $fin): void {
+                $join->on('m.usuario_id', '=', 'u.id')
+                    ->where('m.estado', MantenimientoEstados::PENDIENTE)
+                    ->whereBetween('m.fecha_programada', [$inicio, $fin]);
+            })
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
+            ->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+                $subquery->select(DB::raw(1))
+                    ->from('mantenimientos as bloqueador')
+                    ->whereColumn('bloqueador.usuario_id', 'u.id')
+                    ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                    ->where(function ($query) use ($inicio, $fin): void {
+                        $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
+                            ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
+                    });
+            })
+            ->select([
+                'm.id as mantenimiento_id',
+                'u.id as usuario_id',
+                DB::raw("COALESCE(m.estado, '" . MantenimientoEstados::PENDIENTE . "') AS estado"),
+                'u.nombre',
+                'u.codigo_activo',
+                'u.tipo_equipo',
+                DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+                'u.ultima_fecha_mantenimiento as ultima_fecha_programada',
+                'u.proxima_fecha_mantenimiento as proxima_fecha_programada',
+                'm.fecha_ejecucion',
+                'm.observaciones',
+                'm.tecnico_responsable',
+                'm.evidencia_pdf',
+            ]);
+
+        $busqueda = trim($busqueda);
+        if ($busqueda !== '') {
+            $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+            $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+                $subquery
+                    ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('LOWER(u.serial_equipo) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+            });
+        }
+
+        $query->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->skip($desplazamiento)
+            ->take($limite);
+
+        $filas = $query->get()->map(static fn ($row) => (array) $row)->all();
+
+        foreach ($filas as &$fila) {
+            $this->hidratarEvidenciaPublica($fila);
+            $this->hidratarEstadoVisual($fila);
+            $fila['observaciones'] = $this->textoNormalizer->observacion((string) ($fila['observaciones'] ?? ''));
+
+            $ultimaFecha = trim((string) ($fila['ultima_fecha_programada'] ?? ''));
+            if ($ultimaFecha === '') {
+                $tipoEquipo = trim((string) ($fila['tipo_equipo'] ?? 'normal'));
+                $fila['ultimo_mantenimiento_texto'] = $tipoEquipo === 'nuevo' ? 'Equipo nuevo' : 'Sin historial';
+            } else {
+                $fila['ultimo_mantenimiento_texto'] = '';
+            }
+        }
+        unset($fila);
+
+        return $filas;
+    }
+
+    public function sincronizarPendientesProximosPorPeriodo(?array $periodo = null): int
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $usuarios = DB::table('usuarios as u')
+            ->select('u.id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
+            ->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->pluck('id')
+            ->all();
+
+        if ($usuarios === []) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($usuarios, $periodo, $inicio, $fin): int {
+            $cambios = 0;
+
+            foreach ($usuarios as $usuarioId) {
+                $usuarioId = (int) $usuarioId;
+                $this->resumenService->sincronizarResumenUsuario($usuarioId, $periodo);
+
+                $proximaFecha = trim((string) (DB::table('usuarios')->where('id', $usuarioId)->value('proxima_fecha_mantenimiento') ?? ''));
+                if ($proximaFecha === '') {
+                    continue;
+                }
+
+                $hayProgramado = DB::table('mantenimientos')
+                    ->where('usuario_id', $usuarioId)
+                    ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                    ->where(function ($query) use ($inicio, $fin): void {
+                        $query->whereBetween('fecha_programada', [$inicio, $fin])
+                            ->orWhereBetween('fecha_ejecucion', [$inicio, $fin]);
+                    })
+                    ->exists();
+
+                $pendientes = DB::table('mantenimientos')
+                    ->select('id', 'fecha_programada')
+                    ->where('usuario_id', $usuarioId)
+                    ->where('estado', MantenimientoEstados::PENDIENTE)
+                    ->whereBetween('fecha_programada', [$inicio, $fin])
+                    ->orderBy('fecha_programada')
+                    ->orderBy('id')
+                    ->get();
+
+                if ($hayProgramado) {
+                    foreach ($pendientes as $pendiente) {
+                        DB::table('mantenimientos')
+                            ->where('id', (int) $pendiente->id)
+                            ->update([
+                                'estado' => MantenimientoEstados::CANCELADO,
+                                'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' | Cancelado automaticamente porque ya existe una programacion activa para este periodo.')"),
+                                'updated_at' => now(),
+                            ]);
+                        $cambios++;
+                    }
+
+                    continue;
+                }
+
+                if ($pendientes->isEmpty()) {
+                    DB::table('mantenimientos')->insert([
+                        'usuario_id' => $usuarioId,
+                        'fecha_programada' => $proximaFecha,
+                        'hora_programada' => null,
+                        'estado' => MantenimientoEstados::PENDIENTE,
+                        'fecha_ejecucion' => null,
+                        'observaciones' => 'Generado automaticamente desde la sincronizacion del modulo Proximos.',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $cambios++;
+                    continue;
+                }
+
+                $principal = $pendientes->shift();
+                if ($principal && trim((string) ($principal->fecha_programada ?? '')) !== $proximaFecha) {
+                    DB::table('mantenimientos')
+                        ->where('id', (int) $principal->id)
+                        ->update([
+                            'fecha_programada' => $proximaFecha,
+                            'updated_at' => now(),
+                        ]);
+                    $cambios++;
+                }
+
+                foreach ($pendientes as $duplicado) {
+                    DB::table('mantenimientos')
+                        ->where('id', (int) $duplicado->id)
+                        ->update([
+                            'estado' => MantenimientoEstados::CANCELADO,
+                            'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' | Cancelado automaticamente por duplicidad en Proximos.')"),
+                            'updated_at' => now(),
+                        ]);
+                    $cambios++;
+                }
+            }
+
+            return $cambios;
+        });
+    }
+
     public function listarPorEstado(string $estado, int $limite, int $desplazamiento, string $busqueda = '', ?array $periodo = null, bool $filtrarRealizadosPorPeriodo = false, ?array $periodoVisual = null): array
     {
         $estado = MantenimientoEstados::normalizar($estado);
@@ -263,7 +487,10 @@ class MantenimientoRepository
         }
 
         if ($estado === 'realizado' && $filtrarRealizadosPorPeriodo && $inicio !== '' && $fin !== '') {
-            $query->whereBetween('m.fecha_ejecucion', [$inicio, $fin]);
+            $query->where(function ($subquery) use ($inicio, $fin): void {
+                $subquery->whereBetween('m.fecha_ejecucion', [$inicio, $fin])
+                    ->orWhereBetween('m.fecha_programada', [$inicio, $fin]);
+            });
         }
 
         if ($estado === 'realizado') {
@@ -421,7 +648,10 @@ class MantenimientoRepository
         }
 
         if ($estado === 'realizado' && $filtrarRealizadosPorPeriodo && $inicio !== '' && $fin !== '') {
-            $query->whereBetween('m.fecha_ejecucion', [$inicio, $fin]);
+            $query->where(function ($subquery) use ($inicio, $fin): void {
+                $subquery->whereBetween('m.fecha_ejecucion', [$inicio, $fin])
+                    ->orWhereBetween('m.fecha_programada', [$inicio, $fin]);
+            });
         }
 
         $busqueda = trim($busqueda);
@@ -543,6 +773,84 @@ class MantenimientoRepository
         return $proxima->format('Y-m-d');
     }
 
+    /**
+     * @return array{0:string,1:string}
+     */
+    private function rangoPeriodo(?array $periodo): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+
+        $inicio = (string) ($periodo['inicio'] ?? '');
+        $fin = (string) ($periodo['fin'] ?? '');
+
+        if ($inicio === '' || $fin === '') {
+            $actual = $this->semestreService->actual();
+            $inicio = (string) ($actual['inicio'] ?? '');
+            $fin = (string) ($actual['fin'] ?? '');
+        }
+
+        return [$inicio, $fin];
+    }
+
+    private function asegurarPendienteSemestral(int $usuarioId, string $fechaProgramada, string $observaciones): ?int
+    {
+        $fechaValida = DateTimeImmutable::createFromFormat('Y-m-d', $fechaProgramada);
+        if ($usuarioId <= 0 || $fechaValida === false || $fechaValida->format('Y-m-d') !== $fechaProgramada) {
+            return null;
+        }
+
+        $periodo = $this->semestreService->semestreDeFecha($fechaProgramada);
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $pendientes = DB::table('mantenimientos')
+            ->select('id', 'observaciones', 'fecha_programada')
+            ->where('usuario_id', $usuarioId)
+            ->where('estado', MantenimientoEstados::PENDIENTE)
+            ->whereBetween('fecha_programada', [$inicio, $fin])
+            ->orderBy('fecha_programada')
+            ->orderBy('id')
+            ->get();
+
+        if ($pendientes->isEmpty()) {
+            return (int) DB::table('mantenimientos')->insertGetId([
+                'usuario_id' => $usuarioId,
+                'fecha_programada' => $fechaProgramada,
+                'hora_programada' => null,
+                'estado' => MantenimientoEstados::PENDIENTE,
+                'fecha_ejecucion' => null,
+                'observaciones' => $observaciones,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $principal = $pendientes->shift();
+        if ($principal) {
+            DB::table('mantenimientos')
+                ->where('id', (int) $principal->id)
+                ->update([
+                    'fecha_programada' => $fechaProgramada,
+                    'estado' => MantenimientoEstados::PENDIENTE,
+                    'observaciones' => trim((string) ($principal->observaciones ?? '')) === ''
+                        ? $observaciones
+                        : (string) $principal->observaciones,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        foreach ($pendientes as $duplicado) {
+            DB::table('mantenimientos')
+                ->where('id', (int) $duplicado->id)
+                ->update([
+                    'estado' => MantenimientoEstados::CANCELADO,
+                    'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' | Cancelado automaticamente por sincronizacion semestral.')"),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return $principal ? (int) $principal->id : null;
+    }
+
     public function marcarProgramadoComoHechoYGenerarSiguiente(
         int $mantenimientoId,
         string $fechaEjecucion,
@@ -587,16 +895,11 @@ class MantenimientoRepository
                 $siguiente = $siguiente->add(new DateInterval('P1D'));
             }
 
-            DB::table('mantenimientos')->insert([
-                'usuario_id' => (int) $registro->usuario_id,
-                'fecha_programada' => $siguiente->format('Y-m-d'),
-                'hora_programada' => null,
-                'estado' => MantenimientoEstados::PENDIENTE,
-                'fecha_ejecucion' => null,
-                'observaciones' => 'Generado automatico despues de marcar Hecho.',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $this->asegurarPendienteSemestral(
+                (int) $registro->usuario_id,
+                $siguiente->format('Y-m-d'),
+                'Generado automatico despues de marcar Hecho.'
+            );
 
             $this->resumenService->sincronizarResumenUsuario(
                 (int) $registro->usuario_id,
@@ -772,3 +1075,4 @@ class MantenimientoRepository
     }
 
 }
+

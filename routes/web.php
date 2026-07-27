@@ -5,7 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PanelController;
 
 Route::get('/', function () {
-    return session()->has('usuario_autenticado') || auth()->check()
+    return auth()->check()
         ? redirect()->route('panel')
         : redirect()->route('login.form');
 });
@@ -15,10 +15,12 @@ Route::get('/inicio', function () {
 });
 
 Route::get('/login', [AuthController::class, 'create'])->name('login.form');
-Route::post('/login', [AuthController::class, 'store'])->name('login.store');
+Route::post('/login', [AuthController::class, 'store'])
+    ->middleware(['throttle:login', 'throttle:login-ip'])
+    ->name('login.store');
 Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
-Route::middleware('legacy.auth')->group(function () {
+Route::middleware(['legacy.auth', 'can:access-panel'])->group(function () {
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
     Route::get('/panel/reportes', [PanelController::class, 'reportes'])->name('panel.reportes');
     Route::get('/panel/usuarios', [PanelController::class, 'usuarios'])->name('panel.usuarios');

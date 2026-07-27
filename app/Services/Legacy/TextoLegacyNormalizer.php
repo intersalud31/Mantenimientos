@@ -5,27 +5,16 @@ namespace App\Services\Legacy;
 class TextoLegacyNormalizer
 {
     private const MARCAS_SISTEMA = [
-        '| Programado desde modulo Próximos.',
         '| Programado desde módulo Próximos.',
-        '| Hecho desde modulo Programados.',
         '| Hecho desde módulo Programados.',
-        '| Revertido desde modulo Reversiones (HECHO).',
         '| Revertido desde módulo Reversiones (HECHO).',
-        '| Revertido desde modulo Reversiones (PROGRAMAR).',
         '| Revertido desde módulo Reversiones (PROGRAMAR).',
-        '| Cancelado automaticamente por normalizacion de pendientes duplicados.',
         '| Cancelado automáticamente por normalización de pendientes duplicados.',
-        'Programado desde modulo Próximos.',
         'Programado desde módulo Próximos.',
-        'Hecho desde modulo Programados.',
         'Hecho desde módulo Programados.',
-        'Revertido desde modulo Reversiones (HECHO).',
         'Revertido desde módulo Reversiones (HECHO).',
-        'Revertido desde modulo Reversiones (PROGRAMAR).',
         'Revertido desde módulo Reversiones (PROGRAMAR).',
-        'Cancelado automaticamente por normalizacion de pendientes duplicados.',
         'Cancelado automáticamente por normalización de pendientes duplicados.',
-        'Generado automatico despues de marcar Hecho.',
         'Generado automático después de marcar Hecho.',
     ];
 
@@ -101,13 +90,6 @@ class TextoLegacyNormalizer
             return $texto;
         }
 
-        if (function_exists('utf8_encode')) {
-            $corregido = utf8_encode($texto);
-            if ($corregido !== '') {
-                return $corregido;
-            }
-        }
-
         $corregido = @mb_convert_encoding($texto, 'UTF-8', 'ISO-8859-1');
         if (is_string($corregido) && $corregido !== '') {
             return $corregido;
@@ -118,9 +100,6 @@ class TextoLegacyNormalizer
 
     private function pareceMojibake(string $texto): bool
     {
-        return str_contains($texto, 'Ãƒ')
-            || str_contains($texto, 'Ã‚')
-            || str_contains($texto, 'Ã¢â‚¬')
-            || str_contains($texto, 'ï¿½');
+        return preg_match('/(?:\xC3\x83\xC6\x92|\xC3\x83\xC2\x82|\xC3\x83\xC2\xA2\xC3\xA2\xC2\x82\xC2\xAC|\xC3\xAF\xC2\xBF\xC2\xBD)/', $texto) === 1;
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Legacy\MantenimientoRepository;
+use App\Services\Legacy\PanelNavigationService;
 use App\Services\Legacy\UsuarioRepository;
 use App\Services\SemestreService;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +15,11 @@ use Illuminate\View\View;
 
 class PanelController extends Controller
 {
+    public function __construct(private readonly PanelNavigationService $navigation)
+    {
+        $this->middleware('can:access-panel');
+    }
+
     /**
      * @return View|RedirectResponse
      */
@@ -21,10 +27,10 @@ class PanelController extends Controller
     {
         $apartado = trim((string) $request->query('apartado', ''));
         if ($apartado !== '') {
-            $ruta = $this->resolverRutaLegacyApartado($apartado);
+            $ruta = $this->navigation->resolverRutaLegacyApartado($apartado);
             if ($ruta !== null) {
-                $query = $this->querySinApartado($request->query());
-                return redirect()->to($this->urlConQuery(route($ruta), $query));
+                $query = $this->navigation->querySinApartado($request->query());
+                return redirect()->to($this->navigation->urlConQuery(route($ruta), $query));
             }
         }
 
@@ -68,7 +74,6 @@ class PanelController extends Controller
 
     public function proximos(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
     {
-        $repo->normalizarPendientesDuplicados();
         $periodo = $semestreService->desdeRequest($request);
 
         $busqueda = trim((string) $request->query('q_proximos', ''));
@@ -78,13 +83,13 @@ class PanelController extends Controller
             $porPagina = 10;
         }
 
-        $total = $repo->contarPorEstado('pendiente', $busqueda, $periodo);
-        $totalPaginas = max(1, (int) ceil($total / $porPagina));
+        $total = $repo->contarProximosPorPeriodo($busqueda, $periodo);
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
         if ($pagina > $totalPaginas) {
             $pagina = $totalPaginas;
         }
 
-        $offset = ($pagina - 1) * $porPagina;
+        $offset = $this->navigation->offset($pagina, $porPagina);
 
         return view('panel.mantenimientos', [
             'usuario' => session('usuario_autenticado'),
@@ -92,7 +97,7 @@ class PanelController extends Controller
             'titulo' => 'Próximos',
             'subtitulo' => 'Mantenimientos pendientes listos para programar.',
             'periodoConsulta' => $periodo,
-            'items' => $repo->listarPorEstado('pendiente', $porPagina, $offset, $busqueda, $periodo),
+            'items' => $repo->listarProximosPorPeriodo($porPagina, $offset, $busqueda, $periodo),
             'busqueda' => $busqueda,
             'pagina' => $pagina,
             'porPagina' => $porPagina,
@@ -104,7 +109,6 @@ class PanelController extends Controller
 
     public function programados(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
     {
-        $repo->normalizarPendientesDuplicados();
         $periodo = $semestreService->desdeRequest($request);
 
         $busqueda = trim((string) $request->query('q_programados', ''));
@@ -115,12 +119,12 @@ class PanelController extends Controller
         }
 
         $total = $repo->contarPorEstado('programado', $busqueda, $periodo);
-        $totalPaginas = max(1, (int) ceil($total / $porPagina));
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
         if ($pagina > $totalPaginas) {
             $pagina = $totalPaginas;
         }
 
-        $offset = ($pagina - 1) * $porPagina;
+        $offset = $this->navigation->offset($pagina, $porPagina);
 
         return view('panel.mantenimientos', [
             'usuario' => session('usuario_autenticado'),
@@ -149,12 +153,12 @@ class PanelController extends Controller
         }
 
         $total = $repo->contarPorEstado('realizado', $busqueda, $periodo, true);
-        $totalPaginas = max(1, (int) ceil($total / $porPagina));
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
         if ($pagina > $totalPaginas) {
             $pagina = $totalPaginas;
         }
 
-        $offset = ($pagina - 1) * $porPagina;
+        $offset = $this->navigation->offset($pagina, $porPagina);
 
         return view('panel.hechos', [
             'usuario' => session('usuario_autenticado'),
@@ -201,16 +205,14 @@ class PanelController extends Controller
 
     public function usuarios(Request $request, UsuarioRepository $repo): View
     {
-        $areaId = (int) $request->query('area_id', 0);
         $busqueda = trim((string) $request->query('q_usuarios', ''));
         $editarUsuarioId = (int) $request->query('editar_usuario_id', 0);
         $usuarioEdicion = $editarUsuarioId > 0 ? $repo->obtenerPorId($editarUsuarioId) : null;
 
         return view('panel.usuarios', [
             'usuario' => session('usuario_autenticado'),
-            'usuarios' => $repo->listarTodos($areaId > 0 ? $areaId : null, $busqueda),
+            'usuarios' => $repo->listarTodos($busqueda),
             'areas' => $repo->listarAreasActivas(),
-            'areaId' => $areaId,
             'busqueda' => $busqueda,
             'nuevoUsuario' => (int) $request->query('nuevo_usuario', 0) === 1,
             'usuarioEdicion' => $usuarioEdicion,
@@ -294,7 +296,6 @@ class PanelController extends Controller
         return $this->redirectConContexto($request, 'panel.usuarios', [
             'area_id' => (int) ($data['filtro_area_id'] ?? 0),
             'q_usuarios' => (string) ($data['filtro_q_usuarios'] ?? ''),
-            'editar_usuario_id' => (int) ($data['editar_usuario_id'] ?? 0),
         ])->with(
             $ok ? 'panel_message' : 'panel_error',
             $ok ? 'Usuario actualizado correctamente.' : 'No se pudo actualizar el usuario.'
@@ -336,6 +337,11 @@ class PanelController extends Controller
         ];
 
         $fecha = \DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_programada']);
+        $hoy = new \DateTimeImmutable('today');
+        if ($fecha === false || $fecha < $hoy) {
+            return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada no puede ser anterior a hoy.');
+        }
+
         $diaSemana = $fecha ? (int) $fecha->format('N') : 0;
         if ($diaSemana < 1 || $diaSemana > 5) {
             return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'Debes seleccionar una fecha válida de lunes a viernes.');
@@ -366,12 +372,6 @@ class PanelController extends Controller
                 ? (int) $request->input('programados_por_pagina', 10)
                 : 10,
         ];
-
-        $fecha = \DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_ejecucion']);
-        $hoy = new \DateTimeImmutable('today');
-        if ($fecha === false || $fecha > $hoy) {
-            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecución no puede ser posterior a hoy.');
-        }
 
         $tecnico = $repo->obtenerNombreTecnicoPorId((int) $data['tecnico_id']);
         if ($tecnico === null) {
@@ -502,52 +502,7 @@ class PanelController extends Controller
         return true;
     }
 
-    private function resolverRutaLegacyApartado(string $apartado): ?string
-    {
-        // Compatibilidad con el panel legacy que navegaba por ?apartado=...
-        // calculadora, resumen y notificaciones terminan en reportes; reversiones en configuracion.
-        $apartadoNormalizado = strtolower(trim($apartado));
-
-        switch ($apartadoNormalizado) {
-            case 'calculadora':
-            case 'resumen':
-            case 'notificaciones':
-            case 'reportes':
-                return 'panel.reportes';
-            case 'reversiones':
-            case 'configuracion':
-                return 'panel.configuracion';
-            case 'usuarios':
-                return 'panel.usuarios';
-            case 'proximos':
-                return 'panel.proximos';
-            case 'programados':
-                return 'panel.programados';
-            case 'hechos':
-                return 'panel.hechos';
-            default:
-                return null;
-        }
-    }
-
-    private function querySinApartado(array $query): array
-    {
-        unset($query['apartado']);
-
-        return array_filter(
-            $query,
-            static fn ($valor) => $valor !== null && $valor !== ''
-        );
-    }
-
-    private function urlConQuery(string $url, array $query): string
-    {
-        if ($query === []) {
-            return $url;
-        }
-
-        return $url . (str_contains($url, '?') ? '&' : '?') . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
-    }
 }
+
 
 

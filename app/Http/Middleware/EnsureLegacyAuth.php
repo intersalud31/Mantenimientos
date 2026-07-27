@@ -26,9 +26,8 @@ class EnsureLegacyAuth
         }
 
         if ($authUser !== null) {
-            session([
-                'usuario_autenticado' => LegacyAuthBridge::payloadFromUser($authUser),
-            ]);
+            $payload = LegacyAuthBridge::payloadFromUser($authUser);
+            session(['usuario_autenticado' => $payload]);
 
             return $next($request);
         }

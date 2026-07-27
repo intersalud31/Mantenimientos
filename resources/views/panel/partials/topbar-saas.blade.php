@@ -62,9 +62,9 @@
     ];
 @endphp
 
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+@include('panel.partials.panel-assets')
 
-<header class="topbar-shell topbar-shell--stacked" x-data="{ openMenu: null }" @keydown.escape.window="openMenu = null">
+<header class="topbar-shell topbar-shell--stacked" data-topbar>
     <div class="topbar-inner">
         <div class="brand-block">
             <div class="brand-mark">TI</div>
@@ -77,21 +77,16 @@
         <nav class="topbar-menu" aria-label="Navegación principal">
             @foreach ($menus as $menu)
                 @php
-                    $menuKey = 'menu-' . $loop->index;
                     $menuActive = collect($menu['items'])->contains(static function ($item) use ($currentRoute) {
                         return !empty($item['route']) && $currentRoute === $item['route'];
                     });
                 @endphp
-                <div
-                    class="menu-group"
-                    @mouseenter="openMenu = '{{ $menuKey }}'"
-                    @mouseleave="openMenu = null"
-                >
+                <div class="menu-group" data-topbar-menu>
                     <button
                         type="button"
                         class="menu-trigger {{ $menuActive ? 'menu-trigger--active' : '' }}"
-                        @click="openMenu === '{{ $menuKey }}' ? openMenu = null : openMenu = '{{ $menuKey }}'"
-                        :aria-expanded="openMenu === '{{ $menuKey }}'"
+                        data-topbar-toggle
+                        aria-expanded="false"
                         aria-haspopup="true"
                     >
                         <span class="menu-trigger-label">{{ $menu['label'] }}</span>
@@ -100,10 +95,8 @@
 
                     <div
                         class="dropdown-panel {{ $loop->last ? 'dropdown-panel-right' : '' }}"
-                        x-cloak
-                        x-show="openMenu === '{{ $menuKey }}'"
-                        x-transition.opacity.scale.95.origin.top.left
-                        @click.stop
+                        data-topbar-panel
+                        hidden
                     >
                         @foreach ($menu['items'] as $item)
                             @if (!empty($item['route']) && Route::has($item['route']))
@@ -129,7 +122,7 @@
             <span class="chip chip--neutral">{{ $periodoEtiqueta }}</span>
             @if ($showSearch && $searchAction !== '')
                 <form class="topbar-search" method="GET" action="{{ $searchAction }}">
-                    <span class="search-icon">⌕</span>
+                    <span class="search-icon" aria-hidden="true">⌕</span>
                     <input type="text" name="{{ $searchName }}" value="{{ $searchValue }}" placeholder="{{ $searchPlaceholder }}" aria-label="{{ $searchLabel }}">
                     @foreach ($periodoQuery as $clave => $valor)
                         <input type="hidden" name="{{ $clave }}" value="{{ $valor }}">

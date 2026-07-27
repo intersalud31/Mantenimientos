@@ -62,47 +62,60 @@ class UsuarioMantenimientoResumenService
     private function calcularResumenUsuario(int $usuarioId, ?array $periodo = null): array
     {
         $periodo = $periodo ?? $this->semestreService->actual();
-        $inicio = (string) ($periodo['inicio'] ?? $this->semestreService->actual()['inicio']);
-        $fin = (string) ($periodo['fin'] ?? $this->semestreService->actual()['fin']);
-
-        $ultimaFechaEjecucion = DB::table('mantenimientos')
-            ->where('usuario_id', $usuarioId)
-            ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnHechos())
-            ->whereNotNull('fecha_ejecucion')
-            ->whereBetween('fecha_ejecucion', [$inicio, $fin])
-            ->max('fecha_ejecucion');
-
-        $ultimaFechaMantenimiento = DB::table('mantenimientos')
-            ->where('usuario_id', $usuarioId)
-            ->whereRaw('COALESCE(fecha_ejecucion, fecha_programada) IS NOT NULL')
-            ->whereRaw('COALESCE(fecha_ejecucion, fecha_programada) BETWEEN ? AND ?', [$inicio, $fin])
-            ->max(DB::raw('COALESCE(fecha_ejecucion, fecha_programada)'));
-
-        $proximaFechaProgramada = DB::table('mantenimientos')
-            ->where('usuario_id', $usuarioId)
-            ->whereIn('estado', array_merge(MantenimientoEstados::estadosVisiblesEnProximos(), MantenimientoEstados::estadosVisiblesEnProgramados()))
-            ->whereNotNull('fecha_programada')
-            ->whereBetween('fecha_programada', [$inicio, $fin])
-            ->min('fecha_programada');
+        $usuario = DB::table('usuarios')
+            ->select('id', 'tipo_equipo', 'created_at')
+            ->where('id', $usuarioId)
+            ->first();
 
         $ultimoMantenimiento = DB::table('mantenimientos')
             ->select('id', 'estado', 'fecha_programada', 'fecha_ejecucion', 'created_at')
             ->where('usuario_id', $usuarioId)
-            ->whereRaw('COALESCE(fecha_ejecucion, fecha_programada, created_at) BETWEEN ? AND ?', [$inicio . ' 00:00:00', $fin . ' 23:59:59'])
+            ->whereNotIn('estado', [MantenimientoEstados::CANCELADO])
             ->orderByRaw('COALESCE(fecha_ejecucion, fecha_programada, created_at) DESC')
             ->orderByDesc('id')
             ->first();
 
-        $ultimaFechaEjecucion = $this->normalizarFecha($ultimaFechaEjecucion);
-        $ultimaFechaMantenimiento = $this->normalizarFecha($ultimaFechaMantenimiento);
+        $ultimoRealizado = DB::table('mantenimientos')
+            ->select('id', 'estado', 'fecha_programada', 'fecha_ejecucion', 'created_at')
+            ->where('usuario_id', $usuarioId)
+            ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnHechos())
+            ->orderByRaw('COALESCE(fecha_ejecucion, fecha_programada, created_at) DESC')
+            ->orderByDesc('id')
+            ->first();
+
+        $ultimaFechaMantenimiento = null;
+        if ($ultimoRealizado) {
+            $ultimaFechaMantenimiento = $this->normalizarFecha(
+                $ultimoRealizado->fecha_ejecucion
+                ?? $ultimoRealizado->fecha_programada
+            );
+        }
+
+        $ultimaFechaEjecucion = $this->normalizarFecha(
+            $ultimoRealizado?->fecha_ejecucion
+            ?? $ultimoRealizado?->fecha_programada
+        );
         $proximaFechaMantenimiento = null;
 
-        if ($this->esFechaValida($proximaFechaProgramada)) {
-            $proximaFechaMantenimiento = $this->normalizarFecha($proximaFechaProgramada);
-        } elseif ($this->esFechaValida($ultimaFechaEjecucion)) {
-            $proximaFechaMantenimiento = $this->calcularProximaFechaDesde($ultimaFechaEjecucion);
-        } elseif ($this->esFechaValida($ultimaFechaMantenimiento)) {
-            $proximaFechaMantenimiento = $this->calcularProximaFechaDesde($ultimaFechaMantenimiento);
+        if ($ultimoMantenimiento) {
+            $estadoUltimo = MantenimientoEstados::normalizar((string) $ultimoMantenimiento->estado);
+            $fechaReferencia = trim((string) ($ultimoMantenimiento->fecha_programada ?? $ultimoMantenimiento->fecha_ejecucion ?? ''));
+
+            if (in_array($estadoUltimo, MantenimientoEstados::estadosVisiblesEnProgramados(), true) || $estadoUltimo === MantenimientoEstados::PENDIENTE) {
+                $proximaFechaMantenimiento = $this->normalizarFecha($fechaReferencia);
+            } elseif ($this->esFechaValida($fechaReferencia)) {
+                $proximaFechaMantenimiento = $this->calcularProximaFechaDesde($fechaReferencia, 6);
+            }
+        }
+
+        if ($proximaFechaMantenimiento === null && $usuario) {
+            $fechaBase = $usuario->created_at ?? null;
+            $tipoEquipo = trim((string) ($usuario->tipo_equipo ?? 'normal'));
+
+            if ($this->esFechaValida($fechaBase)) {
+                $meses = $tipoEquipo === 'nuevo' ? 12 : 6;
+                $proximaFechaMantenimiento = $this->calcularProximaFechaDesde((string) $fechaBase, $meses);
+            }
         }
 
         return [
@@ -117,13 +130,14 @@ class UsuarioMantenimientoResumenService
         ];
     }
 
-    private function calcularProximaFechaDesde(string $fechaBase): ?string
+    private function calcularProximaFechaDesde(string $fechaBase, int $meses = 6): ?string
     {
         if (!$this->esFechaValida($fechaBase)) {
             return null;
         }
 
-        $fecha = (new DateTimeImmutable($fechaBase))->add(new DateInterval('P6M'));
+        $intervalo = $meses >= 12 ? 'P1Y' : 'P' . max(1, $meses) . 'M';
+        $fecha = (new DateTimeImmutable($fechaBase))->add(new DateInterval($intervalo));
 
         while ((int) $fecha->format('N') >= 6) {
             $fecha = $fecha->add(new DateInterval('P1D'));

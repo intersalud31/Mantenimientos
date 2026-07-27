@@ -1,8 +1,8 @@
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
-
     body.dashboard-modern {
-        font-family: Inter, Manrope, Segoe UI, sans-serif;
+        font-family: var(--panel-font-base);
+        line-height: 1.5;
+        font-weight: 400;
         background:
             radial-gradient(circle at top left, rgba(37, 99, 235, .04), transparent 30%),
             radial-gradient(circle at top right, rgba(16, 185, 129, .03), transparent 24%),
@@ -12,14 +12,14 @@
 
     body.dashboard-modern .wrap {
         max-width: 1380px;
-        padding: 18px 20px 44px;
+        padding: 22px 20px 48px;
     }
 
     body.dashboard-modern .card {
         background: rgba(255, 255, 255, .98);
-        border: 1px solid rgba(148, 163, 184, .18);
-        border-radius: 24px;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, .06);
+        border: 1px solid #dfe7f2;
+        border-radius: 20px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .055);
         padding: 22px;
         margin-bottom: 18px;
     }
@@ -106,7 +106,7 @@
     body.dashboard-modern .chip {
         padding: 8px 11px;
         background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #dfe7f2;
         color: #475569;
         font-size: .78rem;
     }
@@ -115,8 +115,8 @@
         padding: 16px;
         border-radius: 20px;
         background: #fff;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, .05);
+        border: 1px solid #dfe7f2;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, .04);
         margin-top: 16px;
     }
 
@@ -144,7 +144,7 @@
         box-sizing: border-box;
         padding: 11px 14px;
         border-radius: 14px;
-        border: 1px solid #dbe4f0;
+        border: 1px solid #dfe7f2;
         background: #fff;
         color: #0f172a;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
@@ -186,7 +186,7 @@
     body.dashboard-modern .btn-ghost {
         background: #fff;
         color: #334155;
-        border-color: #dbe4f0;
+        border-color: #dfe7f2;
     }
 
     body.dashboard-modern .btn.secondary,
@@ -194,7 +194,7 @@
     body.dashboard-modern .btn-muted {
         background: #fff;
         color: #2563eb;
-        border: 1px solid #dbe4f0;
+        border: 1px solid #dfe7f2;
         box-shadow: none;
     }
 
@@ -216,7 +216,7 @@
         padding: 14px 16px;
         border-radius: 18px;
         background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #dfe7f2;
     }
 
     body.dashboard-modern .summary-pill span {
@@ -239,7 +239,7 @@
         padding: 0;
         overflow: hidden;
         border-radius: 20px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #dfe7f2;
     }
 
     body.dashboard-modern .tabla-premium {
@@ -291,7 +291,7 @@
     body.dashboard-modern .texto-principal-tabla {
         display: block;
         color: #0f172a;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     body.dashboard-modern .subline {
@@ -303,7 +303,7 @@
     body.dashboard-modern .codigo-activo,
     body.dashboard-modern .fecha-destacada {
         color: #0f172a;
-        font-weight: 700;
+        font-weight: 600;
     }
 
     body.dashboard-modern .fecha-destacada {
@@ -433,5 +433,41 @@
         border: 1px solid #e2e8f0;
         background: #fff;
         color: #0f172a;
+    }
+
+    body.dashboard-modern .maintenance-action-summary {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    body.dashboard-modern .maintenance-modal-form {
+        display: grid;
+        gap: 14px;
+    }
+
+    body.dashboard-modern .maintenance-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    body.dashboard-modern .maintenance-modal-grid .maintenance-modal-full {
+        grid-column: 1 / -1;
+    }
+
+    body.dashboard-modern .maintenance-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    @media (max-width: 720px) {
+        body.dashboard-modern .maintenance-modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        body.dashboard-modern .maintenance-modal-grid .maintenance-modal-full {
+            grid-column: 1 / -1;
+        }
     }
 </style>
