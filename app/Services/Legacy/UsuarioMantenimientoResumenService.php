@@ -60,6 +60,78 @@ class UsuarioMantenimientoResumenService
         return $this->sincronizarResumenUsuario((int) $mantenimiento->usuario_id, $periodo);
     }
 
+    public function auditarResumenUsuario(int $usuarioId, ?array $periodo = null): array
+    {
+        if ($usuarioId <= 0) {
+            return [
+                'ok' => false,
+                'coincide' => false,
+                'cambios' => [],
+                'actual' => [],
+                'esperado' => [],
+            ];
+        }
+
+        $actual = DB::table('usuarios')
+            ->select(
+                'id',
+                'ultima_fecha_ejecucion',
+                'ultima_fecha_mantenimiento',
+                'proxima_fecha_mantenimiento',
+                'ultimo_mantenimiento_id',
+                'ultimo_mantenimiento_estado',
+                'mantenimiento_resumen_actualizado_at'
+            )
+            ->where('id', $usuarioId)
+            ->first();
+
+        if (!$actual) {
+            return [
+                'ok' => false,
+                'coincide' => false,
+                'cambios' => [],
+                'actual' => [],
+                'esperado' => [],
+            ];
+        }
+
+        $esperado = $this->calcularResumenUsuario($usuarioId, $periodo);
+        $campos = [
+            'ultima_fecha_ejecucion',
+            'ultima_fecha_mantenimiento',
+            'proxima_fecha_mantenimiento',
+            'ultimo_mantenimiento_id',
+            'ultimo_mantenimiento_estado',
+        ];
+
+        $actualNormalizado = [];
+        $esperadoNormalizado = [];
+        $cambios = [];
+
+        foreach ($campos as $campo) {
+            $actualValor = $actual->{$campo} ?? null;
+            $esperadoValor = $esperado[$campo] ?? null;
+
+            $actualNormalizado[$campo] = $actualValor;
+            $esperadoNormalizado[$campo] = $esperadoValor;
+
+            if ((string) ($actualValor ?? '') !== (string) ($esperadoValor ?? '')) {
+                $cambios[$campo] = [
+                    'actual' => $actualValor,
+                    'esperado' => $esperadoValor,
+                ];
+            }
+        }
+
+        return [
+            'ok' => true,
+            'coincide' => $cambios === [],
+            'cambios' => $cambios,
+            'actual' => $actualNormalizado,
+            'esperado' => $esperadoNormalizado,
+        ];
+    }
+
     private function calcularResumenUsuario(int $usuarioId, ?array $periodo = null): array
     {
         $periodo = $periodo ?? $this->semestreService->actual();

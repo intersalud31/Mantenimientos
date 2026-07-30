@@ -65,7 +65,7 @@ class PanelActionFlowTest extends TestCase
 
         $response = $this->post(route('panel.programados.hecho'), [
             'mantenimiento_id' => 123,
-            'fecha_ejecucion' => '2026-01-15',
+            'fecha_ejecucion' => now()->toDateString(),
             'tecnico_id' => 7,
             'observaciones' => 'Prueba de ejecucion',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
@@ -591,6 +591,77 @@ class PanelActionFlowTest extends TestCase
         $response->assertSessionHas('panel_error', 'La fecha programada no puede ser anterior a hoy.');
     }
 
+    public function test_no_permite_marcar_como_hecho_con_fecha_pasada(): void
+    {
+        $this->actingAs($this->makeLegacyUser(1008, 'Admin Hecho Fecha', 'hecho-fecha@example.com', 'admin'));
+        Storage::fake('public');
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaPasada = now()->subDay()->format('Y-m-d');
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Fecha Pasada',
+            'codigo_activo' => 729002,
+            'serial_equipo' => 'SER-HECHO-PAST',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Programado de prueba con fecha pasada.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $tecnicoId = DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Fecha Pasada',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_ejecucion' => $fechaPasada,
+            'tecnico_id' => $tecnicoId,
+            'observaciones' => 'No debe guardarse.',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
+            'q_programados' => 'Usuario Fecha Pasada',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Fecha Pasada',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'La fecha de ejecucion no puede ser anterior a hoy.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+        ]);
+    }
+
     public function test_busqueda_de_proximos_encuentra_area_caas(): void
     {
         $this->actingAs($this->makeLegacyUser(1007, 'Admin Proximos Area', 'proximos-area@example.com', 'admin'));
@@ -663,7 +734,7 @@ class PanelActionFlowTest extends TestCase
 
         $periodo = app(SemestreService::class)->actual();
         $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
-        $fechaEjecucion = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->subDays(9)->format('Y-m-d');
+        $fechaEjecucion = now()->toDateString();
 
         $usuarioId = DB::table('usuarios')->insertGetId([
             'area_id' => null,

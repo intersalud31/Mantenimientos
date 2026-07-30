@@ -396,6 +396,14 @@ class PanelController extends Controller
 
     public function marcarProgramadoComoHecho(Request $request, MantenimientoRepository $repo): RedirectResponse
     {
+        $contexto = [
+            'q_programados' => (string) $request->input('q_programados', ''),
+            'programados_pagina' => max(1, (int) $request->input('programados_pagina', 1)),
+            'programados_por_pagina' => in_array((int) $request->input('programados_por_pagina', 10), [10, 25, 50], true)
+                ? (int) $request->input('programados_por_pagina', 10)
+                : 10,
+        ];
+
         $data = $request->validate([
             'mantenimiento_id' => ['required', 'integer', 'min:1'],
             'fecha_ejecucion' => ['required', 'date_format:Y-m-d'],
@@ -404,13 +412,11 @@ class PanelController extends Controller
             'constancia_pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:5120'],
         ]);
 
-        $contexto = [
-            'q_programados' => (string) $request->input('q_programados', ''),
-            'programados_pagina' => max(1, (int) $request->input('programados_pagina', 1)),
-            'programados_por_pagina' => in_array((int) $request->input('programados_por_pagina', 10), [10, 25, 50], true)
-                ? (int) $request->input('programados_por_pagina', 10)
-                : 10,
-        ];
+        $fechaEjecucion = \DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_ejecucion']);
+        $hoy = new \DateTimeImmutable('today');
+        if ($fechaEjecucion === false || $fechaEjecucion < $hoy) {
+            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion no puede ser anterior a hoy.');
+        }
 
         $tecnico = $repo->obtenerNombreTecnicoPorId((int) $data['tecnico_id']);
         if ($tecnico === null) {

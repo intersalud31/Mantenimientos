@@ -372,12 +372,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Date(year, month, day);
         };
 
+        const maintenanceDateMin = parseDateValue(dateInput?.dataset.maintenanceDateMin || '');
+        const maintenanceDateMax = parseDateValue(dateInput?.dataset.maintenanceDateMax || '');
+
         const formatDateValue = (date) => {
             const local = normalizeDate(date);
             const year = local.getFullYear();
             const month = String(local.getMonth() + 1).padStart(2, '0');
             const day = String(local.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        };
+
+        const isDateBeforeMin = (date) => maintenanceDateMin !== null && date.getTime() < maintenanceDateMin.getTime();
+
+        const isDateAfterMax = (date) => maintenanceDateMax !== null && date.getTime() > maintenanceDateMax.getTime();
+
+        const clampDateValue = (value) => {
+            const parsed = parseDateValue(value);
+            if (!parsed) {
+                return value;
+            }
+
+            let normalized = normalizeDate(parsed);
+
+            if (isDateBeforeMin(normalized)) {
+                normalized = normalizeDate(maintenanceDateMin);
+            }
+
+            if (isDateAfterMax(normalized)) {
+                normalized = normalizeDate(maintenanceDateMax);
+            }
+
+            return formatDateValue(normalized);
         };
 
         const formatDateLongEs = (date) => new Intl.DateTimeFormat('es-CO', {
@@ -472,10 +498,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const selected = parseDateValue(value);
+            if (selected && (isDateBeforeMin(selected) || isDateAfterMax(selected))) {
+                return;
+            }
+
             dateInput.value = value;
             syncDateTrigger();
-
-            const selected = parseDateValue(value);
             if (selected && !keepView) {
                 currentViewDate = normalizeDate(selected);
                 currentViewDate.setDate(1);
@@ -533,6 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.classList.add('maintenance-date-picker-day--outside');
                 }
 
+                if (isDateBeforeMin(current) || isDateAfterMax(current)) {
+                    button.disabled = true;
+                    button.classList.add('maintenance-date-picker-day--disabled');
+                    button.setAttribute('aria-disabled', 'true');
+                }
+
                 if (current.getTime() === today.getTime()) {
                     button.classList.add('maintenance-date-picker-day--today');
                 }
@@ -573,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.requestAnimationFrame(() => {
                 positionDatePicker();
-                const selectedButton = dateGrid.querySelector('.maintenance-date-picker-day--selected') || dateGrid.querySelector('.maintenance-date-picker-day');
+                const selectedButton = dateGrid.querySelector('.maintenance-date-picker-day--selected') || dateGrid.querySelector('.maintenance-date-picker-day:not([disabled])');
                 if (selectedButton) {
                     selectedButton.focus();
                 }
@@ -581,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const moveGridFocus = (activeButton, offset) => {
-            const buttons = Array.from(dateGrid.querySelectorAll('.maintenance-date-picker-day'));
+            const buttons = Array.from(dateGrid.querySelectorAll('.maintenance-date-picker-day:not([disabled])'));
             const currentIndex = buttons.indexOf(activeButton);
             if (currentIndex === -1) {
                 return;
@@ -768,6 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const suggestedDate = button.dataset.maintenanceSuggestedDate || '';
             const programmedDate = button.dataset.maintenanceProgrammedDate || '';
             const target = button.dataset.maintenanceTarget || '';
+            const todayValue = formatDateValue(new Date());
 
             if (idInput) {
                 idInput.value = mantenimientoId;
@@ -803,11 +839,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (hasMaintenanceDatePicker && dateInput) {
                 if (target === 'programar' && !shouldPreserveMaintenanceDate) {
-                    const initialDate = suggestedDate || dateInput.value || dateInput.defaultValue || formatDateValue(new Date());
-                    dateInput.value = initialDate;
+                    dateInput.value = clampDateValue(suggestedDate || dateInput.value || dateInput.defaultValue || todayValue);
                 } else if (target === 'hecho') {
-                    const initialDate = programmedDate || suggestedDate || dateInput.value || dateInput.defaultValue || formatDateValue(new Date());
-                    dateInput.value = initialDate;
+                    dateInput.value = clampDateValue(programmedDate || suggestedDate || dateInput.value || dateInput.defaultValue || todayValue);
                 }
             }
 
