@@ -119,7 +119,6 @@
         </nav>
 
         <div class="topbar-utility">
-            <span class="chip chip--neutral">{{ $periodoEtiqueta }}</span>
             @if ($showSearch && $searchAction !== '')
                 <form class="topbar-search" method="GET" action="{{ $searchAction }}">
                     <span class="search-icon" aria-hidden="true">⌕</span>

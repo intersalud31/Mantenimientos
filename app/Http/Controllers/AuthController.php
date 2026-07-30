@@ -38,13 +38,20 @@ class AuthController extends Controller
         } catch (QueryException) {
             return back()
                 ->withInput($request->only('correo'))
-                ->with('error_login', 'La base de datos no respondio. Reinicia MySQL en XAMPP e intenta nuevamente.');
+                ->with('error_login', 'La base de datos no respondió. Reinicia MySQL en XAMPP e intenta nuevamente.');
         }
 
-        if (!$usuario || (int) $usuario->estado !== 1 || !Hash::check($data['password'], (string) $usuario->password_hash)) {
-            return back()
-                ->withInput($request->only('correo'))
-                ->with('error_login', 'Credenciales inválidas o usuario inactivo.');
+        if (!$usuario || (int) $usuario->estado !== 1) {
+            return $this->falloLogin($request);
+        }
+
+        $passwordHash = (string) ($usuario->password_hash ?? '');
+
+        if (
+            !$this->esHashSeguro($passwordHash)
+            || !Hash::check((string) $data['password'], $passwordHash)
+        ) {
+            return $this->falloLogin($request);
         }
 
         if (!Auth::loginUsingId((int) $usuario->id)) {
@@ -77,5 +84,17 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login.form');
+    }
+
+    private function falloLogin(Request $request): RedirectResponse
+    {
+        return back()
+            ->withInput($request->only('correo'))
+            ->with('error_login', 'Credenciales inválidas o usuario inactivo.');
+    }
+
+    private function esHashSeguro(string $passwordHash): bool
+    {
+        return password_get_info($passwordHash)['algo'] !== 0;
     }
 }

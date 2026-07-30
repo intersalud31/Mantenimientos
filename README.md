@@ -1,64 +1,312 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Mantenimientos Laravel
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicacion web en Laravel para gestionar mantenimientos de equipos con enfoque legacy. El sistema autentica usuarios desde la tabla `usuarios_sistema` y administra el ciclo de mantenimiento desde un panel privado con secciones de reportes, proximos, programados, hechos, usuarios y configuracion.
 
-## About Laravel
+## Resumen del proyecto
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Este proyecto no usa el modelo `users` de Laravel para iniciar sesion en produccion. La autenticacion real se hace contra una base legacy y el panel opera sobre tablas ya existentes del sistema:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- `usuarios_sistema`: credenciales y roles de acceso.
+- `usuarios`: inventario de equipos o activos asociados a mantenimiento.
+- `mantenimientos`: historial y estado de cada mantenimiento.
+- `areas`: catalogo de areas.
+- `tecnicos`: responsables o tecnicos asignados.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+La aplicacion tambien conserva compatibilidad con rutas legacy mediante `?apartado=...`.
 
-## Learning Laravel
+## Requisitos
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP `^8.1`
+- Composer
+- Node.js y npm
+- MySQL o MariaDB
+- Extensiones PHP comunes para Laravel 11
+- XAMPP o un entorno similar, si vas a ejecutarlo en local
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Stack
 
-## Laravel Sponsors
+- Laravel `^11.0`
+- Sanctum `^4.0`
+- PHPUnit `^10.5`
+- Laravel Mix `^6`
+- Guzzle `^7`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+## Funcionalidades principales
 
-### Premium Partners
+- Login y logout con bloqueo por intentos.
+- Acceso al panel solo para usuarios con rol admin.
+- Vista de reportes semestrales.
+- Lista de proximos mantenimientos con paginacion y filtros.
+- Lista de mantenimientos programados.
+- Lista de mantenimientos realizados.
+- CRUD de usuarios del inventario.
+- Registro de tecnicos.
+- Carga y visualizacion de PDF de evidencia.
+- Reversion de ultimas acciones por codigo activo.
+- Compatibilidad con navegacion legacy por `apartado`.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+## Instalacion
 
-## Contributing
+1. Clona el repositorio.
+2. Instala dependencias de PHP:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```powershell
+composer install
+```
 
-## Code of Conduct
+3. Instala dependencias de frontend:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```powershell
+npm install
+```
 
-## Security Vulnerabilities
+4. Crea el archivo de entorno:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```powershell
+copy .env.example .env
+```
+
+5. Genera la clave de la aplicacion:
+
+```powershell
+php artisan key:generate
+```
+
+6. Configura la conexion a base de datos en `.env`.
+7. Ejecuta migraciones:
+
+```powershell
+php artisan migrate
+```
+
+8. Crea el enlace publico para archivos de evidencia:
+
+```powershell
+php artisan storage:link
+```
+
+9. Compila los assets:
+
+```powershell
+npm run dev
+```
+
+10. Inicia la aplicacion:
+
+```powershell
+php artisan serve
+```
+
+## Configuracion `.env`
+
+Valores importantes a revisar:
+
+```env
+APP_NAME=Mantenimientos
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=tu_base_de_datos
+DB_USERNAME=tu_usuario
+DB_PASSWORD=tu_password
+```
+
+## Dependencias de PHP
+
+Definidas en `composer.json`:
+
+- `laravel/framework`
+- `laravel/sanctum`
+- `laravel/tinker`
+- `guzzlehttp/guzzle`
+
+Dependencias de desarrollo:
+
+- `fakerphp/faker`
+- `laravel/sail`
+- `mockery/mockery`
+- `nunomaduro/collision`
+- `phpunit/phpunit`
+- `spatie/laravel-ignition`
+
+## Dependencias de frontend
+
+Definidas en `package.json`:
+
+- `axios`
+- `laravel-mix`
+- `lodash`
+- `postcss`
+
+Scripts utiles:
+
+```powershell
+npm run dev
+npm run watch
+npm run prod
+```
+
+## Autenticacion y permisos
+
+- El login consulta `usuarios_sistema`.
+- El password se valida contra `password_hash`.
+- El usuario debe tener `estado = 1`.
+- El acceso al panel requiere un rol admin.
+- Roles aceptados para entrar al panel:
+  - `admin`
+  - `administrador`
+  - `superadmin`
+
+## Modulos del panel
+
+### Login
+
+- Ruta: `/login`
+- Login con correo y contraseña.
+- Limite de intentos por correo e IP.
+
+### Panel principal
+
+- Ruta: `/panel`
+- Redirecciona a las vistas del panel segun `apartado` cuando aplique.
+
+### Reportes
+
+- Ruta: `/panel/reportes`
+- Resume el estado semestral de mantenimientos.
+
+### Proximos
+
+- Ruta: `/panel/proximos`
+- Permite listar y programar mantenimientos proximos.
+- Solo acepta fechas de lunes a viernes al programar.
+
+### Programados
+
+- Ruta: `/panel/programados`
+- Permite marcar un mantenimiento como realizado.
+- Sube constancia en PDF.
+- Genera el siguiente mantenimiento automaticamente.
+
+### Hechos
+
+- Ruta: `/panel/hechos`
+- Muestra los mantenimientos ejecutados y sus evidencias.
+
+### Usuarios
+
+- Ruta: `/panel/usuarios`
+- Permite crear, editar, activar o desactivar y eliminar usuarios del inventario.
+
+### Configuracion
+
+- Ruta: `/panel/configuracion`
+- Permite registrar tecnicos y revertir acciones recientes por codigo activo.
+
+## Rutas principales
+
+```php
+/          -> redirige a login o panel
+/login     -> formulario de autenticacion
+/logout    -> cierre de sesion
+/panel     -> panel principal
+/panel/reportes
+/panel/usuarios
+/panel/configuracion
+/panel/proximos
+/panel/programados
+/panel/hechos
+/panel/evidencia/{mantenimientoId}
+```
+
+## Base de datos legacy
+
+La aplicacion asume que ya existen las tablas principales del sistema legacy. En particular:
+
+- `usuarios_sistema` para autenticacion.
+- `usuarios` para activos/equipos.
+- `mantenimientos` para el historial.
+- `areas` para catalogacion.
+- `tecnicos` para responsables.
+
+Las migraciones incluidas aqui agregan compatibilidad y campos nuevos, pero no reconstruyen toda la base legacy desde cero.
+
+### Campos relevantes esperados
+
+En `usuarios_sistema`:
+
+- `id`
+- `nombre`
+- `correo`
+- `password_hash`
+- `rol`
+- `estado`
+- `ultimo_acceso`
+
+En `usuarios` y `mantenimientos` se usan campos como:
+
+- `codigo_activo`
+- `serial_equipo`
+- `tipo_equipo`
+- `area_id`
+- `estado_usuario`
+- `proxima_fecha_mantenimiento`
+- `ultima_fecha_mantenimiento`
+- `ultima_fecha_ejecucion`
+- `ultimo_mantenimiento_id`
+- `ultimo_mantenimiento_estado`
+- `fecha_programada`
+- `fecha_ejecucion`
+- `tecnico_responsable`
+- `evidencia_pdf`
+
+## Pruebas
+
+Ejecutar la suite:
+
+```powershell
+php artisan test
+```
+
+Las pruebas actuales cubren, entre otras cosas:
+
+- autorizacion del panel
+- flujo de programados a hechos
+- descarga y visualizacion de evidencia PDF
+- CRUD de usuarios
+- reversiones por codigo activo
+- busquedas por serial, area y codigo activo
+
+## Notas operativas
+
+- Si el archivo PDF de evidencia se guarda en `storage/app/public`, recuerda ejecutar `php artisan storage:link`.
+- El modulo de reportes usa periodos semestrales por defecto.
+- La busqueda del panel esta pensada para datos legacy y normaliza texto cuando hace falta.
+- Si cambias vistas o assets, recompila con `npm run dev` o `npm run prod`.
+
+## Estructura general
+
+- `app/Http/Controllers`: controladores del login y panel.
+- `app/Services/Legacy`: repositorios y reglas de negocio sobre tablas legacy.
+- `app/Services/SemestreService.php`: calculo de periodos semestrales.
+- `resources/views/panel`: vistas del panel.
+- `routes/web.php`: rutas publicas y protegidas.
+- `tests/Feature`: pruebas de integracion del panel.
+
+## Comandos utiles
+
+```powershell
+php artisan route:list
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
+php artisan test
+```
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT.

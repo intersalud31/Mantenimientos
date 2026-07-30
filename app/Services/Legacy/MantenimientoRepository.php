@@ -14,9 +14,9 @@ class MantenimientoRepository
     public function __construct(
         private readonly UsuarioMantenimientoResumenService $resumenService,
         private readonly TextoLegacyNormalizer $textoNormalizer,
-        private readonly SemestreService $semestreService
-    )
-    {
+        private readonly SemestreService $semestreService,
+        private readonly PeriodicidadMantenimientoService $periodicidadService
+    ) {
     }
 
     public function registrarTecnico(string $nombre): array
@@ -765,12 +765,10 @@ class MantenimientoRepository
             return $fechaBase;
         }
 
-        $proxima = $fecha->add(new DateInterval('P6M'));
-        while ((int) $proxima->format('N') >= 6) {
-            $proxima = $proxima->add(new DateInterval('P1D'));
-        }
-
-        return $proxima->format('Y-m-d');
+        return $this->periodicidadService->fechaProximaDesde(
+            $fechaBase,
+            $this->periodicidadService->cicloMantenimientoMeses()
+        ) ?? $fechaBase;
     }
 
     /**
@@ -890,14 +888,17 @@ class MantenimientoRepository
                     'updated_at' => now(),
                 ]);
 
-            $siguiente = (new DateTimeImmutable($fechaEjecucion))->add(new DateInterval('P6M'));
-            while ((int) $siguiente->format('N') >= 6) {
-                $siguiente = $siguiente->add(new DateInterval('P1D'));
+            $siguiente = $this->periodicidadService->fechaProximaDesde(
+                $fechaEjecucion,
+                $this->periodicidadService->cicloMantenimientoMeses()
+            );
+            if ($siguiente === null) {
+                return ['ok' => false, 'mensaje' => 'No fue posible calcular la siguiente fecha de mantenimiento.'];
             }
 
             $this->asegurarPendienteSemestral(
                 (int) $registro->usuario_id,
-                $siguiente->format('Y-m-d'),
+                $siguiente,
                 'Generado automatico despues de marcar Hecho.'
             );
 
@@ -908,7 +909,7 @@ class MantenimientoRepository
 
             return [
                 'ok' => true,
-                'mensaje' => 'Mantenimiento marcado como hecho. Se registro la ejecucion y se genero el siguiente mantenimiento a 6 meses.',
+                'mensaje' => 'Mantenimiento marcado como hecho. Se registro la ejecucion y se genero el siguiente mantenimiento a ' . $this->periodicidadService->etiquetaMeses($this->periodicidadService->cicloMantenimientoMeses()) . '.',
             ];
         });
     }

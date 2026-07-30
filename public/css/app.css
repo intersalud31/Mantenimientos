@@ -1130,3 +1130,267 @@ body.dashboard-modern .fecha-destacada {
         border-radius: 18px !important;
     }
 }
+
+/* Compact visual calibration for the whole panel */
+body.dashboard-modern {
+    font-size: 14.5px !important;
+}
+
+body.dashboard-modern .topbar-shell {
+    width: 100% !important;
+}
+
+body.dashboard-modern .topbar-inner {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) auto !important;
+    padding: 12px 16px !important;
+    gap: 10px !important;
+}
+
+body.dashboard-modern .brand-block {
+    gap: 12px !important;
+}
+
+body.dashboard-modern .brand-mark {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 12px !important;
+}
+
+body.dashboard-modern .brand-copy strong {
+    font-size: 1rem !important;
+}
+
+body.dashboard-modern .brand-copy span {
+    font-size: .74rem !important;
+}
+
+body.dashboard-modern .topbar-menu {
+    gap: 8px !important;
+}
+
+body.dashboard-modern .menu-trigger {
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+    border-radius: 12px !important;
+    font-size: .84rem !important;
+}
+
+body.dashboard-modern .topbar-utility {
+    gap: 8px !important;
+}
+
+body.dashboard-modern .chip {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    font-size: .8rem !important;
+}
+
+body.dashboard-modern .topbar-search {
+    min-width: 240px !important;
+}
+
+body.dashboard-modern .topbar-search input {
+    min-height: 38px !important;
+    padding: 8px 12px 8px 38px !important;
+    font-size: .9rem !important;
+}
+
+body.dashboard-modern .topbar-search .search-icon {
+    left: 12px !important;
+}
+
+body.dashboard-modern .topbar-user-chip {
+    min-height: 38px !important;
+    padding: 5px 9px 5px 5px !important;
+    border-radius: 14px !important;
+}
+
+body.dashboard-modern .topbar-user-avatar {
+    width: 30px !important;
+    height: 30px !important;
+}
+
+body.dashboard-modern .topbar-user-name {
+    font-size: .84rem !important;
+}
+
+body.dashboard-modern .btn,
+body.dashboard-modern .btn-link,
+body.dashboard-modern .btn.btn-ghost,
+body.dashboard-modern .btn-primary,
+body.dashboard-modern .btn-ghost {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    font-size: .9rem !important;
+}
+
+body.dashboard-modern .wrap,
+body.dashboard-modern .module-header {
+    width: min(1480px, calc(100vw - 48px)) !important;
+    max-width: 1480px !important;
+}
+
+body.dashboard-modern .wrap {
+    padding: 22px 16px 40px !important;
+}
+
+body.dashboard-modern .module-header {
+    margin-bottom: 20px !important;
+}
+
+body.dashboard-modern .module-header-kicker,
+body.dashboard-modern .section-kicker,
+body.dashboard-modern .page-header-kicker {
+    letter-spacing: .12em !important;
+}
+
+body.dashboard-modern .module-header-title {
+    font-size: clamp(1.85rem, 2.1vw, 2.3rem) !important;
+}
+
+body.dashboard-modern .module-header-subtitle {
+    font-size: .96rem !important;
+}
+
+body.dashboard-modern .card,
+body.dashboard-modern .panel-card,
+body.dashboard-modern .users-module-shell {
+    padding: 16px !important;
+    border-radius: 14px !important;
+}
+
+body.dashboard-modern .card + .card,
+body.dashboard-modern .panel-card + .panel-card,
+body.dashboard-modern .users-module-shell + .users-module-shell {
+    margin-top: 14px !important;
+}
+
+body.dashboard-modern .panel-section-title {
+    font-size: 1.22rem !important;
+    line-height: 1.16 !important;
+}
+
+body.dashboard-modern .panel-section-title-lg {
+    font-size: 1.15rem !important;
+}
+
+body.dashboard-modern .panel-section-subtitle,
+body.dashboard-modern .muted,
+body.dashboard-modern .mini {
+    font-size: .92rem !important;
+}
+
+body.dashboard-modern .panel-table-shell,
+body.dashboard-modern .tabla-premium-wrap {
+    border-radius: 16px !important;
+}
+
+body.dashboard-modern .panel-table,
+body.dashboard-modern .tabla-premium,
+body.dashboard-modern .tabla-usuarios {
+    min-width: 700px !important;
+}
+
+body.dashboard-modern .panel-table th,
+body.dashboard-modern .panel-table td,
+body.dashboard-modern .tabla-premium th,
+body.dashboard-modern .tabla-premium td,
+body.dashboard-modern .tabla-usuarios th,
+body.dashboard-modern .tabla-usuarios td {
+    padding: 11px 12px !important;
+}
+
+body.dashboard-modern .panel-table th,
+body.dashboard-modern .tabla-premium th,
+body.dashboard-modern .tabla-usuarios th {
+    font-size: .7rem !important;
+    letter-spacing: .1em !important;
+}
+
+body.dashboard-modern .panel-table td,
+body.dashboard-modern .tabla-premium td,
+body.dashboard-modern .tabla-usuarios td {
+    font-size: .9rem !important;
+}
+
+body.dashboard-modern .panel-filter-grid,
+body.dashboard-modern .panel-filter-grid--users,
+body.dashboard-modern .panel-filter-grid--maintenance,
+body.dashboard-modern .panel-filter-grid--period,
+body.dashboard-modern .panel-filter-grid--hechos {
+    gap: 10px !important;
+}
+
+body.dashboard-modern .panel-filter-field input,
+body.dashboard-modern .panel-filter-field select,
+body.dashboard-modern .panel-filter-field textarea,
+body.dashboard-modern .panel-live-search-input-wrap input,
+body.dashboard-modern .panel-live-search-input-wrap select {
+    min-height: 42px !important;
+    padding: 9px 12px !important;
+    font-size: .9rem !important;
+}
+
+@media (max-width: 1100px) {
+    body.dashboard-modern .topbar-inner {
+        grid-template-columns: 1fr !important;
+        padding: 14px 16px !important;
+    }
+
+    body.dashboard-modern .brand-block,
+    body.dashboard-modern .topbar-menu,
+    body.dashboard-modern .topbar-utility {
+        width: 100%;
+        justify-content: flex-start !important;
+        flex-wrap: wrap !important;
+    }
+
+    body.dashboard-modern .topbar-search {
+        min-width: 0 !important;
+        width: min(100%, 360px) !important;
+    }
+
+    body.dashboard-modern .wrap,
+    body.dashboard-modern .module-header {
+        width: min(100%, 1360px) !important;
+        max-width: 1360px !important;
+    }
+
+    body.dashboard-modern .panel-filter-grid,
+    body.dashboard-modern .panel-filter-grid--users,
+    body.dashboard-modern .panel-filter-grid--maintenance,
+    body.dashboard-modern .panel-filter-grid--period,
+    body.dashboard-modern .panel-filter-grid--hechos {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 720px) {
+    body.dashboard-modern .topbar-inner {
+        padding: 12px 14px !important;
+    }
+
+    body.dashboard-modern .brand-mark {
+        width: 46px !important;
+        height: 46px !important;
+    }
+
+    body.dashboard-modern .brand-copy strong {
+        font-size: 1rem !important;
+    }
+
+    body.dashboard-modern .brand-copy span {
+        font-size: .74rem !important;
+    }
+
+    body.dashboard-modern .wrap {
+        padding: 18px 12px 36px !important;
+    }
+
+    body.dashboard-modern .card,
+    body.dashboard-modern .panel-card,
+    body.dashboard-modern .users-module-shell {
+        padding: 16px !important;
+        border-radius: 16px !important;
+    }
+}

@@ -197,11 +197,23 @@ class PanelActionFlowTest extends TestCase
         $repo = Mockery::mock(UsuarioRepository::class);
         $repo->shouldReceive('crearUsuario')
             ->once()
-            ->with('Usuario Nuevo', 555, 'SER-001', 3, 'nuevo')
+            ->with('Usuario Nuevo', 555, 'SER-001', 3, 'nuevo', null)
             ->andReturn(['ok' => true, 'mensaje' => 'Usuario creado correctamente.']);
+        $repo->shouldReceive('obtenerPorId')
+            ->once()
+            ->with(41)
+            ->andReturn([
+                'id' => 41,
+                'fecha_ultimo_mantenimiento_base' => null,
+                'ultima_fecha_mantenimiento' => null,
+            ]);
+        $repo->shouldReceive('usuarioTieneHistorialReal')
+            ->once()
+            ->with(41)
+            ->andReturn(true);
         $repo->shouldReceive('actualizarUsuario')
             ->once()
-            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal')
+            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal', null, true)
             ->andReturn(true);
         $repo->shouldReceive('cambiarEstadoUsuario')
             ->once()
@@ -238,6 +250,7 @@ class PanelActionFlowTest extends TestCase
             'serial_equipo' => 'SER-002',
             'area_id' => 3,
             'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => null,
             'filtro_area_id' => 3,
             'filtro_q_usuarios' => 'Usuario',
             'editar_usuario_id' => 41,
@@ -324,6 +337,234 @@ class PanelActionFlowTest extends TestCase
         $this->assertTrue(collect($resultados)->contains(static function (array $fila): bool {
             return ($fila['serial_equipo'] ?? '') === 'SER-AREA-CAAS' && ($fila['area_nombre'] ?? '') === 'CAAS';
         }));
+    }
+
+    public function test_crear_usuario_viejo_sin_fecha_base_es_invalido(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10041, 'Admin Validacion', 'validacion@example.com', 'admin'));
+
+        $response = $this->from(route('panel.usuarios'))->post(route('panel.usuarios.crear'), [
+            'nombre' => 'Usuario Viejo',
+            'codigo_activo' => 991236,
+            'serial_equipo' => 'SER-VIEJO-001',
+            'tipo_equipo' => 'normal',
+            'form_context' => 'crear_usuario',
+        ]);
+
+        $response->assertRedirect(route('panel.usuarios'));
+        $response->assertSessionHasErrors('fecha_ultimo_mantenimiento_base');
+    }
+
+    public function test_actualizar_usuario_viejo_sin_historial_real_requiere_fecha_base(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10042, 'Admin Editar', 'editar@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Editar Base',
+            'codigo_activo' => 991237,
+            'serial_equipo' => 'SER-EDIT-001',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->from(route('panel.usuarios', ['editar_usuario_id' => $usuarioId]))->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario Editar Base',
+            'codigo_activo' => 991237,
+            'serial_equipo' => 'SER-EDIT-001',
+            'tipo_equipo' => 'normal',
+            'form_context' => 'editar_usuario',
+        ]);
+
+        $response->assertRedirect(route('panel.usuarios', ['editar_usuario_id' => $usuarioId]));
+        $response->assertSessionHasErrors('fecha_ultimo_mantenimiento_base');
+    }
+
+    public function test_lista_de_usuarios_no_muestra_fecha_base_en_tabla(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10043, 'Admin Lista', 'lista@example.com', 'admin'));
+
+        DB::table('usuarios')->insert([
+            'nombre' => 'Usuario Fecha Base Lista',
+            'codigo_activo' => 991238,
+            'serial_equipo' => 'SER-LISTA-001',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-06-15',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('panel.usuarios', ['q_usuarios' => 'Fecha Base Lista']));
+
+        $response->assertOk();
+        $response->assertSee('Usuario Fecha Base Lista');
+        $response->assertSee('991238');
+        $response->assertSee('Ser-Lista-001');
+
+        $html = $response->getContent();
+        $inicioTabla = strpos($html, 'id="usuarios-listado"');
+        $this->assertNotFalse($inicioTabla);
+        $htmlTabla = substr($html, $inicioTabla);
+
+        $this->assertStringNotContainsString('Fecha de &uacute;ltimo mantenimiento', $htmlTabla);
+        $this->assertStringNotContainsString('15/06/2026', $htmlTabla);
+    }
+
+    public function test_editar_usuario_sin_enviar_fecha_base_no_borra_la_existente(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10044, 'Admin Preservar', 'preservar@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Preserva Fecha',
+            'codigo_activo' => 991239,
+            'serial_equipo' => 'SER-PRESERVA-001',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-05-10',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario Preserva Fecha Editado',
+            'codigo_activo' => 991239,
+            'serial_equipo' => 'SER-PRESERVA-001',
+            'tipo_equipo' => 'normal',
+            'form_context' => 'editar_usuario',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'nombre' => 'Usuario Preserva Fecha Editado',
+            'fecha_ultimo_mantenimiento_base' => '2026-05-10',
+        ]);
+    }
+
+    public function test_editar_usuario_carga_ultima_fecha_resumen_si_no_tiene_fecha_base(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10045, 'Admin Fecha Editar', 'fecha-editar@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Fecha Resumen',
+            'codigo_activo' => 991240,
+            'serial_equipo' => 'SER-RESUMEN-EDIT',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'ultima_fecha_mantenimiento' => '2026-04-12',
+            'ultima_fecha_ejecucion' => '2026-04-12',
+            'proxima_fecha_mantenimiento' => '2026-10-12',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('panel.usuarios', ['editar_usuario_id' => $usuarioId]));
+
+        $response->assertOk();
+        $response->assertSee('type="date"', false);
+        $response->assertSee('id="fecha_ultimo_mantenimiento_base_editar"', false);
+        $response->assertSee('name="fecha_ultimo_mantenimiento_base"', false);
+        $response->assertSee('value="2026-04-12"', false);
+        $response->assertSee('data-user-last-maintenance-input', false);
+        $response->assertDontSee('data-maintenance-date-trigger', false);
+        $response->assertDontSee('data-maintenance-date-picker', false);
+    }
+
+    public function test_guardar_fecha_de_respaldo_sin_cambio_no_migra_fecha_base_automaticamente(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10046, 'Admin No Migra', 'no-migra@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario No Migra Base',
+            'codigo_activo' => 991241,
+            'serial_equipo' => 'SER-NO-MIGRA',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'ultima_fecha_mantenimiento' => '2026-03-20',
+            'ultima_fecha_ejecucion' => '2026-03-20',
+            'proxima_fecha_mantenimiento' => '2026-09-21',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => '2026-03-20',
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => '2026-03-20',
+            'tecnico_responsable' => 'Tecnico Base',
+            'observaciones' => 'Mantenimiento real de respaldo.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonths(4),
+            'updated_at' => now()->subMonths(4),
+        ]);
+
+        $this->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario No Migra Base Editado',
+            'codigo_activo' => 991241,
+            'serial_equipo' => 'SER-NO-MIGRA',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-03-20',
+            'form_context' => 'editar_usuario',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'nombre' => 'Usuario No Migra Base Editado',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'ultima_fecha_mantenimiento' => '2026-03-20',
+        ]);
+    }
+
+    public function test_cambiar_fecha_de_ultimo_mantenimiento_en_edicion_persiste_fecha_base(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10047, 'Admin Cambia Fecha', 'cambia-fecha@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Cambia Fecha',
+            'codigo_activo' => 991242,
+            'serial_equipo' => 'SER-CAMBIA-FECHA',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'ultima_fecha_mantenimiento' => '2026-03-20',
+            'ultima_fecha_ejecucion' => '2026-03-20',
+            'proxima_fecha_mantenimiento' => '2026-09-21',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientosAntes = DB::table('mantenimientos')->where('usuario_id', $usuarioId)->count();
+
+        $this->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario Cambia Fecha',
+            'codigo_activo' => 991242,
+            'serial_equipo' => 'SER-CAMBIA-FECHA',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-02-10',
+            'form_context' => 'editar_usuario',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'fecha_ultimo_mantenimiento_base' => '2026-02-10',
+        ]);
+        $this->assertSame($mantenimientosAntes, DB::table('mantenimientos')->where('usuario_id', $usuarioId)->count());
     }
 
     public function test_no_permite_programar_mantenimiento_en_fecha_pasada(): void
@@ -477,7 +718,11 @@ class PanelActionFlowTest extends TestCase
             'programados_pagina' => 1,
             'programados_por_pagina' => 10,
         ]));
-        $response->assertSessionHas('panel_message', 'Mantenimiento marcado como hecho. Se registro la ejecucion y se genero el siguiente mantenimiento a 6 meses.');
+        $respuestaEsperada = 'Mantenimiento marcado como hecho. Se registro la ejecucion y se genero el siguiente mantenimiento a ' . app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->etiquetaMeses(
+            app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->cicloMantenimientoMeses()
+        ) . '.';
+
+        $response->assertSessionHas('panel_message', $respuestaEsperada);
 
         $this->assertDatabaseHas('mantenimientos', [
             'id' => $mantenimientoId,

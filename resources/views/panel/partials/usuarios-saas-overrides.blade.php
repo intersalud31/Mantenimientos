@@ -333,6 +333,30 @@
         margin-top: 6px;
     }
 
+    body.dashboard-modern .user-modal-grid .user-maintenance-base-field {
+        position: relative;
+    }
+
+    body.dashboard-modern .user-modal-grid .user-maintenance-base-field > label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    body.dashboard-modern .user-modal-grid [aria-invalid='true'] {
+        border-color: rgba(220, 38, 38, .42);
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, .08);
+    }
+
+    body.dashboard-modern .field-error {
+        display: block;
+        margin-top: 6px;
+        color: #b91c1c;
+        font-size: .82rem;
+        font-weight: 600;
+    }
+
     body.dashboard-modern .group-row td {
         background: #f8fafc;
         border-top: 1px solid #e2e8f0;

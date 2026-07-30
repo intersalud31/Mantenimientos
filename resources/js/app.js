@@ -594,14 +594,48 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        const getVisibleDateTrigger = () => {
+            if (!dateTrigger) {
+                return null;
+            }
+
+            if (dateTrigger.disabled || dateTrigger.closest('[hidden]')) {
+                return null;
+            }
+
+            return dateTrigger;
+        };
+
         const focusFirstField = () => {
             const target =
-                dateTrigger ||
+                modal.querySelector('[aria-invalid="true"]') ||
+                getVisibleDateTrigger() ||
                 modal.querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea, button[type="submit"]');
 
             if (target && typeof target.focus === 'function') {
                 target.focus();
             }
+        };
+
+        const setupUserMaintenanceBaseField = () => {
+            const typeSelect = modal.querySelector('[data-user-equipo-type-select]');
+            const field = modal.querySelector('[data-user-last-maintenance-field]');
+            const dateInput = field?.querySelector('[data-user-last-maintenance-input]') || null;
+
+            if (!typeSelect || !field || !dateInput) {
+                return;
+            }
+
+            const syncVisibility = () => {
+                const shouldShow = typeSelect.value === 'normal';
+                field.hidden = !shouldShow;
+                field.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+                dateInput.disabled = !shouldShow;
+            };
+
+            typeSelect.addEventListener('change', syncVisibility);
+            modal.addEventListener('panel:user-type-sync', syncVisibility);
+            syncVisibility();
         };
 
         const restoreSubmitButton = () => {
@@ -767,9 +801,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 dateInput.value = value;
             }
 
-            if (hasMaintenanceDatePicker && dateInput && target === 'programar' && !shouldPreserveMaintenanceDate) {
-                const initialDate = suggestedDate || dateInput.value || dateInput.defaultValue || formatDateValue(new Date());
-                dateInput.value = initialDate;
+            if (hasMaintenanceDatePicker && dateInput) {
+                if (target === 'programar' && !shouldPreserveMaintenanceDate) {
+                    const initialDate = suggestedDate || dateInput.value || dateInput.defaultValue || formatDateValue(new Date());
+                    dateInput.value = initialDate;
+                } else if (target === 'hecho') {
+                    const initialDate = programmedDate || suggestedDate || dateInput.value || dateInput.defaultValue || formatDateValue(new Date());
+                    dateInput.value = initialDate;
+                }
             }
 
             if (hasMaintenanceDatePicker) {
@@ -791,6 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.hidden = false;
             modal.setAttribute('aria-hidden', 'false');
             document.body.classList.add('modal-open');
+            modal.dispatchEvent(new CustomEvent('panel:user-type-sync'));
 
             window.requestAnimationFrame(() => {
                 if (typeof modal.focus === 'function') {
@@ -984,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
             form.addEventListener('reset', () => {
                 window.setTimeout(() => {
                     restoreSubmitButton();
+                    modal.dispatchEvent(new CustomEvent('panel:user-type-sync'));
                     if (hasMaintenanceDatePicker) {
                         syncDateTrigger();
                         syncViewToSelected();
@@ -1018,6 +1059,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 focusFirstField();
             });
         }
+
+        setupUserMaintenanceBaseField();
     };
 
     setupModal({

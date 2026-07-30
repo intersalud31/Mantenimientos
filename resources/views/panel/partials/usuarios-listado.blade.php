@@ -4,11 +4,12 @@
         ? $usuariosObjeto->items()
         : (is_array($usuariosObjeto) ? $usuariosObjeto : []);
 
+    $sinArea = html_entity_decode('Sin &aacute;rea', ENT_QUOTES, 'UTF-8');
     $usuariosAgrupados = collect($usuariosFuente)
-        ->groupBy(function ($fila) {
-            $area = trim((string) ($fila['area_nombre'] ?? 'Sin área'));
+        ->groupBy(function ($fila) use ($sinArea) {
+            $area = trim((string) ($fila['area_nombre'] ?? $sinArea));
 
-            return $area !== '' ? $area : 'Sin área';
+            return $area !== '' ? $area : $sinArea;
         })
         ->sortKeys(SORT_NATURAL | SORT_FLAG_CASE);
 
@@ -38,8 +39,8 @@
     <div class="panel-card-header panel-topline-spaced">
         <div class="panel-title-block">
             <p class="section-kicker">Listado</p>
-            <h2 class="panel-section-title">Usuarios por área</h2>
-            <p class="muted panel-section-subtitle">La agrupación es visual y no altera el comportamiento del backend.</p>
+            <h2 class="panel-section-title">Usuarios por &aacute;rea</h2>
+            <p class="muted panel-section-subtitle">La agrupaci&oacute;n es visual y no altera el comportamiento del backend.</p>
         </div>
         <div class="panel-meta-row">
             <span class="chip chip--neutral">{{ $totalUsuarios }} registro(s)</span>
@@ -51,9 +52,9 @@
             <thead>
                 <tr>
                     <th>Usuario</th>
-                    <th>Código</th>
+                    <th>C&oacute;digo</th>
                     <th>Serial</th>
-                    <th>Área</th>
+                    <th>&Aacute;rea</th>
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Acciones</th>
@@ -79,7 +80,7 @@
                         @php
                             $estadoActivo = (int) ($fila['estado_usuario'] ?? 0) === 1;
                             $tipoEquipo = (string) ($fila['tipo_equipo'] ?? 'normal');
-                            $areaFila = $presentarTexto($fila['area_nombre'] ?? 'Sin área');
+                            $areaFila = $presentarTexto($fila['area_nombre'] ?? $sinArea);
                             $nombreFila = $presentarTexto($fila['nombre'] ?? '');
                             $codigoFila = (string) ($fila['codigo_activo'] ?? '');
                             $serialFila = $presentarTexto($fila['serial_equipo'] ?? '');
@@ -92,7 +93,7 @@
                             <td>{{ $serialFila }}</td>
                             <td><span class="user-badge-area">{{ $areaFila }}</span></td>
                             <td>
-                                <span class="user-badge-type user-badge-type--{{ $tipoEquipo === 'nuevo' ? 'nuevo' : 'normal' }}">{{ $presentarTexto($tipoEquipo) }}</span>
+                                <span class="user-badge-type user-badge-type--{{ $tipoEquipo === 'nuevo' ? 'nuevo' : 'normal' }}">{{ $tipoEquipo === 'nuevo' ? 'Nuevo' : 'Viejo' }}</span>
                             </td>
                             <td>
                                 <span class="user-badge-state user-badge-state--{{ $estadoActivo ? 'activo' : 'inactivo' }}">{{ $estadoActivo ? 'Activo' : 'Inactivo' }}</span>
@@ -120,7 +121,7 @@
                                             <input type="hidden" name="return_url" value="{{ request()->fullUrl() }}">
                                             <button class="user-action-item" type="submit">{{ $estadoActivo ? 'Desactivar usuario' : 'Activar usuario' }}</button>
                                         </form>
-                                        <form method="POST" action="{{ route('panel.usuarios.eliminar') }}" onsubmit="return confirm('¿Seguro que deseas eliminar este usuario?');">
+                                        <form method="POST" action="{{ route('panel.usuarios.eliminar') }}" onsubmit="return confirm('&iquest;Seguro que deseas eliminar este usuario?');">
                                             @csrf
                                             <input type="hidden" name="usuario_id" value="{{ $fila['id'] }}">
                                             <input type="hidden" name="filtro_q_usuarios" value="{{ $busquedaActual }}">

@@ -2,14 +2,14 @@
 
 namespace App\Services\Legacy;
 
-use DateInterval;
-use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 class UsuarioRepository
 {
-    public function __construct(private readonly UsuarioMantenimientoResumenService $resumenService)
-    {
+    public function __construct(
+        private readonly UsuarioMantenimientoResumenService $resumenService,
+        private readonly PeriodicidadMantenimientoService $periodicidadService
+    ) {
     }
 
     public function listarTodos(?string $busqueda = ''): array
@@ -22,6 +22,7 @@ class UsuarioRepository
                 'u.codigo_activo',
                 'u.serial_equipo',
                 'u.tipo_equipo',
+                'u.fecha_ultimo_mantenimiento_base',
                 'u.area_id',
                 'u.estado_usuario',
                 DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
@@ -65,45 +66,63 @@ class UsuarioRepository
     public function obtenerPorId(int $usuarioId): ?array
     {
         $fila = DB::table('usuarios')
-            ->select('id', 'nombre', 'codigo_activo', 'serial_equipo', 'tipo_equipo', 'area_id', 'estado_usuario')
+            ->select(
+                'id',
+                'nombre',
+                'codigo_activo',
+                'serial_equipo',
+                'tipo_equipo',
+                'fecha_ultimo_mantenimiento_base',
+                'ultima_fecha_mantenimiento',
+                'ultima_fecha_ejecucion',
+                'proxima_fecha_mantenimiento',
+                'area_id',
+                'estado_usuario'
+            )
             ->where('id', $usuarioId)
             ->first();
 
         return $fila ? (array) $fila : null;
     }
 
-    public function crearUsuario(string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal'): array
+    public function crearUsuario(string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal', ?string $fechaUltimoMantenimientoBase = null): array
     {
         $tipoEquipo = $this->normalizarTipoEquipo($tipoEquipo);
+        $fechaUltimoMantenimientoBase = $this->normalizarFechaBase($fechaUltimoMantenimientoBase);
 
         try {
-            DB::transaction(function () use ($nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo): void {
+            DB::transaction(function () use ($nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase): void {
                 $usuarioId = DB::table('usuarios')->insertGetId([
                     'nombre' => $nombre,
                     'codigo_activo' => $codigoActivo,
                     'serial_equipo' => $serialEquipo,
                     'tipo_equipo' => $tipoEquipo,
+                    'fecha_ultimo_mantenimiento_base' => $fechaUltimoMantenimientoBase,
                     'area_id' => $areaId,
                     'estado_usuario' => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                $fechaInicial = $this->calcularFechaInicialMantenimiento($tipoEquipo);
+                $this->resumenService->sincronizarResumenUsuario($usuarioId);
+
+                $fechaInicial = $this->obtenerProximaFechaMantenimientoUsuario($usuarioId);
                 $observacionInicial = $tipoEquipo === 'nuevo'
-                    ? 'Equipo nuevo registrado. Primer mantenimiento automatico programado a un anio.'
+                    ? 'Equipo nuevo registrado. Primer mantenimiento automatico programado a ' . $this->periodicidadService->textoCicloParaTipoEquipo($tipoEquipo) . '.'
                     : 'Mantenimiento inicial generado automaticamente al crear el usuario.';
 
-                DB::table('mantenimientos')->insert([
-                    'usuario_id' => $usuarioId,
-                    'fecha_programada' => $fechaInicial,
-                    'hora_programada' => null,
-                    'estado' => 'pendiente',
-                    'fecha_ejecucion' => null,
-                    'observaciones' => $observacionInicial,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                if ($fechaInicial !== null) {
+                    DB::table('mantenimientos')->insert([
+                        'usuario_id' => $usuarioId,
+                        'fecha_programada' => $fechaInicial,
+                        'hora_programada' => null,
+                        'estado' => 'pendiente',
+                        'fecha_ejecucion' => null,
+                        'observaciones' => $observacionInicial,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
 
                 $this->resumenService->sincronizarResumenUsuario($usuarioId);
             });
@@ -112,8 +131,8 @@ class UsuarioRepository
         }
 
         $mensaje = $tipoEquipo === 'nuevo'
-            ? 'Usuario creado correctamente. El primer mantenimiento quedo programado automaticamente para dentro de 1 anio.'
-            : 'Usuario creado correctamente. El primer mantenimiento quedo programado automaticamente para dentro de 6 meses.';
+            ? 'Usuario creado correctamente. El primer mantenimiento quedo programado automaticamente para dentro de ' . $this->periodicidadService->textoCicloParaTipoEquipo($tipoEquipo) . '.'
+            : 'Usuario creado correctamente. El primer mantenimiento quedo programado automaticamente para dentro de ' . $this->periodicidadService->textoCicloParaTipoEquipo($tipoEquipo) . '.';
 
         return ['ok' => true, 'mensaje' => $mensaje];
     }
@@ -128,21 +147,36 @@ class UsuarioRepository
             ]) > 0;
     }
 
-    public function actualizarUsuario(int $usuarioId, string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal'): bool
+    public function actualizarUsuario(int $usuarioId, string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal', ?string $fechaUltimoMantenimientoBase = null, bool $actualizarFechaBase = true): bool
     {
         $tipoEquipo = $this->normalizarTipoEquipo($tipoEquipo);
+        $fechaUltimoMantenimientoBase = $this->normalizarFechaBase($fechaUltimoMantenimientoBase);
 
-        return DB::table('usuarios')
-            ->where('id', $usuarioId)
-            ->limit(1)
-            ->update([
+        return DB::transaction(function () use ($usuarioId, $nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase, $actualizarFechaBase): bool {
+            $valores = [
                 'nombre' => $nombre,
                 'codigo_activo' => $codigoActivo,
                 'serial_equipo' => $serialEquipo,
                 'tipo_equipo' => $tipoEquipo,
                 'area_id' => $areaId,
                 'updated_at' => now(),
-            ]) > 0;
+            ];
+
+            if ($actualizarFechaBase) {
+                $valores['fecha_ultimo_mantenimiento_base'] = $fechaUltimoMantenimientoBase;
+            }
+
+            $actualizado = DB::table('usuarios')
+                ->where('id', $usuarioId)
+                ->limit(1)
+                ->update($valores) > 0;
+
+            if ($actualizado) {
+                $this->resumenService->sincronizarResumenUsuario($usuarioId);
+            }
+
+            return $actualizado;
+        });
     }
 
     public function eliminarUsuarioSeguro(int $usuarioId): array
@@ -230,25 +264,35 @@ class UsuarioRepository
             ->all();
     }
 
+    public function usuarioTieneHistorialReal(int $usuarioId): bool
+    {
+        return DB::table('mantenimientos')
+            ->where('usuario_id', $usuarioId)
+            ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnHechos())
+            ->exists();
+    }
+
     private function normalizarTipoEquipo(string $tipoEquipo): string
     {
         return $tipoEquipo === 'nuevo' ? 'nuevo' : 'normal';
     }
 
-    private function calcularFechaInicialMantenimiento(string $tipoEquipo): string
+    private function normalizarFechaBase(?string $fecha): ?string
     {
-        $fechaBase = new DateTimeImmutable('today');
+        $fecha = trim((string) $fecha);
 
-        if ($tipoEquipo === 'nuevo') {
-            $fechaBase = $fechaBase->add(new DateInterval('P1Y'));
-        } else {
-            $fechaBase = $fechaBase->add(new DateInterval('P6M'));
-        }
-
-        while ((int) $fechaBase->format('N') >= 6) {
-            $fechaBase = $fechaBase->add(new DateInterval('P1D'));
-        }
-
-        return $fechaBase->format('Y-m-d');
+        return $fecha !== '' ? $fecha : null;
     }
+
+    private function obtenerProximaFechaMantenimientoUsuario(int $usuarioId): ?string
+    {
+        $fecha = DB::table('usuarios')
+            ->where('id', $usuarioId)
+            ->value('proxima_fecha_mantenimiento');
+
+        $fecha = is_string($fecha) ? trim($fecha) : '';
+
+        return $fecha !== '' ? $fecha : null;
+    }
+
 }

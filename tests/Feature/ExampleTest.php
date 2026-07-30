@@ -134,7 +134,7 @@ class ExampleTest extends TestCase
             'codigo_activo' => 9901,
             'serial_equipo' => 'SER-9901',
             'area_id' => null,
-            'tipo_equipo' => 'normal',
+            'tipo_equipo' => 'nuevo',
             'filtro_area_id' => 0,
             'filtro_q_usuarios' => '',
             'return_url' => '//google.com',
@@ -412,6 +412,90 @@ class ExampleTest extends TestCase
         $this->assertNull($usuario->ultima_fecha_mantenimiento);
         $this->assertSame($fechaPendiente, (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
     }
+
+    public function test_resumen_usuario_usa_fecha_base_si_no_existe_historial_real(): void
+    {
+        $periodo = app(SemestreService::class)->actual();
+        $fechaBase = '2026-01-15';
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Con Fecha Base',
+            'codigo_activo' => 993003,
+            'serial_equipo' => 'SER-RESUMEN-003',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => $fechaBase,
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => null,
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        app(UsuarioMantenimientoResumenService::class)->sincronizarResumenUsuario($usuarioId, $periodo);
+
+        $usuario = DB::table('usuarios')
+            ->select('ultima_fecha_ejecucion', 'ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento')
+            ->where('id', $usuarioId)
+            ->first();
+
+        $this->assertNull($usuario->ultima_fecha_ejecucion);
+        $this->assertSame($fechaBase, (string) ($usuario->ultima_fecha_mantenimiento ?? ''));
+        $this->assertSame('2026-07-15', (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
+    }
+
+    public function test_fecha_base_no_sobrescribe_historial_real_existente(): void
+    {
+        $periodo = app(SemestreService::class)->actual();
+        $fechaRealizada = '2026-01-20';
+        $fechaBase = '2025-12-01';
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Con Historial Real',
+            'codigo_activo' => 993004,
+            'serial_equipo' => 'SER-RESUMEN-004',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => $fechaBase,
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => null,
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaRealizada,
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaRealizada,
+            'tecnico_responsable' => 'Tecnico Base',
+            'observaciones' => 'Mantenimiento real existente.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonths(6),
+            'updated_at' => now()->subMonths(6),
+        ]);
+
+        app(UsuarioMantenimientoResumenService::class)->sincronizarResumenUsuario($usuarioId, $periodo);
+
+        $usuario = DB::table('usuarios')
+            ->select('ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento')
+            ->where('id', $usuarioId)
+            ->first();
+
+        $this->assertSame($fechaRealizada, (string) ($usuario->ultima_fecha_mantenimiento ?? ''));
+        $this->assertSame('2026-07-20', (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
+    }
+
     private function makeLegacyUser(int $id, string $nombre, string $correo, string $rol): User
     {
         $user = new User();

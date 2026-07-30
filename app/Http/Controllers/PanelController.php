@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PanelController extends Controller
@@ -228,16 +229,25 @@ class PanelController extends Controller
             'serial_equipo' => ['required', 'string', 'max:150'],
             'area_id' => ['nullable', 'integer', 'min:1'],
             'tipo_equipo' => ['required', 'in:normal,nuevo'],
+            'fecha_ultimo_mantenimiento_base' => ['nullable', 'date_format:Y-m-d'],
             'filtro_area_id' => ['nullable', 'integer', 'min:0'],
             'filtro_q_usuarios' => ['nullable', 'string'],
+            'form_context' => ['nullable', 'string'],
         ]);
+
+        if (($data['tipo_equipo'] ?? 'normal') === 'normal' && empty($data['fecha_ultimo_mantenimiento_base'])) {
+            throw ValidationException::withMessages([
+                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria para usuarios viejos.',
+            ]);
+        }
 
         $resultado = $repo->crearUsuario(
             $data['nombre'],
             (int) $data['codigo_activo'],
             $data['serial_equipo'],
             !empty($data['area_id']) ? (int) $data['area_id'] : null,
-            $data['tipo_equipo']
+            $data['tipo_equipo'],
+            $data['fecha_ultimo_mantenimiento_base'] ?? null
         );
 
         return $this->redirectConContexto($request, 'panel.usuarios', [
@@ -279,10 +289,37 @@ class PanelController extends Controller
             'serial_equipo' => ['required', 'string', 'max:150'],
             'area_id' => ['nullable', 'integer', 'min:1'],
             'tipo_equipo' => ['required', 'in:normal,nuevo'],
+            'fecha_ultimo_mantenimiento_base' => ['nullable', 'date_format:Y-m-d'],
             'filtro_area_id' => ['nullable', 'integer', 'min:0'],
             'filtro_q_usuarios' => ['nullable', 'string'],
             'editar_usuario_id' => ['nullable', 'integer', 'min:0'],
+            'form_context' => ['nullable', 'string'],
         ]);
+
+        $usuarioActual = $repo->obtenerPorId((int) $data['usuario_id']);
+        $fechaBaseFueEnviada = $request->has('fecha_ultimo_mantenimiento_base');
+        $fechaBaseAlmacenada = trim((string) ($usuarioActual['fecha_ultimo_mantenimiento_base'] ?? ''));
+        $fechaUltimaResumen = trim((string) ($usuarioActual['ultima_fecha_mantenimiento'] ?? ''));
+        $fechaBaseEnviada = trim((string) ($data['fecha_ultimo_mantenimiento_base'] ?? ''));
+        $fechaBaseActual = $fechaBaseFueEnviada
+            ? $fechaBaseEnviada
+            : $fechaBaseAlmacenada;
+
+        $actualizarFechaBase = $fechaBaseFueEnviada;
+        if ($fechaBaseAlmacenada === '' && $fechaUltimaResumen !== '' && $fechaBaseEnviada === $fechaUltimaResumen) {
+            $actualizarFechaBase = false;
+        }
+
+        if (
+            ($data['tipo_equipo'] ?? 'normal') === 'normal'
+            && empty($fechaBaseActual)
+            && $fechaUltimaResumen === ''
+            && !$repo->usuarioTieneHistorialReal((int) $data['usuario_id'])
+        ) {
+            throw ValidationException::withMessages([
+                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria mientras este usuario viejo no tenga historial real.',
+            ]);
+        }
 
         $ok = $repo->actualizarUsuario(
             (int) $data['usuario_id'],
@@ -290,7 +327,9 @@ class PanelController extends Controller
             (int) $data['codigo_activo'],
             $data['serial_equipo'],
             !empty($data['area_id']) ? (int) $data['area_id'] : null,
-            $data['tipo_equipo']
+            $data['tipo_equipo'],
+            $data['fecha_ultimo_mantenimiento_base'] ?? null,
+            $actualizarFechaBase
         );
 
         return $this->redirectConContexto($request, 'panel.usuarios', [
@@ -503,6 +542,3 @@ class PanelController extends Controller
     }
 
 }
-
-
-
