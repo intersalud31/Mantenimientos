@@ -242,6 +242,11 @@
         z-index: 80;
     }
 
+    body.dashboard-modern .users-group-shell .group-row + .user-record .user-actions-panel {
+        top: calc(100% + 8px);
+        bottom: auto;
+    }
+
     body.dashboard-modern .user-action-item {
         display: block;
         width: 100%;
@@ -342,6 +347,26 @@
         margin-bottom: 6px;
         font-weight: 600;
         color: #334155;
+    }
+
+    body.dashboard-modern .user-native-date-input {
+        position: absolute;
+        inset: auto 0 0 0;
+        width: 100%;
+        height: 54px;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+        border: 0;
+    }
+
+    body.dashboard-modern .user-native-date-input::-webkit-calendar-picker-indicator {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
     }
 
     body.dashboard-modern .user-modal-grid [aria-invalid='true'] {

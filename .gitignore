@@ -21,3 +21,6 @@ yarn-error.log
 .git-clean/
 .DS_Store
 Thumbs.db
+db-rescue-20260731/
+mantenimientos-20260731.sql
+mysql-rescue-20260731.sql

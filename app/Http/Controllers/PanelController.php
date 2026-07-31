@@ -304,6 +304,7 @@ class PanelController extends Controller
         $fechaBaseActual = $fechaBaseFueEnviada
             ? $fechaBaseEnviada
             : $fechaBaseAlmacenada;
+        $fechaBaseCambioReal = $fechaBaseFueEnviada && $fechaBaseEnviada !== $fechaBaseAlmacenada;
 
         $actualizarFechaBase = $fechaBaseFueEnviada;
         if ($fechaBaseAlmacenada === '' && $fechaUltimaResumen !== '' && $fechaBaseEnviada === $fechaUltimaResumen) {
@@ -329,7 +330,8 @@ class PanelController extends Controller
             !empty($data['area_id']) ? (int) $data['area_id'] : null,
             $data['tipo_equipo'],
             $data['fecha_ultimo_mantenimiento_base'] ?? null,
-            $actualizarFechaBase
+            $actualizarFechaBase,
+            $fechaBaseCambioReal
         );
 
         return $this->redirectConContexto($request, 'panel.usuarios', [

@@ -124,6 +124,40 @@ class PeriodicidadMantenimientoTest extends TestCase
         $this->assertSame('2026-09-18', (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
     }
 
+    public function test_usuario_nuevo_sin_historial_real_calcula_proximo_desde_fecha_base_con_periodicidad_de_compra(): void
+    {
+        $periodo = app(SemestreService::class)->actual();
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Nuevo Compra',
+            'codigo_activo' => 994003,
+            'serial_equipo' => 'SER-NUEVO-COMPRA',
+            'tipo_equipo' => 'nuevo',
+            'fecha_ultimo_mantenimiento_base' => '2026-01-15',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => null,
+            'created_at' => now()->subMonths(6),
+            'updated_at' => now(),
+        ]);
+
+        app(UsuarioMantenimientoResumenService::class)->sincronizarResumenUsuario($usuarioId, $periodo, true);
+
+        $usuario = DB::table('usuarios')
+            ->select('ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento')
+            ->where('id', $usuarioId)
+            ->first();
+
+        $esperada = $this->servicioPeriodicidad()->fechaProximaParaTipoEquipo('2026-01-15', 'nuevo');
+
+        $this->assertSame('2026-01-15', (string) ($usuario->ultima_fecha_mantenimiento ?? ''));
+        $this->assertSame($esperada, (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
+    }
+
     public function test_sincronizacion_de_proximos_es_idempotente_y_no_duplica_pendientes(): void
     {
         $periodo = app(SemestreService::class)->actual();

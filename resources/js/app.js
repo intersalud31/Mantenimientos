@@ -93,47 +93,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    document.querySelectorAll('[data-users-group-shell]').forEach((shell) => {
-        const toggle = shell.querySelector('[data-users-group-toggle]');
+    const initializeUserGroupToggles = (scope = document) => {
+        scope.querySelectorAll('[data-users-group-shell]').forEach((shell) => {
+            if (shell.dataset.usersGroupBound === 'true') {
+                return;
+            }
 
-        if (!toggle) {
-            return;
-        }
+            const toggle = shell.querySelector('[data-users-group-toggle]');
 
-        const setOpen = (open) => {
-            shell.dataset.open = open ? 'true' : 'false';
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        };
+            if (!toggle) {
+                return;
+            }
 
-        setOpen(shell.dataset.open !== 'false');
+            const setOpen = (open) => {
+                shell.dataset.open = open ? 'true' : 'false';
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            };
 
-        toggle.addEventListener('click', (event) => {
-            event.preventDefault();
-            setOpen(shell.dataset.open !== 'true');
+            setOpen(shell.dataset.open !== 'false');
+
+            toggle.addEventListener('click', (event) => {
+                event.preventDefault();
+                setOpen(shell.dataset.open !== 'true');
+            });
+
+            shell.dataset.usersGroupBound = 'true';
         });
-    });
+    };
 
-    document.querySelectorAll('[data-user-actions]').forEach((menu) => {
-        const trigger = menu.querySelector('[data-user-actions-trigger]');
-        const panel = menu.querySelector('[data-user-actions-panel]');
+    initializeUserGroupToggles();
 
-        if (!trigger || !panel) {
-            return;
-        }
-
-        trigger.addEventListener('click', (event) => {
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-user-actions-trigger]');
+        if (trigger) {
             event.preventDefault();
             event.stopPropagation();
+
+            const menu = trigger.closest('[data-user-actions]');
+            const panel = menu?.querySelector('[data-user-actions-panel]');
+
+            if (!menu || !panel) {
+                return;
+            }
 
             const shouldOpen = panel.hidden;
             closeUserActionMenus();
 
             panel.hidden = !shouldOpen;
             trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-        });
-    });
+            return;
+        }
 
-    document.addEventListener('click', (event) => {
         if (!event.target.closest('[data-user-actions]')) {
             closeUserActionMenus();
         }
@@ -144,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
             closeUserActionMenus();
         }
     });
+
+    let refreshInteractiveBindings = () => {
+        initializeUserGroupToggles();
+    };
 
     const setupLivePanelFilters = () => {
         document.querySelectorAll('[data-panel-live-search="true"], [data-panel-filter-live="true"]').forEach((form) => {
@@ -233,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (replaceTarget(html)) {
+                        refreshInteractiveBindings();
                         syncUrl(requestUrl);
                     }
                 } catch (error) {
@@ -310,6 +325,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.querySelector(options.modalSelector);
 
         if (!modal) {
+            return;
+        }
+
+        if (modal.dataset.modalBound === 'true') {
             return;
         }
 
@@ -442,28 +461,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const triggerRect = dateTrigger.getBoundingClientRect();
+            const padding = 16;
+            const availableWidth = Math.max(0, window.innerWidth - (padding * 2));
+            const preferredWidth = Math.min(720, Math.max(triggerRect.width, 320));
+            const finalWidth = Math.max(Math.min(preferredWidth, availableWidth), Math.min(availableWidth, 280));
+
+            datePicker.style.width = `${finalWidth}px`;
+            datePicker.style.maxHeight = `${Math.max(240, window.innerHeight - padding * 2)}px`;
+
             const pickerRect = datePicker.getBoundingClientRect();
-            const padding = 12;
-            const availableBelow = window.innerHeight - triggerRect.bottom - padding;
-            const availableAbove = triggerRect.top - padding;
-            const fitsBelow = pickerRect.height <= availableBelow;
-            const fitsAbove = pickerRect.height <= availableAbove;
-
-            const width = Math.max(triggerRect.width, 320);
-            const maxWidth = Math.min(width, window.innerWidth - padding * 2);
-            const left = Math.min(Math.max(padding, triggerRect.left), window.innerWidth - maxWidth - padding);
-
-            let top = triggerRect.bottom + 8;
-            if (!fitsBelow && fitsAbove) {
-                top = Math.max(padding, triggerRect.top - pickerRect.height - 8);
-            } else if (!fitsBelow && !fitsAbove) {
-                top = Math.max(padding, Math.min(triggerRect.bottom + 8, window.innerHeight - pickerRect.height - padding));
-            }
+            const left = Math.max(padding, (window.innerWidth - finalWidth) / 2);
+            const top = Math.max(padding, (window.innerHeight - pickerRect.height) / 2);
 
             datePicker.style.left = `${left}px`;
             datePicker.style.top = `${top}px`;
-            datePicker.style.width = `${maxWidth}px`;
-            datePicker.style.maxHeight = `${Math.max(240, window.innerHeight - padding * 2)}px`;
         };
 
         const closeDatePicker = (restoreFocus = true) => {
@@ -577,6 +588,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.setAttribute('aria-pressed', 'true');
                 }
 
+                button.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    updateSelectedDate(button.dataset.maintenanceDateValue || '');
+                });
+
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    updateSelectedDate(button.dataset.maintenanceDateValue || '');
+                });
+
                 dateGrid.appendChild(button);
             }
 
@@ -656,21 +679,59 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeSelect = modal.querySelector('[data-user-equipo-type-select]');
             const field = modal.querySelector('[data-user-last-maintenance-field]');
             const dateInput = field?.querySelector('[data-user-last-maintenance-input]') || null;
+            const fieldLabel = field?.querySelector('[data-user-last-maintenance-label]') || null;
+            const nativeDateInput = field?.querySelector('[data-user-native-date-input]') || null;
+            const nativeDateTrigger = field?.querySelector('[data-user-native-date-trigger]') || null;
+            const nativeDateDisplay = field?.querySelector('[data-maintenance-date-display]') || null;
 
-            if (!typeSelect || !field || !dateInput) {
+            if (!typeSelect || !field || !dateInput || !fieldLabel) {
                 return;
             }
 
-            const syncVisibility = () => {
-                const shouldShow = typeSelect.value === 'normal';
-                field.hidden = !shouldShow;
-                field.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-                dateInput.disabled = !shouldShow;
+            const syncNativeDateDisplay = () => {
+                if (!nativeDateInput || !nativeDateDisplay) {
+                    return;
+                }
+
+                const value = String(nativeDateInput.value || '').trim();
+                dateInput.value = value;
+                nativeDateDisplay.textContent = value ? formatDateDisplay(value) : 'Selecciona una fecha';
             };
 
-            typeSelect.addEventListener('change', syncVisibility);
-            modal.addEventListener('panel:user-type-sync', syncVisibility);
-            syncVisibility();
+            const syncFieldState = () => {
+                const isNew = typeSelect.value === 'nuevo';
+                field.hidden = false;
+                field.setAttribute('aria-hidden', 'false');
+                dateInput.disabled = false;
+                fieldLabel.innerHTML = isNew
+                    ? fieldLabel.dataset.labelNuevo || 'Fecha de compra'
+                    : fieldLabel.dataset.labelNormal || 'Fecha de último mantenimiento';
+            };
+
+            if (nativeDateInput) {
+                nativeDateInput.value = String(dateInput.value || nativeDateInput.value || '').trim();
+                nativeDateInput.addEventListener('input', syncNativeDateDisplay);
+                nativeDateInput.addEventListener('change', syncNativeDateDisplay);
+                syncNativeDateDisplay();
+            }
+
+            if (nativeDateTrigger && nativeDateInput) {
+                nativeDateTrigger.addEventListener('click', (event) => {
+                    event.preventDefault();
+
+                    if (typeof nativeDateInput.showPicker === 'function') {
+                        nativeDateInput.showPicker();
+                        return;
+                    }
+
+                    nativeDateInput.focus();
+                    nativeDateInput.click();
+                });
+            }
+
+            typeSelect.addEventListener('change', syncFieldState);
+            modal.addEventListener('panel:user-type-sync', syncFieldState);
+            syncFieldState();
         };
 
         const restoreSubmitButton = () => {
@@ -908,7 +969,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            datePrev?.addEventListener('click', () => {
+            datePrev?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
                 if (!currentViewDate) {
                     syncViewToSelected();
                 }
@@ -918,7 +982,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 focusSelectedDay();
             });
 
-            dateNext?.addEventListener('click', () => {
+            dateNext?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
                 if (!currentViewDate) {
                     syncViewToSelected();
                 }
@@ -928,11 +995,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 focusSelectedDay();
             });
 
-            dateToday?.addEventListener('click', () => {
+            dateToday?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 updateSelectedDate(formatDateValue(new Date()));
             });
 
-            dateClose?.addEventListener('click', () => closeDatePicker(true));
+            dateClose?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                closeDatePicker(true);
+            });
 
             dateYearSelect.addEventListener('change', () => {
                 if (!currentViewDate) {
@@ -947,15 +1020,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentViewDate = new Date(selectedYear, currentViewDate.getMonth(), 1);
                 renderDatePicker();
                 focusSelectedDay();
-            });
-
-            dateGrid.addEventListener('click', (event) => {
-                const button = event.target.closest('.maintenance-date-picker-day');
-                if (!button) {
-                    return;
-                }
-
-                updateSelectedDate(button.dataset.maintenanceDateValue || '');
             });
 
             dateGrid.addEventListener('keydown', (event) => {
@@ -1095,32 +1159,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setupUserMaintenanceBaseField();
+        modal.dataset.modalBound = 'true';
     };
 
-    setupModal({
+    const userCreateModalOptions = {
         modalSelector: '[data-user-create-modal]',
         openSelector: '[data-user-create-open]',
         closeSelector: '[data-user-create-close]',
         idInputSelector: null,
         summarySelector: null,
         defaultSummary: '',
-    });
+    };
 
-    setupModal({
+    const userEditModalOptions = {
         modalSelector: '[data-user-edit-modal]',
         openSelector: '[data-user-edit-open]',
         closeSelector: '[data-user-edit-close]',
         idInputSelector: null,
         summarySelector: null,
         defaultSummary: '',
-    });
+    };
 
-    setupModal({
+    const maintenanceModalOptions = {
         modalSelector: '[data-maintenance-modal]',
         openSelector: '[data-open-maintenance-modal]',
         closeSelector: '[data-maintenance-modal-close]',
         idInputSelector: '[data-maintenance-id-input]',
         summarySelector: '[data-maintenance-summary]',
         defaultSummary: 'Selecciona una acción para este mantenimiento.',
-    });
+    };
+
+    refreshInteractiveBindings = () => {
+        initializeUserGroupToggles();
+        setupModal(userCreateModalOptions);
+        setupModal(userEditModalOptions);
+        setupModal(maintenanceModalOptions);
+    };
+
+    refreshInteractiveBindings();
 });

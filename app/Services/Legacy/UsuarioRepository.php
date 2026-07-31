@@ -147,12 +147,20 @@ class UsuarioRepository
             ]) > 0;
     }
 
-    public function actualizarUsuario(int $usuarioId, string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal', ?string $fechaUltimoMantenimientoBase = null, bool $actualizarFechaBase = true): bool
+    public function actualizarUsuario(int $usuarioId, string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal', ?string $fechaUltimoMantenimientoBase = null, bool $actualizarFechaBase = true, bool $priorizarFechaBase = false): bool
     {
         $tipoEquipo = $this->normalizarTipoEquipo($tipoEquipo);
         $fechaUltimoMantenimientoBase = $this->normalizarFechaBase($fechaUltimoMantenimientoBase);
 
-        return DB::transaction(function () use ($usuarioId, $nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase, $actualizarFechaBase): bool {
+        return DB::transaction(function () use ($usuarioId, $nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase, $actualizarFechaBase, $priorizarFechaBase): bool {
+            $usuarioExiste = DB::table('usuarios')
+                ->where('id', $usuarioId)
+                ->exists();
+
+            if (!$usuarioExiste) {
+                return false;
+            }
+
             $valores = [
                 'nombre' => $nombre,
                 'codigo_activo' => $codigoActivo,
@@ -171,11 +179,16 @@ class UsuarioRepository
                 ->limit(1)
                 ->update($valores) > 0;
 
-            if ($actualizado) {
-                $this->resumenService->sincronizarResumenUsuario($usuarioId);
+            $historialAjustado = false;
+            if ($actualizarFechaBase && $fechaUltimoMantenimientoBase !== null) {
+                $historialAjustado = $this->ajustarUltimoMantenimientoReal($usuarioId, $fechaUltimoMantenimientoBase);
             }
 
-            return $actualizado;
+            if ($actualizado || $historialAjustado || $actualizarFechaBase) {
+                $this->resumenService->sincronizarResumenUsuario($usuarioId, null, $priorizarFechaBase);
+            }
+
+            return true;
         });
     }
 
@@ -293,6 +306,34 @@ class UsuarioRepository
         $fecha = is_string($fecha) ? trim($fecha) : '';
 
         return $fecha !== '' ? $fecha : null;
+    }
+
+    private function ajustarUltimoMantenimientoReal(int $usuarioId, string $fechaUltimoMantenimientoBase): bool
+    {
+        $ultimoRealizado = DB::table('mantenimientos')
+            ->select('id', 'fecha_programada', 'fecha_ejecucion')
+            ->where('usuario_id', $usuarioId)
+            ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnHechos())
+            ->orderByRaw('COALESCE(fecha_ejecucion, fecha_programada, created_at) DESC')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$ultimoRealizado) {
+            return false;
+        }
+
+        $valores = [
+            'fecha_programada' => $fechaUltimoMantenimientoBase,
+            'updated_at' => now(),
+        ];
+
+        if (trim((string) ($ultimoRealizado->fecha_ejecucion ?? '')) !== '') {
+            $valores['fecha_ejecucion'] = $fechaUltimoMantenimientoBase;
+        }
+
+        return DB::table('mantenimientos')
+            ->where('id', (int) $ultimoRealizado->id)
+            ->update($valores) > 0;
     }
 
 }

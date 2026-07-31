@@ -14,13 +14,13 @@ class UsuarioMantenimientoResumenService
     ) {
     }
 
-    public function sincronizarResumenUsuario(int $usuarioId, ?array $periodo = null): array
+    public function sincronizarResumenUsuario(int $usuarioId, ?array $periodo = null, bool $priorizarFechaBase = false): array
     {
         if ($usuarioId <= 0) {
             return [];
         }
 
-        $resumen = $this->calcularResumenUsuario($usuarioId, $periodo);
+        $resumen = $this->calcularResumenUsuario($usuarioId, $periodo, $priorizarFechaBase);
 
         DB::table('usuarios')
             ->where('id', $usuarioId)
@@ -132,7 +132,7 @@ class UsuarioMantenimientoResumenService
         ];
     }
 
-    private function calcularResumenUsuario(int $usuarioId, ?array $periodo = null): array
+    private function calcularResumenUsuario(int $usuarioId, ?array $periodo = null, bool $priorizarFechaBase = false): array
     {
         $periodo = $periodo ?? $this->semestreService->actual();
         $usuario = DB::table('usuarios')
@@ -184,17 +184,28 @@ class UsuarioMantenimientoResumenService
             ?? $ultimoRealizado?->fecha_programada
         );
         $proximaFechaMantenimiento = null;
+        $tipoEquipo = trim((string) ($usuario->tipo_equipo ?? 'normal'));
 
-        if ($ultimoProgramado) {
+        if ($priorizarFechaBase && $ultimaFechaReal === null && $fechaBaseUsuario !== null) {
+            $proximaFechaMantenimiento = $this->periodicidadService->fechaProximaParaTipoEquipo(
+                $fechaBaseUsuario,
+                $tipoEquipo
+            );
+        } elseif ($ultimoProgramado) {
             $proximaFechaMantenimiento = $this->normalizarFecha(
                 $ultimoProgramado->fecha_programada
                 ?? $ultimoProgramado->fecha_ejecucion
             );
         } elseif ($ultimaFechaMantenimiento !== null) {
-            $proximaFechaMantenimiento = $this->periodicidadService->fechaProximaDesde(
-                $ultimaFechaMantenimiento,
-                $this->periodicidadService->cicloMantenimientoMeses()
-            );
+            $proximaFechaMantenimiento = $ultimaFechaReal === null && $fechaBaseUsuario !== null
+                ? $this->periodicidadService->fechaProximaParaTipoEquipo(
+                    $ultimaFechaMantenimiento,
+                    $tipoEquipo
+                )
+                : $this->periodicidadService->fechaProximaDesde(
+                    $ultimaFechaMantenimiento,
+                    $this->periodicidadService->cicloMantenimientoMeses()
+                );
         } elseif ($ultimoPendiente) {
             $proximaFechaMantenimiento = $this->normalizarFecha(
                 $ultimoPendiente->fecha_programada
@@ -204,7 +215,6 @@ class UsuarioMantenimientoResumenService
 
         if ($proximaFechaMantenimiento === null && $usuario) {
             $fechaBase = $usuario->created_at ?? null;
-            $tipoEquipo = trim((string) ($usuario->tipo_equipo ?? 'normal'));
 
             if ($this->esFechaValida($fechaBase)) {
                 $proximaFechaMantenimiento = $this->periodicidadService->fechaProximaParaTipoEquipo(

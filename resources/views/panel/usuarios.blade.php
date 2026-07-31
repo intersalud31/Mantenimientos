@@ -69,7 +69,27 @@
                 'fecha_ultimo_mantenimiento_base',
                 $fechaBaseEditarAlmacenada !== '' ? $fechaBaseEditarAlmacenada : $fechaUltimaResumenEditar
             );
-            $mostrarFechaCrear = old('tipo_equipo', 'normal') === 'normal';
+            $tipoEquipoCrear = old('tipo_equipo', 'normal');
+            $tipoEquipoEditar = old('tipo_equipo', $usuarioEdicion['tipo_equipo'] ?? 'normal');
+            $etiquetaFechaCrear = $tipoEquipoCrear === 'nuevo'
+                ? 'Fecha de compra'
+                : 'Fecha de &uacute;ltimo mantenimiento';
+            $etiquetaFechaEditar = $tipoEquipoEditar === 'nuevo'
+                ? 'Fecha de compra'
+                : 'Fecha de &uacute;ltimo mantenimiento';
+            $formatearFechaControl = static function (?string $valor): string {
+                $valor = trim((string) $valor);
+
+                if ($valor === '') {
+                    return 'Selecciona una fecha';
+                }
+
+                try {
+                    return \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $valor)->format('d/m/Y');
+                } catch (\Throwable) {
+                    return $valor;
+                }
+            };
         @endphp
 
         @if (session('panel_message'))
@@ -160,17 +180,63 @@
                             </select>
                             @error('tipo_equipo')<span class="field-error">{{ $message }}</span>@enderror
                         </label>
-                        <div class="field-wide user-maintenance-base-field" data-user-last-maintenance-field @if(!$mostrarFechaCrear) hidden aria-hidden="true" @endif>
-                            <label for="fecha_ultimo_mantenimiento_base_crear">Fecha de &uacute;ltimo mantenimiento</label>
+                        <div class="field-wide user-maintenance-base-field maintenance-date-field" data-user-last-maintenance-field data-maintenance-date-field aria-hidden="false">
+                            <label
+                                for="fecha_ultimo_mantenimiento_base_crear"
+                                data-user-last-maintenance-label
+                                data-label-normal="Fecha de &uacute;ltimo mantenimiento"
+                                data-label-nuevo="Fecha de compra"
+                            >{!! $etiquetaFechaCrear !!}</label>
                             <input
-                                type="date"
+                                type="hidden"
                                 id="fecha_ultimo_mantenimiento_base_crear"
                                 name="fecha_ultimo_mantenimiento_base"
                                 value="{{ $fechaBaseCrear }}"
                                 data-user-last-maintenance-input
-                                @if(!$mostrarFechaCrear) disabled @endif
+                                data-maintenance-date-input
                                 @error('fecha_ultimo_mantenimiento_base') aria-invalid="true" @enderror
                             >
+                            <button
+                                type="button"
+                                class="maintenance-date-trigger"
+                                data-maintenance-date-trigger
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="maintenance-date-picker-crear"
+                                aria-labelledby="fecha_ultimo_mantenimiento_base_crear"
+                            >
+                                <span class="maintenance-date-trigger-text" data-maintenance-date-display>{{ $formatearFechaControl($fechaBaseCrear) }}</span>
+                                <span class="maintenance-date-trigger-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                        <path d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                            <div class="maintenance-date-picker" id="maintenance-date-picker-crear" data-maintenance-date-picker hidden>
+                                <div class="maintenance-date-picker-header">
+                                    <button type="button" class="maintenance-date-picker-nav" data-maintenance-date-prev aria-label="Mes anterior">&lsaquo;</button>
+                                    <div class="maintenance-date-picker-title-block">
+                                        <div class="maintenance-date-picker-title" data-maintenance-date-month></div>
+                                        <label class="maintenance-date-picker-year-label" for="maintenance-date-year-crear">Año</label>
+                                        <select id="maintenance-date-year-crear" class="maintenance-date-picker-year" data-maintenance-date-year></select>
+                                    </div>
+                                    <button type="button" class="maintenance-date-picker-nav" data-maintenance-date-next aria-label="Mes siguiente">&rsaquo;</button>
+                                </div>
+                                <div class="maintenance-date-picker-weekdays" aria-hidden="true">
+                                    <span>L</span>
+                                    <span>M</span>
+                                    <span>X</span>
+                                    <span>J</span>
+                                    <span>V</span>
+                                    <span>S</span>
+                                    <span>D</span>
+                                </div>
+                                <div class="maintenance-date-picker-grid" data-maintenance-date-grid></div>
+                                <div class="maintenance-date-picker-footer">
+                                    <button type="button" class="btn btn-ghost maintenance-date-picker-today" data-maintenance-date-today>Hoy</button>
+                                    <button type="button" class="btn btn-ghost maintenance-date-picker-close" data-maintenance-date-close>Listo</button>
+                                </div>
+                            </div>
                             @error('fecha_ultimo_mantenimiento_base')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="field-actions">
@@ -242,16 +308,63 @@
                                 </select>
                                 @error('tipo_equipo')<span class="field-error">{{ $message }}</span>@enderror
                             </label>
-                            <div class="field-wide user-maintenance-base-field" data-user-last-maintenance-field>
-                                <label for="fecha_ultimo_mantenimiento_base_editar">Fecha de &uacute;ltimo mantenimiento</label>
+                            <div class="field-wide user-maintenance-base-field maintenance-date-field" data-user-last-maintenance-field data-maintenance-date-field>
+                                <label
+                                    for="fecha_ultimo_mantenimiento_base_editar"
+                                    data-user-last-maintenance-label
+                                    data-label-normal="Fecha de &uacute;ltimo mantenimiento"
+                                    data-label-nuevo="Fecha de compra"
+                                >{!! $etiquetaFechaEditar !!}</label>
                                 <input
-                                    type="date"
+                                    type="hidden"
                                     id="fecha_ultimo_mantenimiento_base_editar"
                                     name="fecha_ultimo_mantenimiento_base"
                                     value="{{ $fechaBaseEditar }}"
                                     data-user-last-maintenance-input
+                                    data-maintenance-date-input
                                     @error('fecha_ultimo_mantenimiento_base') aria-invalid="true" @enderror
                                 >
+                                <button
+                                    type="button"
+                                    class="maintenance-date-trigger"
+                                    data-maintenance-date-trigger
+                                    aria-haspopup="dialog"
+                                    aria-expanded="false"
+                                    aria-controls="maintenance-date-picker-editar"
+                                    aria-labelledby="fecha_ultimo_mantenimiento_base_editar"
+                                >
+                                    <span class="maintenance-date-trigger-text" data-maintenance-date-display>{{ $formatearFechaControl($fechaBaseEditar) }}</span>
+                                    <span class="maintenance-date-trigger-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                            <path d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </span>
+                                </button>
+                                <div class="maintenance-date-picker" id="maintenance-date-picker-editar" data-maintenance-date-picker hidden>
+                                    <div class="maintenance-date-picker-header">
+                                        <button type="button" class="maintenance-date-picker-nav" data-maintenance-date-prev aria-label="Mes anterior">&lsaquo;</button>
+                                        <div class="maintenance-date-picker-title-block">
+                                            <div class="maintenance-date-picker-title" data-maintenance-date-month></div>
+                                            <label class="maintenance-date-picker-year-label" for="maintenance-date-year-editar">Año</label>
+                                            <select id="maintenance-date-year-editar" class="maintenance-date-picker-year" data-maintenance-date-year></select>
+                                        </div>
+                                        <button type="button" class="maintenance-date-picker-nav" data-maintenance-date-next aria-label="Mes siguiente">&rsaquo;</button>
+                                    </div>
+                                    <div class="maintenance-date-picker-weekdays" aria-hidden="true">
+                                        <span>L</span>
+                                        <span>M</span>
+                                        <span>X</span>
+                                        <span>J</span>
+                                        <span>V</span>
+                                        <span>S</span>
+                                        <span>D</span>
+                                    </div>
+                                    <div class="maintenance-date-picker-grid" data-maintenance-date-grid></div>
+                                    <div class="maintenance-date-picker-footer">
+                                        <button type="button" class="btn btn-ghost maintenance-date-picker-today" data-maintenance-date-today>Hoy</button>
+                                        <button type="button" class="btn btn-ghost maintenance-date-picker-close" data-maintenance-date-close>Listo</button>
+                                    </div>
+                                </div>
                                 @error('fecha_ultimo_mantenimiento_base')<span class="field-error">{{ $message }}</span>@enderror
                             </div>
                             <div class="field-actions">

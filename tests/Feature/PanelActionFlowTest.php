@@ -213,7 +213,7 @@ class PanelActionFlowTest extends TestCase
             ->andReturn(true);
         $repo->shouldReceive('actualizarUsuario')
             ->once()
-            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal', null, true)
+            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal', null, true, false)
             ->andReturn(true);
         $repo->shouldReceive('cambiarEstadoUsuario')
             ->once()
@@ -470,13 +470,13 @@ class PanelActionFlowTest extends TestCase
         $response = $this->get(route('panel.usuarios', ['editar_usuario_id' => $usuarioId]));
 
         $response->assertOk();
-        $response->assertSee('type="date"', false);
+        $response->assertSee('type="hidden"', false);
         $response->assertSee('id="fecha_ultimo_mantenimiento_base_editar"', false);
         $response->assertSee('name="fecha_ultimo_mantenimiento_base"', false);
         $response->assertSee('value="2026-04-12"', false);
         $response->assertSee('data-user-last-maintenance-input', false);
-        $response->assertDontSee('data-maintenance-date-trigger', false);
-        $response->assertDontSee('data-maintenance-date-picker', false);
+        $response->assertSee('data-maintenance-date-trigger', false);
+        $response->assertSee('data-maintenance-date-picker', false);
     }
 
     public function test_guardar_fecha_de_respaldo_sin_cambio_no_migra_fecha_base_automaticamente(): void
@@ -533,6 +533,8 @@ class PanelActionFlowTest extends TestCase
     {
         $this->actingAs($this->makeLegacyUser(10047, 'Admin Cambia Fecha', 'cambia-fecha@example.com', 'admin'));
 
+        $periodo = app(SemestreService::class)->actual();
+
         $usuarioId = DB::table('usuarios')->insertGetId([
             'nombre' => 'Usuario Cambia Fecha',
             'codigo_activo' => 991242,
@@ -546,6 +548,32 @@ class PanelActionFlowTest extends TestCase
             'estado_usuario' => 1,
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+
+        $realizadoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => '2026-03-20',
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => '2026-03-20',
+            'tecnico_responsable' => 'Tecnico Base',
+            'observaciones' => 'Cargado desde cronograma 2026 (E=ejecutado).',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonths(4),
+            'updated_at' => now()->subMonths(4),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => '2026-09-21',
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Generado automaticamente desde la sincronizacion del modulo Proximos.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonths(3),
+            'updated_at' => now()->subMonths(3),
         ]);
 
         $mantenimientosAntes = DB::table('mantenimientos')->where('usuario_id', $usuarioId)->count();
@@ -565,6 +593,34 @@ class PanelActionFlowTest extends TestCase
             'fecha_ultimo_mantenimiento_base' => '2026-02-10',
         ]);
         $this->assertSame($mantenimientosAntes, DB::table('mantenimientos')->where('usuario_id', $usuarioId)->count());
+
+        $usuarioActualizado = DB::table('usuarios')
+            ->select('ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento')
+            ->where('id', $usuarioId)
+            ->first();
+
+        $esperada = app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)
+            ->fechaProximaDesde(
+                '2026-02-10',
+                app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->cicloMantenimientoMeses()
+            );
+
+        $this->assertSame('2026-02-10', (string) ($usuarioActualizado->ultima_fecha_mantenimiento ?? ''));
+        $this->assertSame($esperada, (string) ($usuarioActualizado->proxima_fecha_mantenimiento ?? ''));
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $realizadoId,
+            'fecha_programada' => '2026-02-10',
+            'fecha_ejecucion' => '2026-02-10',
+            'estado' => 'realizado',
+        ]);
+
+        $proximos = app(MantenimientoRepository::class)->listarProximosPorPeriodo(10, 0, 'Usuario Cambia Fecha', $periodo);
+        $fila = collect($proximos)->firstWhere('usuario_id', $usuarioId);
+
+        $this->assertIsArray($fila);
+        $this->assertSame('2026-02-10', (string) ($fila['ultima_fecha_programada'] ?? ''));
+        $this->assertSame($esperada, (string) ($fila['proxima_fecha_programada'] ?? ''));
     }
 
     public function test_no_permite_programar_mantenimiento_en_fecha_pasada(): void
