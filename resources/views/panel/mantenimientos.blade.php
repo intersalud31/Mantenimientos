@@ -222,6 +222,7 @@
                                     value="{{ $fechaProgramadaInicial }}"
                                     data-maintenance-date-input
                                     data-maintenance-date-min="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
+                                    data-maintenance-date-holidays='@json($festivosCalendario ?? [])'
                                     data-maintenance-date-preserve="{{ old('fecha_programada') !== null ? '1' : '0' }}"
                                 >
                                 <button
@@ -314,6 +315,7 @@
                                     value="{{ $fechaEjecucionInicial }}"
                                     data-maintenance-date-input
                                     data-maintenance-date-min="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
+                                    data-maintenance-date-holidays='@json($festivosCalendario ?? [])'
                                 >
                                 <button
                                     type="button"

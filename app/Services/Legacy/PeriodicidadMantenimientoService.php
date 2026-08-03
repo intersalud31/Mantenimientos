@@ -28,6 +28,9 @@ class PeriodicidadMantenimientoService
     /** @var array<string, int>|null */
     private ?array $cache = null;
 
+    /** @var array<int, array<string, bool>> */
+    private array $festivosCache = [];
+
     public function configuracion(): array
     {
         return [
@@ -88,7 +91,7 @@ class PeriodicidadMantenimientoService
 
         $fecha = (new DateTimeImmutable($fechaBase))->add(new DateInterval($intervalo));
 
-        while ((int) $fecha->format('N') >= 6) {
+        while (!$this->esDiaHabil($fecha->format('Y-m-d'))) {
             $fecha = $fecha->add(new DateInterval('P1D'));
         }
 
@@ -103,6 +106,58 @@ class PeriodicidadMantenimientoService
     public function textoCicloParaTipoEquipo(string $tipoEquipo): string
     {
         return $this->etiquetaMeses($this->mesesSegunTipoEquipo($tipoEquipo));
+    }
+
+    public function esDiaHabil(string $fecha): bool
+    {
+        $fecha = trim($fecha);
+        if (!$this->esFechaValida($fecha)) {
+            return false;
+        }
+
+        $fechaParsed = new DateTimeImmutable($fecha);
+        if ((int) $fechaParsed->format('N') >= 6) {
+            return false;
+        }
+
+        return !$this->esFestivo($fecha);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function festivosEntre(int $anioInicial, int $anioFinal): array
+    {
+        if ($anioInicial > $anioFinal) {
+            [$anioInicial, $anioFinal] = [$anioFinal, $anioInicial];
+        }
+
+        $festivos = [];
+        for ($anio = $anioInicial; $anio <= $anioFinal; $anio++) {
+            foreach (array_keys($this->festivosDelAnio($anio)) as $fecha) {
+                $festivos[$fecha] = true;
+            }
+        }
+
+        $fechas = array_keys($festivos);
+        sort($fechas);
+
+        return $fechas;
+    }
+
+    public function siguienteDiaHabil(string $fecha): ?string
+    {
+        $fecha = trim($fecha);
+        if (!$this->esFechaValida($fecha)) {
+            return null;
+        }
+
+        $actual = new DateTimeImmutable($fecha);
+        while (!$this->esDiaHabil($actual->format('Y-m-d'))) {
+            $actual = $actual->add(new DateInterval('P1D'));
+        }
+
+        return $actual->format('Y-m-d');
     }
 
     private function entero(string $clave, int $default, int $minimo, int $maximo): int
@@ -171,6 +226,84 @@ class PeriodicidadMantenimientoService
     private function normalizarTipoEquipo(string $tipoEquipo): string
     {
         return trim($tipoEquipo) === 'nuevo' ? 'nuevo' : 'normal';
+    }
+
+    private function esFestivo(string $fecha): bool
+    {
+        $anio = (int) substr($fecha, 0, 4);
+        return isset($this->festivosDelAnio($anio)[$fecha]);
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function festivosDelAnio(int $anio): array
+    {
+        if (isset($this->festivosCache[$anio])) {
+            return $this->festivosCache[$anio];
+        }
+
+        $pascua = $this->calcularPascua($anio);
+        $festivos = [
+            sprintf('%04d-01-01', $anio) => true,
+            $this->moverALunes(sprintf('%04d-01-06', $anio)) => true,
+            $this->moverALunes(sprintf('%04d-03-19', $anio)) => true,
+            $pascua->sub(new DateInterval('P3D'))->format('Y-m-d') => true,
+            $pascua->sub(new DateInterval('P2D'))->format('Y-m-d') => true,
+            sprintf('%04d-05-01', $anio) => true,
+            $this->moverALunes($pascua->add(new DateInterval('P43D'))->format('Y-m-d')) => true,
+            $this->moverALunes($pascua->add(new DateInterval('P64D'))->format('Y-m-d')) => true,
+            $this->moverALunes($pascua->add(new DateInterval('P71D'))->format('Y-m-d')) => true,
+            $this->moverALunes(sprintf('%04d-06-29', $anio)) => true,
+            sprintf('%04d-07-20', $anio) => true,
+            sprintf('%04d-08-07', $anio) => true,
+            $this->moverALunes(sprintf('%04d-08-15', $anio)) => true,
+            $this->moverALunes(sprintf('%04d-10-12', $anio)) => true,
+            $this->moverALunes(sprintf('%04d-11-01', $anio)) => true,
+            $this->moverALunes(sprintf('%04d-11-11', $anio)) => true,
+            sprintf('%04d-12-08', $anio) => true,
+            sprintf('%04d-12-25', $anio) => true,
+        ];
+
+        $festivos = array_filter(
+            $festivos,
+            static fn (bool $valor, string $fecha): bool => $valor && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) === 1,
+            ARRAY_FILTER_USE_BOTH
+        );
+
+        $this->festivosCache[$anio] = $festivos;
+
+        return $this->festivosCache[$anio];
+    }
+
+    private function moverALunes(string $fecha): string
+    {
+        $actual = new DateTimeImmutable($fecha);
+        while ((int) $actual->format('N') !== 1) {
+            $actual = $actual->add(new DateInterval('P1D'));
+        }
+
+        return $actual->format('Y-m-d');
+    }
+
+    private function calcularPascua(int $anio): DateTimeImmutable
+    {
+        $a = $anio % 19;
+        $b = intdiv($anio, 100);
+        $c = $anio % 100;
+        $d = intdiv($b, 4);
+        $e = $b % 4;
+        $f = intdiv($b + 8, 25);
+        $g = intdiv($b - $f + 1, 3);
+        $h = (19 * $a + $b - $d - $g + 15) % 30;
+        $i = intdiv($c, 4);
+        $k = $c % 4;
+        $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+        $m = intdiv($a + 11 * $h + 22 * $l, 451);
+        $mes = intdiv($h + $l - 7 * $m + 114, 31);
+        $dia = (($h + $l - 7 * $m + 114) % 31) + 1;
+
+        return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $anio, $mes, $dia));
     }
 
     private function esFechaValida(string $fecha): bool

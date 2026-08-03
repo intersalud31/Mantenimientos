@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Legacy\MantenimientoRepository;
+use App\Services\Legacy\PeriodicidadMantenimientoService;
 use App\Services\Legacy\PanelNavigationService;
 use App\Services\Legacy\UsuarioRepository;
 use App\Services\SemestreService;
@@ -56,9 +57,11 @@ class PanelController extends Controller
     {
         $busquedaUsuario = trim((string) $request->query('busqueda_usuario', ''));
         $cantidadReversiones = max(1, min(10, (int) $request->query('cantidad_reversiones', 1)));
+        $codigoActivo = max(0, (int) $request->query('codigo_activo', 0));
         $usuarioResuelto = null;
-        if ($busquedaUsuario !== '') {
-            $resultadoBusqueda = $usuarioRepo->resolverCodigoActivoPorBusqueda($busquedaUsuario);
+        $consultaUsuario = $codigoActivo > 0 ? (string) $codigoActivo : $busquedaUsuario;
+        if ($consultaUsuario !== '') {
+            $resultadoBusqueda = $usuarioRepo->resolverCodigoActivoPorBusqueda($consultaUsuario);
             if (($resultadoBusqueda['ok'] ?? false) === true) {
                 $usuarioResuelto = $resultadoBusqueda;
             }
@@ -68,14 +71,16 @@ class PanelController extends Controller
             'usuario' => session('usuario_autenticado'),
             'busquedaUsuario' => $busquedaUsuario,
             'cantidadReversiones' => $cantidadReversiones,
+            'codigoActivo' => $codigoActivo,
             'usuarioResuelto' => $usuarioResuelto,
             'tecnicos' => $repo->listarTecnicosActivos(),
         ]);
     }
 
-    public function proximos(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
+    public function proximos(Request $request, MantenimientoRepository $repo, SemestreService $semestreService, PeriodicidadMantenimientoService $periodicidadService): View
     {
         $periodo = $semestreService->desdeRequest($request);
+        $anio = (int) ($periodo['anio'] ?? (int) date('Y'));
 
         $busqueda = trim((string) $request->query('q_proximos', ''));
         $pagina = max(1, (int) $request->query('proximos_pagina', 1));
@@ -105,12 +110,14 @@ class PanelController extends Controller
             'total' => $total,
             'totalPaginas' => $totalPaginas,
             'tecnicos' => $repo->listarTecnicosActivos(),
+            'festivosCalendario' => $periodicidadService->festivosEntre($anio - 10, $anio + 10),
         ]);
     }
 
-    public function programados(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
+    public function programados(Request $request, MantenimientoRepository $repo, SemestreService $semestreService, PeriodicidadMantenimientoService $periodicidadService): View
     {
         $periodo = $semestreService->desdeRequest($request);
+        $anio = (int) ($periodo['anio'] ?? (int) date('Y'));
 
         $busqueda = trim((string) $request->query('q_programados', ''));
         $pagina = max(1, (int) $request->query('programados_pagina', 1));
@@ -140,6 +147,7 @@ class PanelController extends Controller
             'total' => $total,
             'totalPaginas' => $totalPaginas,
             'tecnicos' => $repo->listarTecnicosActivos(),
+            'festivosCalendario' => $periodicidadService->festivosEntre($anio - 10, $anio + 10),
         ]);
     }
 
@@ -362,7 +370,7 @@ class PanelController extends Controller
         );
     }
 
-    public function programarProximo(Request $request, MantenimientoRepository $repo): RedirectResponse
+    public function programarProximo(Request $request, MantenimientoRepository $repo, PeriodicidadMantenimientoService $periodicidadService): RedirectResponse
     {
         $data = $request->validate([
             'mantenimiento_id' => ['required', 'integer', 'min:1'],
@@ -383,9 +391,8 @@ class PanelController extends Controller
             return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada no puede ser anterior a hoy.');
         }
 
-        $diaSemana = $fecha ? (int) $fecha->format('N') : 0;
-        if ($diaSemana < 1 || $diaSemana > 5) {
-            return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'Debes seleccionar una fecha válida de lunes a viernes.');
+        if (!$periodicidadService->esDiaHabil($data['fecha_programada'])) {
+            return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada debe ser un dia habil.');
         }
 
         $resultado = $repo->marcarComoProgramado((int) $data['mantenimiento_id'], $data['fecha_programada']);
@@ -396,7 +403,7 @@ class PanelController extends Controller
         );
     }
 
-    public function marcarProgramadoComoHecho(Request $request, MantenimientoRepository $repo): RedirectResponse
+    public function marcarProgramadoComoHecho(Request $request, MantenimientoRepository $repo, PeriodicidadMantenimientoService $periodicidadService): RedirectResponse
     {
         $contexto = [
             'q_programados' => (string) $request->input('q_programados', ''),
@@ -418,6 +425,10 @@ class PanelController extends Controller
         $hoy = new \DateTimeImmutable('today');
         if ($fechaEjecucion === false || $fechaEjecucion < $hoy) {
             return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion no puede ser anterior a hoy.');
+        }
+
+        if (!$periodicidadService->esDiaHabil($data['fecha_ejecucion'])) {
+            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion debe ser un dia habil.');
         }
 
         $tecnico = $repo->obtenerNombreTecnicoPorId((int) $data['tecnico_id']);
@@ -473,9 +484,19 @@ class PanelController extends Controller
         $data = $request->validate([
             'busqueda_usuario' => ['required', 'string', 'max:150'],
             'cantidad_reversiones' => ['required', 'integer', 'min:1', 'max:10'],
+            'codigo_activo' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda($data['busqueda_usuario']);
+        $codigoActivoForzado = (int) ($data['codigo_activo'] ?? 0);
+        $resolucion = null;
+        if ($codigoActivoForzado > 0) {
+            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) $codigoActivoForzado);
+        }
+
+        if (($resolucion['ok'] ?? false) !== true) {
+            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda($data['busqueda_usuario']);
+        }
+
         if (($resolucion['ok'] ?? false) !== true) {
             return $this->redirectConContexto($request, 'panel.configuracion', [
                 'busqueda_usuario' => $data['busqueda_usuario'],
@@ -496,6 +517,7 @@ class PanelController extends Controller
         return $this->redirectConContexto($request, 'panel.configuracion', [
             'busqueda_usuario' => $data['busqueda_usuario'],
             'cantidad_reversiones' => (int) $data['cantidad_reversiones'],
+            'codigo_activo' => $codigoActivo,
         ])
             ->with(
                 ($resultado['ok'] ?? false) ? 'panel_message' : 'panel_error',

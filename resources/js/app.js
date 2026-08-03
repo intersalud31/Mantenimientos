@@ -1,4 +1,107 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const appSidebar = document.querySelector('[data-app-sidebar]');
+    const appSidebarBackdrop = document.querySelector('[data-app-sidebar-backdrop]');
+    const appSidebarToggle = document.querySelector('[data-app-sidebar-toggle]');
+    const appSidebarClose = document.querySelector('[data-app-sidebar-close]');
+    const appNavGroups = Array.from(document.querySelectorAll('[data-app-nav-group]'));
+
+    if (appSidebar && appSidebarToggle) {
+        const desktopQuery = window.matchMedia('(min-width: 981px)');
+
+        const setMobileOpen = (open) => {
+            document.body.classList.toggle('app-sidebar-mobile-open', open);
+            appSidebarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+            if (appSidebarBackdrop) {
+                appSidebarBackdrop.hidden = !open;
+            }
+        };
+
+        const setDesktopCollapsed = (collapsed) => {
+            document.body.classList.toggle('app-sidebar-collapsed', collapsed);
+            appSidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        };
+
+        const closeMobileSidebar = () => setMobileOpen(false);
+
+        appSidebarToggle.addEventListener('click', (event) => {
+            event.preventDefault();
+
+            if (desktopQuery.matches) {
+                setDesktopCollapsed(!document.body.classList.contains('app-sidebar-collapsed'));
+                return;
+            }
+
+            setMobileOpen(!document.body.classList.contains('app-sidebar-mobile-open'));
+        });
+
+        appSidebarClose?.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeMobileSidebar();
+        });
+
+        appSidebarBackdrop?.addEventListener('click', closeMobileSidebar);
+
+        appSidebar.querySelectorAll('[data-app-sidebar-link]').forEach((link) => {
+            link.addEventListener('click', () => {
+                if (!desktopQuery.matches) {
+                    closeMobileSidebar();
+                }
+            });
+        });
+
+        appNavGroups.forEach((group) => {
+            const toggle = group.querySelector('[data-app-nav-toggle]');
+            const panel = group.querySelector('[data-app-nav-panel]');
+
+            if (!toggle || !panel) {
+                return;
+            }
+
+            const setOpen = (open) => {
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                panel.hidden = !open;
+                group.classList.toggle('app-nav-group--open', open);
+            };
+
+            setOpen(toggle.getAttribute('aria-expanded') === 'true');
+
+            toggle.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                if (desktopQuery.matches && document.body.classList.contains('app-sidebar-collapsed')) {
+                    setDesktopCollapsed(false);
+                    setOpen(true);
+                    return;
+                }
+
+                setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+            });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeMobileSidebar();
+            }
+        });
+
+        const syncResponsiveSidebar = () => {
+            closeMobileSidebar();
+            if (!desktopQuery.matches) {
+                document.body.classList.remove('app-sidebar-collapsed');
+            }
+        };
+
+        if (typeof desktopQuery.addEventListener === 'function') {
+            desktopQuery.addEventListener('change', syncResponsiveSidebar);
+        } else if (typeof desktopQuery.addListener === 'function') {
+            desktopQuery.addListener(syncResponsiveSidebar);
+        }
+
+        setMobileOpen(false);
+        setDesktopCollapsed(document.body.classList.contains('app-sidebar-collapsed'));
+    }
+
     const topbar = document.querySelector('[data-topbar]');
 
     if (topbar) {
@@ -78,10 +181,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const closeUserActionMenus = () => {
-        document.querySelectorAll('[data-user-actions]').forEach((menu) => {
-            const trigger = menu.querySelector('[data-user-actions-trigger]');
-            const panel = menu.querySelector('[data-user-actions-panel]');
+    const panelActionMenuSelector = '[data-panel-action-menu]';
+    const panelActionMenuTriggerSelector = '[data-panel-action-menu-trigger]';
+    const panelActionMenuPanelSelector = '[data-panel-action-menu-panel]';
+    const panelActionMenuItemSelector = '[data-panel-action-menu-item]';
+
+    let activePanelActionMenu = null;
+
+    const getPanelActionMenuElements = (menu) => {
+        if (!menu) {
+            return {
+                trigger: null,
+                panel: null,
+            };
+        }
+
+        return {
+            trigger: menu.querySelector(panelActionMenuTriggerSelector),
+            panel: menu.querySelector(panelActionMenuPanelSelector),
+        };
+    };
+
+    const getPanelActionMenuItems = (menu) => Array.from(
+        menu.querySelectorAll(panelActionMenuItemSelector),
+    ).filter((item) => item.getAttribute('aria-disabled') !== 'true' && !item.hidden);
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const closePanelActionMenus = (focusTrigger = false) => {
+        document.querySelectorAll(panelActionMenuSelector).forEach((menu) => {
+            const { trigger, panel } = getPanelActionMenuElements(menu);
 
             if (trigger) {
                 trigger.setAttribute('aria-expanded', 'false');
@@ -89,9 +218,235 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (panel) {
                 panel.hidden = true;
+                panel.style.left = '';
+                panel.style.top = '';
+                panel.style.width = '';
+                panel.style.visibility = '';
             }
+
+            menu.classList.remove('panel-action-menu--open');
         });
+
+        if (focusTrigger && activePanelActionMenu) {
+            const { trigger } = getPanelActionMenuElements(activePanelActionMenu);
+            trigger?.focus();
+        }
+
+        activePanelActionMenu = null;
     };
+
+    const positionPanelActionMenu = (menu) => {
+        const { trigger, panel } = getPanelActionMenuElements(menu);
+
+        if (!trigger || !panel || panel.hidden) {
+            return;
+        }
+
+        panel.style.visibility = 'hidden';
+        panel.style.left = '0px';
+        panel.style.top = '0px';
+        panel.style.width = '';
+
+        const triggerRect = trigger.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const menuWidth = Math.min(Math.max(panelRect.width || 220, 220), viewportWidth - 24);
+        const menuHeight = panelRect.height || 0;
+        const isStartAligned = menu.classList.contains('panel-action-menu--start');
+        const spaceBelow = viewportHeight - triggerRect.bottom - 12;
+        const spaceAbove = triggerRect.top - 12;
+        const openAbove = menuHeight > 0 && spaceBelow < menuHeight && spaceAbove > spaceBelow;
+        const top = openAbove
+            ? clamp(triggerRect.top - 8 - menuHeight, 12, Math.max(12, viewportHeight - menuHeight - 12))
+            : clamp(triggerRect.bottom + 8, 12, Math.max(12, viewportHeight - menuHeight - 12));
+        const leftAnchor = isStartAligned ? triggerRect.left : triggerRect.right - menuWidth;
+        const left = clamp(leftAnchor, 12, Math.max(12, viewportWidth - menuWidth - 12));
+
+        panel.style.width = `${menuWidth}px`;
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        panel.dataset.panelPlacement = openAbove ? 'top' : 'bottom';
+        panel.style.visibility = '';
+    };
+
+    const focusPanelActionMenuItem = (menu, direction = 0) => {
+        const items = getPanelActionMenuItems(menu);
+
+        if (!items.length) {
+            return;
+        }
+
+        let index = 0;
+        const currentIndex = items.indexOf(document.activeElement);
+
+        if (direction === 0) {
+            index = currentIndex >= 0 ? currentIndex : 0;
+        } else if (direction > 0) {
+            index = currentIndex >= 0 ? (currentIndex + 1) % items.length : 0;
+        } else {
+            index = currentIndex >= 0 ? (currentIndex - 1 + items.length) % items.length : items.length - 1;
+        }
+
+        items[index]?.focus();
+    };
+
+    const openPanelActionMenu = (menu, focusDirection = null) => {
+        const { trigger, panel } = getPanelActionMenuElements(menu);
+
+        if (!trigger || !panel) {
+            return;
+        }
+
+        closePanelActionMenus(false);
+
+        activePanelActionMenu = menu;
+        trigger.setAttribute('aria-expanded', 'true');
+        panel.hidden = false;
+        panel.style.left = '';
+        panel.style.top = '';
+        panel.style.width = '';
+        panel.style.visibility = '';
+        menu.classList.add('panel-action-menu--open');
+
+        if (focusDirection !== null) {
+            focusPanelActionMenuItem(menu, focusDirection);
+        }
+    };
+
+    const togglePanelActionMenu = (menu) => {
+        const { trigger } = getPanelActionMenuElements(menu);
+        const isOpen = trigger?.getAttribute('aria-expanded') === 'true';
+
+        if (isOpen) {
+            closePanelActionMenus(true);
+            return;
+        }
+
+        openPanelActionMenu(menu);
+    };
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest(panelActionMenuTriggerSelector);
+
+        if (trigger) {
+            event.preventDefault();
+            event.stopPropagation();
+            const menu = trigger.closest(panelActionMenuSelector);
+
+            if (!menu) {
+                return;
+            }
+
+            togglePanelActionMenu(menu);
+            return;
+        }
+
+        if (event.target.closest(panelActionMenuItemSelector)) {
+            window.setTimeout(() => closePanelActionMenus(false), 0);
+            return;
+        }
+
+        if (!event.target.closest(panelActionMenuSelector)) {
+            closePanelActionMenus(false);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        const trigger = event.target.closest(panelActionMenuTriggerSelector);
+
+        if (trigger) {
+            const menu = trigger.closest(panelActionMenuSelector);
+
+            if (!menu) {
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closePanelActionMenus(true);
+                return;
+            }
+
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                event.preventDefault();
+                togglePanelActionMenu(menu);
+                return;
+            }
+
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+                event.preventDefault();
+                openPanelActionMenu(menu, event.key === 'ArrowUp' || event.key === 'End' ? -1 : 0);
+            }
+
+            return;
+        }
+
+        const panel = event.target.closest(panelActionMenuPanelSelector);
+
+        if (!panel) {
+            if (event.key === 'Escape') {
+                closePanelActionMenus(true);
+            }
+
+            return;
+        }
+
+        const menu = panel.closest(panelActionMenuSelector);
+
+        if (!menu) {
+            return;
+        }
+
+        const items = getPanelActionMenuItems(menu);
+
+        if (!items.length) {
+            return;
+        }
+
+        const currentIndex = items.indexOf(document.activeElement);
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closePanelActionMenus(true);
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            items[(currentIndex + 1) % items.length]?.focus();
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            items[(currentIndex - 1 + items.length) % items.length]?.focus();
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            items[0]?.focus();
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            items[items.length - 1]?.focus();
+        }
+    });
+
+    window.addEventListener('scroll', () => {
+        if (activePanelActionMenu) {
+            closePanelActionMenus(false);
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (activePanelActionMenu) {
+            closePanelActionMenus(false);
+        }
+    });
 
     const initializeUserGroupToggles = (scope = document) => {
         scope.querySelectorAll('[data-users-group-shell]').forEach((shell) => {
@@ -123,39 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeUserGroupToggles();
 
-    document.addEventListener('click', (event) => {
-        const trigger = event.target.closest('[data-user-actions-trigger]');
-        if (trigger) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const menu = trigger.closest('[data-user-actions]');
-            const panel = menu?.querySelector('[data-user-actions-panel]');
-
-            if (!menu || !panel) {
-                return;
-            }
-
-            const shouldOpen = panel.hidden;
-            closeUserActionMenus();
-
-            panel.hidden = !shouldOpen;
-            trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-            return;
-        }
-
-        if (!event.target.closest('[data-user-actions]')) {
-            closeUserActionMenus();
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            closeUserActionMenus();
-        }
-    });
-
     let refreshInteractiveBindings = () => {
+        closePanelActionMenus(false);
         initializeUserGroupToggles();
     };
 
@@ -393,6 +717,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const maintenanceDateMin = parseDateValue(dateInput?.dataset.maintenanceDateMin || '');
         const maintenanceDateMax = parseDateValue(dateInput?.dataset.maintenanceDateMax || '');
+        const maintenanceHolidaySet = (() => {
+            try {
+                const parsed = JSON.parse(String(dateInput?.dataset.maintenanceDateHolidays || '[]'));
+                if (!Array.isArray(parsed)) {
+                    return new Set();
+                }
+
+                return new Set(parsed.filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)));
+            } catch (error) {
+                return new Set();
+            }
+        })();
 
         const formatDateValue = (date) => {
             const local = normalizeDate(date);
@@ -405,6 +741,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const isDateBeforeMin = (date) => maintenanceDateMin !== null && date.getTime() < maintenanceDateMin.getTime();
 
         const isDateAfterMax = (date) => maintenanceDateMax !== null && date.getTime() > maintenanceDateMax.getTime();
+
+        const isWeekendDay = (date) => [0, 6].includes(date.getDay());
+
+        const isHoliday = (date) => maintenanceHolidaySet.has(formatDateValue(date));
+
+        const isNonBusinessDay = (date) => isWeekendDay(date) || isHoliday(date);
+
+        const advanceToBusinessDay = (date) => {
+            let current = normalizeDate(date);
+
+            while (isNonBusinessDay(current)) {
+                current = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+            }
+
+            return current;
+        };
 
         const clampDateValue = (value) => {
             const parsed = parseDateValue(value);
@@ -421,6 +773,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isDateAfterMax(normalized)) {
                 normalized = normalizeDate(maintenanceDateMax);
             }
+
+            normalized = advanceToBusinessDay(normalized);
 
             return formatDateValue(normalized);
         };
@@ -510,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const selected = parseDateValue(value);
-            if (selected && (isDateBeforeMin(selected) || isDateAfterMax(selected))) {
+            if (selected && (isDateBeforeMin(selected) || isDateAfterMax(selected) || isNonBusinessDay(selected))) {
                 return;
             }
 
@@ -573,7 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.classList.add('maintenance-date-picker-day--outside');
                 }
 
-                if (isDateBeforeMin(current) || isDateAfterMax(current)) {
+                if (isDateBeforeMin(current) || isDateAfterMax(current) || isNonBusinessDay(current)) {
                     button.disabled = true;
                     button.classList.add('maintenance-date-picker-day--disabled');
                     button.setAttribute('aria-disabled', 'true');
@@ -887,15 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     value = minDate || maxDate || suggestedDate || dateInput.defaultValue || dateInput.value;
                 }
 
-                if (minDate && value && value < minDate) {
-                    value = minDate;
-                }
-
-                if (maxDate && value && value > maxDate) {
-                    value = maxDate;
-                }
-
-                dateInput.value = value;
+                dateInput.value = clampDateValue(value);
             }
 
             if (hasMaintenanceDatePicker && dateInput) {
@@ -998,7 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dateToday?.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                updateSelectedDate(formatDateValue(new Date()));
+                updateSelectedDate(clampDateValue(formatDateValue(new Date())));
             });
 
             dateClose?.addEventListener('click', (event) => {
@@ -1190,6 +1536,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     refreshInteractiveBindings = () => {
+        closePanelActionMenus(false);
         initializeUserGroupToggles();
         setupModal(userCreateModalOptions);
         setupModal(userEditModalOptions);

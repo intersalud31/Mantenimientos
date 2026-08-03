@@ -62,10 +62,11 @@ class PanelActionFlowTest extends TestCase
             ]);
 
         $this->instance(MantenimientoRepository::class, $repo);
+        $fechaEjecucion = '2026-08-04';
 
         $response = $this->post(route('panel.programados.hecho'), [
             'mantenimiento_id' => 123,
-            'fecha_ejecucion' => now()->toDateString(),
+            'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_id' => 7,
             'observaciones' => 'Prueba de ejecucion',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
@@ -186,8 +187,141 @@ class PanelActionFlowTest extends TestCase
         $response->assertRedirect(route('panel.configuracion', [
             'busqueda_usuario' => 'Activo 123',
             'cantidad_reversiones' => 2,
+            'codigo_activo' => 123,
         ]));
         $response->assertSessionHas('panel_message', 'Se revirtieron 2 accion(es) correctamente.');
+    }
+
+    public function test_reversion_prioriza_codigo_activo_cuando_esta_disponible(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10031, 'Admin Reversion Codigo', 'reversion-codigo@example.com', 'admin'));
+
+        $usuarioRepo = Mockery::mock(UsuarioRepository::class);
+        $usuarioRepo->shouldReceive('resolverCodigoActivoPorBusqueda')
+            ->with('123')
+            ->andReturn([
+                'ok' => true,
+                'usuario_id' => 88,
+                'nombre' => 'Activo 123',
+                'codigo_activo' => 123,
+            ]);
+
+        $mantenimientoRepo = Mockery::mock(MantenimientoRepository::class);
+        $mantenimientoRepo->shouldReceive('revertirAccionesPorCodigoActivo')
+            ->with(123, 3)
+            ->andReturn([
+                'ok' => true,
+                'mensaje' => 'Se revirtieron 3 accion(es) correctamente.',
+            ]);
+
+        $this->instance(UsuarioRepository::class, $usuarioRepo);
+        $this->instance(MantenimientoRepository::class, $mantenimientoRepo);
+
+        $response = $this->post(route('panel.configuracion.revertir'), [
+            'busqueda_usuario' => 'Nombre no relevante',
+            'cantidad_reversiones' => 3,
+            'codigo_activo' => 123,
+        ]);
+
+        $response->assertRedirect(route('panel.configuracion', [
+            'busqueda_usuario' => 'Nombre no relevante',
+            'cantidad_reversiones' => 3,
+            'codigo_activo' => 123,
+        ]));
+        $response->assertSessionHas('panel_message', 'Se revirtieron 3 accion(es) correctamente.');
+    }
+
+    public function test_reversion_real_deshace_una_ejecucion_y_elimina_el_pendiente_automatico(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10032, 'Admin Reversion Real', 'reversion-real@example.com', 'admin'));
+        Storage::fake('public');
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Reversion Real',
+            'codigo_activo' => 991500,
+            'serial_equipo' => 'SER-REV-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Reversion Real',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $fechaProgramada = '2026-08-03';
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Programado desde modulo Proximos.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $repo = app(MantenimientoRepository::class);
+        $resultadoHecho = $repo->marcarProgramadoComoHechoYGenerarSiguiente(
+            $mantenimientoId,
+            '2026-08-03',
+            'Tecnico Reversion Real',
+            'Ejecucion real de prueba.',
+            'constancias/prueba-reversion.pdf'
+        );
+
+        $this->assertTrue($resultadoHecho['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => '2026-08-03',
+            'tecnico_responsable' => 'Tecnico Reversion Real',
+        ]);
+
+        $pendienteAutomatico = DB::table('mantenimientos')
+            ->where('usuario_id', $usuarioId)
+            ->where('estado', 'pendiente')
+            ->where('observaciones', 'like', 'Generado automatico despues de marcar Hecho.%')
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($pendienteAutomatico);
+
+        $resultadoReversion = $repo->revertirAccionesPorCodigoActivo(991500, 1);
+
+        $this->assertTrue($resultadoReversion['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+        ]);
+        $this->assertDatabaseMissing('mantenimientos', [
+            'id' => $pendienteAutomatico->id,
+        ]);
+
+        $usuarioActualizado = DB::table('usuarios')
+            ->select('ultima_fecha_ejecucion', 'ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento', 'ultimo_mantenimiento_estado')
+            ->where('id', $usuarioId)
+            ->first();
+
+        $this->assertSame(null, $usuarioActualizado?->ultima_fecha_ejecucion);
+        $this->assertSame(null, $usuarioActualizado?->ultima_fecha_mantenimiento);
+        $this->assertSame($fechaProgramada, (string) ($usuarioActualizado?->proxima_fecha_mantenimiento ?? ''));
+        $this->assertSame('programado', (string) ($usuarioActualizado?->ultimo_mantenimiento_estado ?? ''));
     }
 
     public function test_crud_de_usuarios_cubre_crear_actualizar_estado_y_eliminar(): void
@@ -286,6 +420,86 @@ class PanelActionFlowTest extends TestCase
             'q_usuarios' => 'Usuario',
         ]));
         $eliminar->assertSessionHas('panel_message', 'Usuario eliminado correctamente.');
+    }
+
+    public function test_lista_de_usuarios_renderiza_el_menu_de_acciones_compartido(): void
+    {
+        $this->actingAs($this->makeLegacyUser(1010, 'Admin Menus Usuarios', 'menus-usuarios@example.com', 'admin'));
+
+        DB::table('usuarios')->insert([
+            'nombre' => 'Usuario Menu Compartido',
+            'codigo_activo' => 992001,
+            'serial_equipo' => 'SER-MENU-001',
+            'tipo_equipo' => 'normal',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('panel.usuarios', [
+            'q_usuarios' => 'Usuario Menu Compartido',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('data-panel-action-menu', false);
+        $response->assertSee('Editar usuario', false);
+        $response->assertSee('Desactivar usuario', false);
+        $response->assertSee('Eliminar usuario', false);
+        $response->assertDontSee('data-user-actions-trigger', false);
+    }
+
+    public function test_hechos_renderiza_el_menu_de_acciones_compartido_con_evidencia(): void
+    {
+        $this->actingAs($this->makeLegacyUser(1011, 'Admin Menus Hechos', 'menus-hechos@example.com', 'admin'));
+        Storage::fake('public');
+        Storage::disk('public')->put('constancias/menu-compartido.pdf', '%PDF-1.4');
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(3)->format('Y-m-d');
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Mantenimiento Menu Compartido',
+            'codigo_activo' => 992002,
+            'serial_equipo' => 'SER-MENU-002',
+            'tipo_equipo' => 'normal',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subDays(2),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaProgramada,
+            'tecnico_responsable' => 'Tecnico Menu Compartido',
+            'observaciones' => 'Observacion de prueba para el menu compartido.',
+            'evidencia_pdf' => 'constancias/menu-compartido.pdf',
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $response = $this->get(route('panel.hechos', [
+            'anio' => (int) $periodo['anio'],
+            'semestre' => (int) $periodo['semestre'],
+            'q_realizados' => 'Mantenimiento Menu Compartido',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('data-panel-action-menu', false);
+        $response->assertSee('Ver detalle', false);
+        $response->assertSee('Ver constancia PDF', false);
+        $response->assertSee('Descargar constancia', false);
+        $response->assertDontSee('menu-acciones-usuario', false);
     }
 
     public function test_busqueda_de_usuarios_encuentra_serial_alfanumerico(): void
@@ -647,6 +861,59 @@ class PanelActionFlowTest extends TestCase
         $response->assertSessionHas('panel_error', 'La fecha programada no puede ser anterior a hoy.');
     }
 
+    public function test_no_permite_programar_mantenimiento_en_fin_de_semana(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10051, 'Admin Fecha Futura', 'fecha-futura@example.com', 'admin'));
+
+        $fechaFutura = \Illuminate\Support\Carbon::today()->next('Saturday')->format('Y-m-d');
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldNotReceive('marcarComoProgramado');
+
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => 123,
+            'fecha_programada' => $fechaFutura,
+            'q_proximos' => 'Filtro',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => 'Filtro',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'La fecha programada debe ser un dia habil.');
+    }
+
+    public function test_no_permite_programar_mantenimiento_en_festivo(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10052, 'Admin Festivo', 'festivo@example.com', 'admin'));
+
+        $fechaFestiva = '2026-08-07';
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldNotReceive('marcarComoProgramado');
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => 123,
+            'fecha_programada' => $fechaFestiva,
+            'q_proximos' => 'Filtro',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => 'Filtro',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'La fecha programada debe ser un dia habil.');
+    }
+
     public function test_no_permite_marcar_como_hecho_con_fecha_pasada(): void
     {
         $this->actingAs($this->makeLegacyUser(1008, 'Admin Hecho Fecha', 'hecho-fecha@example.com', 'admin'));
@@ -716,6 +983,69 @@ class PanelActionFlowTest extends TestCase
             'estado' => 'programado',
             'fecha_ejecucion' => null,
         ]);
+    }
+
+    public function test_no_permite_marcar_como_hecho_en_fin_de_semana(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10081, 'Admin Hecho Fin', 'hecho-fin@example.com', 'admin'));
+        Storage::fake('public');
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaFinDeSemana = \Illuminate\Support\Carbon::today()->next('Sunday')->format('Y-m-d');
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Hecho Fin',
+            'codigo_activo' => 729003,
+            'serial_equipo' => 'SER-HECHO-FIN',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Programado de prueba con fin de semana.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldNotReceive('obtenerNombreTecnicoPorId');
+        $repo->shouldNotReceive('marcarProgramadoComoHechoYGenerarSiguiente');
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_ejecucion' => $fechaFinDeSemana,
+            'tecnico_id' => 7,
+            'observaciones' => 'No debe guardarse.',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
+            'q_programados' => 'Usuario Hecho Fin',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Hecho Fin',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'La fecha de ejecucion debe ser un dia habil.');
     }
 
     public function test_busqueda_de_proximos_encuentra_area_caas(): void
@@ -828,6 +1158,7 @@ class PanelActionFlowTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $fechaEjecucion = '2026-08-04';
 
         $response = $this->post(route('panel.programados.hecho'), [
             'mantenimiento_id' => $mantenimientoId,

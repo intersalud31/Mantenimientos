@@ -493,7 +493,7 @@ class ExampleTest extends TestCase
             ->first();
 
         $this->assertSame($fechaRealizada, (string) ($usuario->ultima_fecha_mantenimiento ?? ''));
-        $this->assertSame('2026-07-20', (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
+        $this->assertSame('2026-07-21', (string) ($usuario->proxima_fecha_mantenimiento ?? ''));
     }
 
     private function makeLegacyUser(int $id, string $nombre, string $correo, string $rol): User

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $titulo ?? 'Hechos' }}</title>
+    <title>{{ $titulo ?? 'Ejecutados' }}</title>
     @include('panel.partials.dashboard-modern-styles')
     @include('panel.partials.hechos-saas-overrides')
 </head>
@@ -46,10 +46,10 @@
         'showModuleContext' => false,
     ])
 <main class="wrap">
-    <section class="module-header" aria-label="Hechos">
+    <section class="module-header" aria-label="Ejecutados">
         <div class="module-header-copy">
             <p class="module-header-kicker">Historial</p>
-            <h1 class="module-header-title">Hechos</h1>
+            <h1 class="module-header-title">Ejecutados</h1>
             <p class="module-header-subtitle">Historial operativo de mantenimientos ejecutados durante el periodo seleccionado.</p>
         </div>
     </section>
@@ -137,6 +137,47 @@
                             $tecnicoFila = $normalizarTexto($item['tecnico_responsable'] ?? '');
                             $fechaProgramada = $formatearFecha((string) ($item['proxima_fecha_programada'] ?? ''));
                             $fechaEjecucion = $formatearFecha((string) ($item['fecha_ejecucion'] ?? ''));
+                            $accionesFila = [
+                                [
+                                    'type' => 'button',
+                                    'label' => 'Ver detalle',
+                                    'attributes' => [
+                                        'data-open-detalle-realizado' => true,
+                                        'data-detalle-usuario' => $item['nombre'] ?? '',
+                                        'data-detalle-area' => $item['area_nombre'] ?? 'SIN ÁREA',
+                                        'data-detalle-activo' => $item['codigo_activo'] ?? '',
+                                        'data-detalle-fecha-programada' => $fechaProgramada,
+                                        'data-detalle-fecha-ejecucion' => $fechaEjecucion,
+                                        'data-detalle-tecnico' => $tecnicoFila,
+                                        'data-detalle-observaciones' => $observacionesFila !== '' ? $observacionesFila : 'No registrado',
+                                        'data-detalle-evidencia-url' => $urlEvidencia,
+                                        'data-detalle-evidencia-nombre' => $nombreArchivoPdf !== '' ? $nombreArchivoPdf : 'Sin constancia adjunta',
+                                    ],
+                                ],
+                            ];
+
+                            if ($evidenciaDisponible && $urlEvidencia !== '') {
+                                $accionesFila[] = [
+                                    'type' => 'link',
+                                    'label' => 'Ver constancia PDF',
+                                    'href' => $urlEvidencia,
+                                    'target' => '_blank',
+                                    'rel' => 'noopener noreferrer',
+                                ];
+
+                                $accionesFila[] = [
+                                    'type' => 'link',
+                                    'label' => 'Descargar constancia',
+                                    'href' => $urlDescarga,
+                                    'download' => $nombreArchivoPdf,
+                                ];
+                            } elseif ($rutaEvidencia !== '') {
+                                $accionesFila[] = [
+                                    'type' => 'text',
+                                    'label' => 'Archivo no disponible',
+                                    'variant' => 'disabled',
+                                ];
+                            }
                         @endphp
                         <tr>
                             <td data-label="ÁREA / EQUIPO">
@@ -168,49 +209,11 @@
                                 <span class="texto-principal-tabla">{{ $tecnicoFila }}</span>
                             </td>
                             <td data-label="ACCIONES">
-                                <div class="maintenance-action-summary">
-                                    <details class="menu-acciones-usuario">
-                                        <summary class="menu-acciones-disparador" aria-label="Abrir acciones del mantenimiento realizado">
-                                            <span></span>
-                                            <span></span>
-                                            <span></span>
-                                        </summary>
-
-                                        <div class="menu-acciones-dropdown">
-                                            <button
-                                                type="button"
-                                                class="menu-acciones-opcion menu-acciones-opcion-detalle"
-                                                data-open-detalle-realizado
-                                                data-detalle-usuario="{{ $item['nombre'] ?? '' }}"
-                                                data-detalle-area="{{ $item['area_nombre'] ?? 'SIN ÁREA' }}"
-                                                data-detalle-activo="{{ $item['codigo_activo'] ?? '' }}"
-                                                data-detalle-fecha-programada="{{ $fechaProgramada }}"
-                                                data-detalle-fecha-ejecucion="{{ $fechaEjecucion }}"
-                                                data-detalle-tecnico="{{ $tecnicoFila }}"
-                                                data-detalle-observaciones="{{ $observacionesFila !== '' ? $observacionesFila : 'No registrado' }}"
-                                                data-detalle-evidencia-url="{{ $urlEvidencia }}"
-                                                data-detalle-evidencia-nombre="{{ $nombreArchivoPdf !== '' ? $nombreArchivoPdf : 'Sin constancia adjunta' }}"
-                                            >Ver detalle</button>
-
-                                            @if ($evidenciaDisponible && $urlEvidencia !== '')
-                                                <a
-                                                    class="menu-acciones-opcion menu-acciones-opcion-pdf"
-                                                    href="{{ $urlEvidencia }}"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >Ver constancia PDF</a>
-
-                                                <a
-                                                    class="menu-acciones-opcion menu-acciones-opcion-descarga"
-                                                    href="{{ $urlDescarga }}"
-                                                    download="{{ $nombreArchivoPdf }}"
-                                                >Descargar constancia</a>
-                                            @elseif ($rutaEvidencia !== '')
-                                                <span class="menu-acciones-opcion estado-tabla estado-tabla-alerta panel-display-block">Archivo no disponible</span>
-                                            @endif
-                                        </div>
-                                    </details>
-                                </div>
+                                <x-panel.action-menu
+                                    menu-id="mantenimiento-acciones-{{ $item['mantenimiento_id'] ?? $loop->index }}"
+                                    label="Acciones del mantenimiento realizado"
+                                    :actions="$accionesFila"
+                                />
                             </td>
                         </tr>
                     @empty

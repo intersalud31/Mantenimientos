@@ -84,6 +84,36 @@
                             $nombreFila = $presentarTexto($fila['nombre'] ?? '');
                             $codigoFila = (string) ($fila['codigo_activo'] ?? '');
                             $serialFila = $presentarTexto($fila['serial_equipo'] ?? '');
+                            $accionesFila = [
+                                [
+                                    'type' => 'link',
+                                    'label' => 'Editar usuario',
+                                    'href' => route('panel.usuarios', ['q_usuarios' => $busquedaActual, 'editar_usuario_id' => $fila['id']]),
+                                ],
+                                [
+                                    'type' => 'form',
+                                    'label' => $estadoActivo ? 'Desactivar usuario' : 'Activar usuario',
+                                    'action' => route('panel.usuarios.estado'),
+                                    'fields' => [
+                                        'usuario_id' => $fila['id'],
+                                        'nuevo_estado' => $estadoActivo ? 0 : 1,
+                                        'filtro_q_usuarios' => $busquedaActual,
+                                        'return_url' => request()->fullUrl(),
+                                    ],
+                                ],
+                                [
+                                    'type' => 'form',
+                                    'label' => 'Eliminar usuario',
+                                    'action' => route('panel.usuarios.eliminar'),
+                                    'variant' => 'danger',
+                                    'confirm' => '¿Seguro que deseas eliminar este usuario?',
+                                    'fields' => [
+                                        'usuario_id' => $fila['id'],
+                                        'filtro_q_usuarios' => $busquedaActual,
+                                        'return_url' => request()->fullUrl(),
+                                    ],
+                                ],
+                            ];
                         @endphp
                         <tr class="user-record">
                             <td>
@@ -99,37 +129,11 @@
                                 <span class="user-badge-state user-badge-state--{{ $estadoActivo ? 'activo' : 'inactivo' }}">{{ $estadoActivo ? 'Activo' : 'Inactivo' }}</span>
                             </td>
                             <td>
-                                <div class="user-actions" data-user-actions>
-                                    <button
-                                        class="user-actions-trigger"
-                                        type="button"
-                                        data-user-actions-trigger
-                                        aria-expanded="false"
-                                        aria-label="Abrir acciones"
-                                    >
-                                        <span></span>
-                                        <span></span>
-                                        <span></span>
-                                    </button>
-                                    <div class="user-actions-panel" data-user-actions-panel hidden>
-                                        <a class="user-action-item" href="{{ route('panel.usuarios', ['q_usuarios' => $busquedaActual, 'editar_usuario_id' => $fila['id']]) }}">Editar usuario</a>
-                                        <form method="POST" action="{{ route('panel.usuarios.estado') }}">
-                                            @csrf
-                                            <input type="hidden" name="usuario_id" value="{{ $fila['id'] }}">
-                                            <input type="hidden" name="nuevo_estado" value="{{ $estadoActivo ? 0 : 1 }}">
-                                            <input type="hidden" name="filtro_q_usuarios" value="{{ $busquedaActual }}">
-                                            <input type="hidden" name="return_url" value="{{ request()->fullUrl() }}">
-                                            <button class="user-action-item" type="submit">{{ $estadoActivo ? 'Desactivar usuario' : 'Activar usuario' }}</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('panel.usuarios.eliminar') }}" onsubmit="return confirm('&iquest;Seguro que deseas eliminar este usuario?');">
-                                            @csrf
-                                            <input type="hidden" name="usuario_id" value="{{ $fila['id'] }}">
-                                            <input type="hidden" name="filtro_q_usuarios" value="{{ $busquedaActual }}">
-                                            <input type="hidden" name="return_url" value="{{ request()->fullUrl() }}">
-                                            <button class="user-action-item user-action-item--danger" type="submit">Eliminar usuario</button>
-                                        </form>
-                                    </div>
-                                </div>
+                                <x-panel.action-menu
+                                    menu-id="usuario-acciones-{{ $fila['id'] }}"
+                                    label="Acciones de {{ $nombreFila }}"
+                                    :actions="$accionesFila"
+                                />
                             </td>
                         </tr>
                     @endforeach

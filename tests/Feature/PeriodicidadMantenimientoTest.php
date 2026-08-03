@@ -79,6 +79,24 @@ class PeriodicidadMantenimientoTest extends TestCase
         $this->assertSame('1 anio', $servicio->etiquetaMeses(12));
     }
 
+    public function test_fecha_proxima_desde_ajusta_fin_de_semana_y_festivo_al_siguiente_habil(): void
+    {
+        $servicio = $this->servicioPeriodicidad();
+
+        $this->assertSame('2026-08-03', $servicio->fechaProximaDesde('2026-02-01', $servicio->cicloMantenimientoMeses()));
+        $this->assertSame('2026-08-10', $servicio->fechaProximaDesde('2026-02-07', $servicio->cicloMantenimientoMeses()));
+    }
+
+    public function test_festivos_entre_retorna_fechas_colombianas_conocidas(): void
+    {
+        $servicio = $this->servicioPeriodicidad();
+        $festivos = $servicio->festivosEntre(2026, 2026);
+
+        $this->assertContains('2026-01-01', $festivos);
+        $this->assertContains('2026-08-07', $festivos);
+        $this->assertContains('2026-12-25', $festivos);
+    }
+
     public function test_resumen_prioriza_historial_real_sobre_fecha_base(): void
     {
         $periodo = app(SemestreService::class)->actual();
