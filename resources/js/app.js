@@ -206,8 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.querySelectorAll(panelActionMenuItemSelector),
     ).filter((item) => item.getAttribute('aria-disabled') !== 'true' && !item.hidden);
 
-    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
     const closePanelActionMenus = (focusTrigger = false) => {
         document.querySelectorAll(panelActionMenuSelector).forEach((menu) => {
             const { trigger, panel } = getPanelActionMenuElements(menu);
@@ -220,11 +218,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 panel.hidden = true;
                 panel.style.left = '';
                 panel.style.top = '';
+                panel.style.right = '';
+                panel.style.bottom = '';
                 panel.style.width = '';
+                panel.style.position = '';
+                panel.style.maxHeight = '';
                 panel.style.visibility = '';
             }
 
             menu.classList.remove('panel-action-menu--open');
+            menu.classList.remove('panel-action-menu--top', 'panel-action-menu--bottom');
         });
 
         if (focusTrigger && activePanelActionMenu) {
@@ -243,30 +246,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         panel.style.visibility = 'hidden';
-        panel.style.left = '0px';
-        panel.style.top = '0px';
-        panel.style.width = '';
+        panel.style.removeProperty('--panel-action-menu-max-height');
 
         const triggerRect = trigger.getBoundingClientRect();
-        const panelRect = panel.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
+        const panelRect = panel.getBoundingClientRect();
         const menuWidth = Math.min(Math.max(panelRect.width || 220, 220), viewportWidth - 24);
-        const menuHeight = panelRect.height || 0;
-        const isStartAligned = menu.classList.contains('panel-action-menu--start');
+        const estimatedMenuHeight = Math.max(panelRect.height || 0, 180);
         const spaceBelow = viewportHeight - triggerRect.bottom - 12;
         const spaceAbove = triggerRect.top - 12;
-        const openAbove = menuHeight > 0 && spaceBelow < menuHeight && spaceAbove > spaceBelow;
+        const openAbove = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+        const availableHeight = Math.max(120, Math.min(
+            estimatedMenuHeight,
+            openAbove ? spaceAbove : spaceBelow,
+            viewportHeight - 24,
+        ));
+        const alignStart = menu.classList.contains('panel-action-menu--start');
+        const horizontalPadding = 12;
+        const preferredLeft = alignStart
+            ? triggerRect.left
+            : triggerRect.right - menuWidth;
+        const left = Math.max(
+            horizontalPadding,
+            Math.min(preferredLeft, viewportWidth - menuWidth - horizontalPadding),
+        );
         const top = openAbove
-            ? clamp(triggerRect.top - 8 - menuHeight, 12, Math.max(12, viewportHeight - menuHeight - 12))
-            : clamp(triggerRect.bottom + 8, 12, Math.max(12, viewportHeight - menuHeight - 12));
-        const leftAnchor = isStartAligned ? triggerRect.left : triggerRect.right - menuWidth;
-        const left = clamp(leftAnchor, 12, Math.max(12, viewportWidth - menuWidth - 12));
+            ? Math.max(horizontalPadding, triggerRect.top - 8 - availableHeight)
+            : Math.min(viewportHeight - availableHeight - horizontalPadding, triggerRect.bottom + 8);
 
+        menu.classList.toggle('panel-action-menu--top', openAbove);
+        menu.classList.toggle('panel-action-menu--bottom', !openAbove);
+        panel.style.setProperty('--panel-action-menu-max-height', `${availableHeight}px`);
         panel.style.width = `${menuWidth}px`;
+        panel.style.position = 'fixed';
         panel.style.left = `${left}px`;
         panel.style.top = `${top}px`;
-        panel.dataset.panelPlacement = openAbove ? 'top' : 'bottom';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
         panel.style.visibility = '';
     };
 
@@ -303,11 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activePanelActionMenu = menu;
         trigger.setAttribute('aria-expanded', 'true');
         panel.hidden = false;
-        panel.style.left = '';
-        panel.style.top = '';
-        panel.style.width = '';
-        panel.style.visibility = '';
         menu.classList.add('panel-action-menu--open');
+        positionPanelActionMenu(menu);
 
         if (focusDirection !== null) {
             focusPanelActionMenuItem(menu, focusDirection);
@@ -436,11 +450,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    window.addEventListener('scroll', () => {
+    document.addEventListener('scroll', () => {
         if (activePanelActionMenu) {
             closePanelActionMenus(false);
         }
-    });
+    }, true);
 
     window.addEventListener('resize', () => {
         if (activePanelActionMenu) {

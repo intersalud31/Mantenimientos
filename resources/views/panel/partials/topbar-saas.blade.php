@@ -10,7 +10,6 @@
         ], static fn ($valor) => $valor !== null && $valor !== '');
     }
 
-    $periodoEtiqueta = $periodoConsulta['etiqueta'] ?? ($periodoConsulta['periodo_label'] ?? 'Semestre actual');
     $brand = $brand ?? 'Mantenimientos TI';
     $subbrand = $subbrand ?? 'Dashboard administrativo';
     $pageTitle = $pageTitle ?? '';
@@ -27,14 +26,21 @@
     $authRole = trim((string) ($authUser->rol ?? ''));
     $authInitials = mb_strtoupper(mb_substr($authName, 0, 2, 'UTF-8'), 'UTF-8');
 
-    $primaryLinks = [
-        ['label' => 'Panel principal', 'route' => 'panel', 'icon' => 'PN'],
-        ['label' => 'Lista de usuarios', 'route' => 'panel.usuarios', 'icon' => 'US'],
-        ['label' => 'Configuraci&oacute;n', 'route' => 'panel.configuracion', 'icon' => 'CF'],
-    ];
-
-    $menus = [
+    $sidebarEntries = [
         [
+            'type' => 'link',
+            'label' => 'Panel principal',
+            'route' => 'panel',
+            'icon' => 'PN',
+        ],
+        [
+            'type' => 'link',
+            'label' => 'Lista de usuarios',
+            'route' => 'panel.usuarios',
+            'icon' => 'US',
+        ],
+        [
+            'type' => 'group',
             'label' => 'Operaci&oacute;n',
             'icon' => 'OP',
             'items' => [
@@ -44,32 +50,36 @@
             ],
         ],
         [
+            'type' => 'link',
             'label' => 'Reportes',
+            'route' => 'panel.reportes',
             'icon' => 'RP',
-            'items' => [
-                ['label' => 'Resumen semestral', 'route' => 'panel.reportes', 'icon' => 'RS'],
-            ],
+        ],
+        [
+            'type' => 'link',
+            'label' => 'Configuraci&oacute;n',
+            'route' => 'panel.configuracion',
+            'icon' => 'CF',
         ],
     ];
 
     $activeMenuLabel = '';
     $activeItemLabel = '';
-    foreach ($primaryLinks as $link) {
-        if (!empty($link['route']) && $currentRoute === $link['route']) {
-            $activeMenuLabel = html_entity_decode($link['label'], ENT_QUOTES, 'UTF-8');
-            $activeItemLabel = html_entity_decode($link['label'], ENT_QUOTES, 'UTF-8');
-            break;
+    foreach ($sidebarEntries as $entry) {
+        if (($entry['type'] ?? 'link') === 'link') {
+            if (!empty($entry['route']) && $currentRoute === $entry['route']) {
+                $activeMenuLabel = html_entity_decode($entry['label'], ENT_QUOTES, 'UTF-8');
+                $activeItemLabel = html_entity_decode($entry['label'], ENT_QUOTES, 'UTF-8');
+                break;
+            }
+            continue;
         }
-    }
 
-    if ($activeItemLabel === '') {
-        foreach ($menus as $menu) {
-            foreach ($menu['items'] as $item) {
-                if (!empty($item['route']) && $currentRoute === $item['route']) {
-                    $activeMenuLabel = html_entity_decode($menu['label'], ENT_QUOTES, 'UTF-8');
-                    $activeItemLabel = html_entity_decode($item['label'], ENT_QUOTES, 'UTF-8');
-                    break 2;
-                }
+        foreach ($entry['items'] as $item) {
+            if (!empty($item['route']) && $currentRoute === $item['route']) {
+                $activeMenuLabel = html_entity_decode($entry['label'], ENT_QUOTES, 'UTF-8');
+                $activeItemLabel = html_entity_decode($item['label'], ENT_QUOTES, 'UTF-8');
+                break 2;
             }
         }
     }
@@ -100,67 +110,65 @@
 
     <nav class="app-sidebar-nav" aria-label="M&oacute;dulos del sistema">
         <div class="app-nav-root-list" aria-label="Accesos principales">
-            @foreach ($primaryLinks as $link)
-                @if (!empty($link['route']) && Route::has($link['route']))
+            @foreach ($sidebarEntries as $entry)
+                @if (($entry['type'] ?? 'link') === 'link' && !empty($entry['route']) && Route::has($entry['route']))
                     <a
-                        href="{{ $periodoQuery !== [] ? route($link['route'], $periodoQuery) : route($link['route']) }}"
-                        class="app-nav-link app-nav-link--root {{ $currentRoute === $link['route'] ? 'app-nav-link--active' : '' }}"
+                        href="{{ $periodoQuery !== [] ? route($entry['route'], $periodoQuery) : route($entry['route']) }}"
+                        class="app-nav-link app-nav-link--root {{ $currentRoute === $entry['route'] ? 'app-nav-link--active' : '' }}"
                         data-app-sidebar-link
-                        title="{!! $link['label'] !!}"
-                        @if ($currentRoute === $link['route']) aria-current="page" @endif
+                        title="{!! $entry['label'] !!}"
+                        @if ($currentRoute === $entry['route']) aria-current="page" @endif
                     >
-                        <span class="app-nav-icon" aria-hidden="true">{{ $link['icon'] }}</span>
-                        <span class="app-nav-label">{!! $link['label'] !!}</span>
+                        <span class="app-nav-icon" aria-hidden="true">{{ $entry['icon'] }}</span>
+                        <span class="app-nav-label">{!! $entry['label'] !!}</span>
                     </a>
+                @elseif (($entry['type'] ?? 'link') === 'group')
+                    @php
+                        $menuActive = collect($entry['items'])->contains(static function ($item) use ($currentRoute) {
+                            return !empty($item['route']) && $currentRoute === $item['route'];
+                        });
+                        $menuId = 'app-sidebar-group-' . $loop->index;
+                    @endphp
+                    <section class="app-nav-group {{ $menuActive ? 'app-nav-group--active' : '' }}" data-app-nav-group>
+                        <button
+                            type="button"
+                            class="app-nav-group-trigger"
+                            data-app-nav-toggle
+                            aria-expanded="{{ $menuActive ? 'true' : 'false' }}"
+                            aria-controls="{{ $menuId }}"
+                            title="{!! $entry['label'] !!}"
+                        >
+                            <span class="app-nav-icon" aria-hidden="true">{{ $entry['icon'] }}</span>
+                            <span class="app-nav-label">{!! $entry['label'] !!}</span>
+                            <span class="app-nav-caret" aria-hidden="true"></span>
+                        </button>
+
+                        <div class="app-nav-panel" id="{{ $menuId }}" data-app-nav-panel @if(!$menuActive) hidden @endif>
+                            @foreach ($entry['items'] as $item)
+                                @if (!empty($item['route']) && Route::has($item['route']))
+                                    <a
+                                        href="{{ $periodoQuery !== [] ? route($item['route'], $periodoQuery) : route($item['route']) }}"
+                                        class="app-nav-link {{ $currentRoute === $item['route'] ? 'app-nav-link--active' : '' }}"
+                                        data-app-sidebar-link
+                                        title="{!! $item['label'] !!}"
+                                        @if ($currentRoute === $item['route']) aria-current="page" @endif
+                                    >
+                                        <span class="app-nav-icon app-nav-icon--sub" aria-hidden="true">{{ $item['icon'] }}</span>
+                                        <span class="app-nav-label">{!! $item['label'] !!}</span>
+                                    </a>
+                                @else
+                                    <span class="app-nav-link app-nav-link--disabled" title="{!! $item['label'] !!}">
+                                        <span class="app-nav-icon app-nav-icon--sub" aria-hidden="true">{{ $item['icon'] }}</span>
+                                        <span class="app-nav-label">{!! $item['label'] !!}</span>
+                                        <span class="app-nav-meta">Pr&oacute;ximamente</span>
+                                    </span>
+                                @endif
+                            @endforeach
+                        </div>
+                    </section>
                 @endif
             @endforeach
         </div>
-
-        @foreach ($menus as $menu)
-            @php
-                $menuActive = collect($menu['items'])->contains(static function ($item) use ($currentRoute) {
-                    return !empty($item['route']) && $currentRoute === $item['route'];
-                });
-                $menuId = 'app-sidebar-group-' . $loop->index;
-            @endphp
-            <section class="app-nav-group {{ $menuActive ? 'app-nav-group--active' : '' }}" data-app-nav-group>
-                <button
-                    type="button"
-                    class="app-nav-group-trigger"
-                    data-app-nav-toggle
-                    aria-expanded="{{ $menuActive ? 'true' : 'false' }}"
-                    aria-controls="{{ $menuId }}"
-                    title="{!! $menu['label'] !!}"
-                >
-                    <span class="app-nav-icon" aria-hidden="true">{{ $menu['icon'] }}</span>
-                    <span class="app-nav-label">{!! $menu['label'] !!}</span>
-                    <span class="app-nav-caret" aria-hidden="true"></span>
-                </button>
-
-                <div class="app-nav-panel" id="{{ $menuId }}" data-app-nav-panel @if(!$menuActive) hidden @endif>
-                    @foreach ($menu['items'] as $item)
-                        @if (!empty($item['route']) && Route::has($item['route']))
-                            <a
-                                href="{{ $periodoQuery !== [] ? route($item['route'], $periodoQuery) : route($item['route']) }}"
-                                class="app-nav-link {{ $currentRoute === $item['route'] ? 'app-nav-link--active' : '' }}"
-                                data-app-sidebar-link
-                                title="{!! $item['label'] !!}"
-                                @if ($currentRoute === $item['route']) aria-current="page" @endif
-                            >
-                                <span class="app-nav-icon app-nav-icon--sub" aria-hidden="true">{{ $item['icon'] }}</span>
-                                <span class="app-nav-label">{!! $item['label'] !!}</span>
-                            </a>
-                        @else
-                            <span class="app-nav-link app-nav-link--disabled" title="{!! $item['label'] !!}">
-                                <span class="app-nav-icon app-nav-icon--sub" aria-hidden="true">{{ $item['icon'] }}</span>
-                                <span class="app-nav-label">{!! $item['label'] !!}</span>
-                                <span class="app-nav-meta">Pr&oacute;ximamente</span>
-                            </span>
-                        @endif
-                    @endforeach
-                </div>
-            </section>
-        @endforeach
     </nav>
 
     <div class="app-sidebar-user">
@@ -209,10 +217,6 @@
                     <input type="hidden" name="{{ $clave }}" value="{{ $valor }}">
                 @endforeach
             </form>
-        @endif
-
-        @if ($periodoEtiqueta !== '')
-            <span class="app-period-chip">{{ $periodoEtiqueta }}</span>
         @endif
 
         <span class="app-topbar-user">

@@ -154,6 +154,88 @@ class PanelActionFlowTest extends TestCase
         $this->assertStringNotContainsString('Programado</span>', $html);
     }
 
+    public function test_reportes_renderiza_resumen_compacto_y_fecha_formateada(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10053, 'Admin Reportes Vista', 'reportes-vista@example.com', 'admin'));
+
+        $periodo = app(SemestreService::class)->actual();
+        $anio = (int) $periodo['anio'];
+        $semestre = (int) $periodo['semestre'];
+        $fechaProgramada = $semestre === 1
+            ? sprintf('%04d-03-04', $anio)
+            : sprintf('%04d-08-03', $anio);
+        $fechaEjecucion = $semestre === 1
+            ? sprintf('%04d-03-05', $anio)
+            : sprintf('%04d-08-04', $anio);
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Reportes Vista',
+            'codigo_activo' => 993001,
+            'serial_equipo' => 'SER-REP-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => $fechaEjecucion,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => null,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'realizado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subDays(2),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            [
+                'usuario_id' => $usuarioId,
+                'fecha_programada' => $fechaProgramada,
+                'hora_programada' => null,
+                'estado' => 'programado',
+                'fecha_ejecucion' => null,
+                'tecnico_responsable' => null,
+                'observaciones' => 'Programado para la vista de reportes.',
+                'evidencia_pdf' => null,
+                'created_at' => now()->subDay(),
+                'updated_at' => now()->subDay(),
+            ],
+            [
+                'usuario_id' => $usuarioId,
+                'fecha_programada' => $fechaProgramada,
+                'hora_programada' => null,
+                'estado' => 'realizado',
+                'fecha_ejecucion' => $fechaEjecucion,
+                'tecnico_responsable' => 'Tecnico Reportes Vista',
+                'observaciones' => 'Ejecutado para la vista de reportes.',
+                'evidencia_pdf' => null,
+                'created_at' => now()->subHours(4),
+                'updated_at' => now()->subHours(4),
+            ],
+        ]);
+
+        $response = $this->get(route('panel.reportes', [
+            'anio' => $anio,
+            'semestre' => $semestre,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Reporte semestral', false);
+        $response->assertSee('Periodo de consulta', false);
+        $response->assertSee('Consultar periodo', false);
+        $response->assertSee('Ejecutados', false);
+        $response->assertSee('Actividad reciente', false);
+        $response->assertSee('Usuario Reportes Vista', false);
+        $response->assertSee('Programado', false);
+        $response->assertSee('Ejecutado', false);
+        $response->assertSee('4 ago ' . $anio, false);
+        $response->assertSee('3 ago ' . $anio, false);
+        $response->assertDontSee('Ir al semestre actual', false);
+        $response->assertDontSee('Base calculada con los datos reales del periodo', false);
+        $response->assertDontSee('Consulta actual:', false);
+        $response->assertDontSee('reportes-period-chip', false);
+        $response->assertDontSee('reportes-summary-meta', false);
+        $response->assertDontSee('reportes-results-head', false);
+    }
+
     public function test_reversion_de_acciones_redirecciona_con_mensaje(): void
     {
         $this->actingAs($this->makeLegacyUser(1003, 'Admin Reversion', 'reversion@example.com', 'admin'));

@@ -1058,7 +1058,7 @@
         z-index: 1000;
         width: 220px;
         max-width: min(220px, calc(100vw - 24px));
-        max-height: none;
+        max-height: var(--panel-action-menu-max-height, min(260px, calc(100vh - 24px)));
         padding: 8px;
         border-radius: 14px;
         border: 1px solid #dfe7f2;
@@ -1074,6 +1074,11 @@
 
     body.dashboard-modern .panel-action-menu--start .panel-action-menu-panel {
         transform-origin: top left;
+    }
+
+    body.dashboard-modern .panel-action-menu--top .panel-action-menu-panel {
+        top: auto;
+        bottom: calc(100% + 8px);
     }
 
     body.dashboard-modern .panel-action-menu-item {
