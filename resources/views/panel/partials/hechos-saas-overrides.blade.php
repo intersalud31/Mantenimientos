@@ -448,6 +448,19 @@
         box-shadow: 0 32px 84px rgba(15, 23, 42, .24);
         display: grid;
         gap: 22px;
+        font-family: var(--panel-font-base);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body.dashboard-modern .detalle-realizado-modal-dialogo,
+    body.dashboard-modern .detalle-realizado-modal-dialogo *,
+    body.dashboard-modern .detalle-realizado-modal-dialogo input,
+    body.dashboard-modern .detalle-realizado-modal-dialogo textarea,
+    body.dashboard-modern .detalle-realizado-modal-dialogo button,
+    body.dashboard-modern .detalle-realizado-modal-dialogo a {
+        font-family: var(--panel-font-base) !important;
     }
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-cabecera {
@@ -486,8 +499,9 @@
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-kicker {
         margin: 2px 0 0;
-        font-size: .68rem;
-        letter-spacing: .18em;
+        font-size: .7rem;
+        letter-spacing: .12em;
+        font-weight: 800;
     }
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-cabecera h4 {
@@ -532,6 +546,7 @@
         background: #fbfdff;
         box-shadow: none;
         gap: 5px;
+        align-content: center;
     }
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item::before {
@@ -572,8 +587,8 @@
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item span {
         color: #7c8aa5;
-        font-size: .7rem;
-        letter-spacing: .14em;
+        font-size: .72rem;
+        letter-spacing: .08em;
         font-family: inherit;
         font-weight: 700;
         text-transform: uppercase;
@@ -585,6 +600,7 @@
         line-height: 1.35;
         font-family: inherit;
         font-weight: 700;
+        word-break: break-word;
     }
 
     body.dashboard-modern .detalle-realizado-modal-grid {
@@ -598,8 +614,8 @@
     body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline > span,
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-label {
         color: #334155;
-        font-size: .78rem;
-        letter-spacing: .08em;
+        font-size: .76rem;
+        letter-spacing: .06em;
         font-family: inherit;
         font-weight: 700;
         text-transform: uppercase;
@@ -613,6 +629,8 @@
         box-shadow: none;
         color: #0f172a;
         font-family: inherit;
+        appearance: none;
+        -webkit-appearance: none;
     }
 
     body.dashboard-modern .detalle-realizado-modal .input-fecha-programar {
@@ -622,18 +640,20 @@
         background-repeat: no-repeat;
         background-position: 14px center;
         background-size: 16px 16px;
-        font-size: .97rem;
-        font-weight: 600;
+        font-size: .96rem;
+        font-weight: 500;
         line-height: 1.35;
+        display: block;
     }
 
     body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline textarea {
         min-height: 136px;
         padding: 14px 16px;
         resize: none;
-        font-size: .95rem;
+        font-size: .94rem;
         font-weight: 500;
         line-height: 1.6;
+        display: block;
     }
 
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-wrap {
@@ -668,6 +688,10 @@
         letter-spacing: .08em;
         align-self: center;
         justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy {
@@ -679,8 +703,8 @@
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy strong {
         color: #0f172a;
-        font-size: .98rem;
-        font-weight: 700;
+        font-size: .95rem;
+        font-weight: 600;
         font-family: inherit;
         line-height: 1.35;
         word-break: break-word;
@@ -688,7 +712,7 @@
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy span {
         color: #64748b;
-        font-size: .9rem;
+        font-size: .88rem;
         line-height: 1.45;
         font-family: inherit;
         font-weight: 500;
@@ -704,6 +728,7 @@
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-acciones .btn-link {
         min-width: 82px;
+        min-height: 44px;
         justify-content: center;
         border-radius: 12px;
         padding: 12px 16px;
@@ -711,6 +736,8 @@
         font-family: inherit;
         text-decoration: none;
         box-shadow: none;
+        align-items: center;
+        line-height: 1.2;
     }
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-acciones .btn-link.secondary {

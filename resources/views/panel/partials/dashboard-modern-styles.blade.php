@@ -21,6 +21,25 @@
         color: #0f172a;
     }
 
+    body.dashboard-modern,
+    body.dashboard-modern button,
+    body.dashboard-modern input,
+    body.dashboard-modern select,
+    body.dashboard-modern textarea,
+    body.dashboard-modern label,
+    body.dashboard-modern th,
+    body.dashboard-modern td,
+    body.dashboard-modern .btn,
+    body.dashboard-modern .btn-link,
+    body.dashboard-modern .modal-panel,
+    body.dashboard-modern .modal-panel *,
+    body.dashboard-modern .user-modal-panel,
+    body.dashboard-modern .user-modal-panel *,
+    body.dashboard-modern .user-modal-dialog,
+    body.dashboard-modern .user-modal-dialog * {
+        font-family: var(--panel-font-base);
+    }
+
     body.dashboard-modern > *:first-child {
         margin-top: 0 !important;
     }
@@ -1094,6 +1113,7 @@
         text-decoration: none;
         cursor: pointer;
         font-weight: 700;
+        font-family: var(--panel-font-base);
         line-height: 1.25;
         transition: background-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
     }
@@ -1255,6 +1275,7 @@
         cursor: pointer;
         flex: none;
         font-weight: 700;
+        font-family: var(--panel-font-base);
     }
 
     body.dashboard-modern .modal-panel-cerrar:hover,
