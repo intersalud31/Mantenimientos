@@ -1,2 +1,1517 @@
-/*! For license information please see app.js.LICENSE.txt */
-(()=>{var e,t={80:()=>{function e(){var n,a,r="function"==typeof Symbol?Symbol:{},i=r.iterator||"@@iterator",o=r.toStringTag||"@@toStringTag";function l(e,r,i,o){var l=r&&r.prototype instanceof u?r:u,d=Object.create(l.prototype);return t(d,"_invoke",function(e,t,r){var i,o,l,u=0,d=r||[],s=!1,f={p:0,n:0,v:n,a:p,f:p.bind(n,4),d:function(e,t){return i=e,o=0,l=n,f.n=t,c}};function p(e,t){for(o=e,l=t,a=0;!s&&u&&!r&&a<d.length;a++){var r,i=d[a],p=f.p,v=i[2];e>3?(r=v===t)&&(l=i[(o=i[4])?5:(o=3,3)],i[4]=i[5]=n):i[0]<=p&&((r=e<2&&p<i[1])?(o=0,f.v=t,f.n=i[1]):p<v&&(r=e<3||i[0]>t||t>v)&&(i[4]=e,i[5]=t,f.n=v,o=0))}if(r||e>1)return c;throw s=!0,t}return function(r,d,v){if(u>1)throw TypeError("Generator is already running");for(s&&1===d&&p(d,v),o=d,l=v;(a=o<2?n:l)||!s;){i||(o?o<3?(o>1&&(f.n=-1),p(o,l)):f.n=l:f.v=l);try{if(u=2,i){if(o||(r="next"),a=i[r]){if(!(a=a.call(i,l)))throw TypeError("iterator result is not an object");if(!a.done)return a;l=a.value,o<2&&(o=0)}else 1===o&&(a=i.return)&&a.call(i),o<2&&(l=TypeError("The iterator does not provide a '"+r+"' method"),o=1);i=n}else if((a=(s=f.n<0)?l:e.call(t,f))!==c)break}catch(e){i=n,o=1,l=e}finally{u=1}}return{value:a,done:s}}}(e,i,o),!0),d}var c={};function u(){}function d(){}function s(){}a=Object.getPrototypeOf;var f=[][i]?a(a([][i]())):(t(a={},i,function(){return this}),a),p=s.prototype=u.prototype=Object.create(f);function v(e){return Object.setPrototypeOf?Object.setPrototypeOf(e,s):(e.__proto__=s,t(e,o,"GeneratorFunction")),e.prototype=Object.create(p),e}return d.prototype=s,t(p,"constructor",s),t(s,"constructor",d),d.displayName="GeneratorFunction",t(s,o,"GeneratorFunction"),t(p),t(p,o,"Generator"),t(p,i,function(){return this}),t(p,"toString",function(){return"[object Generator]"}),(e=function(){return{w:l,m:v}})()}function t(e,n,a,r){var i=Object.defineProperty;try{i({},"",{})}catch(e){i=0}t=function(e,n,a,r){function o(n,a){t(e,n,function(e){return this._invoke(n,a,e)})}n?i?i(e,n,{value:a,enumerable:!r,configurable:!r,writable:!r}):e[n]=a:(o("next",0),o("throw",1),o("return",2))},t(e,n,a,r)}function n(e,t,n,a,r,i,o){try{var l=e[i](o),c=l.value}catch(e){return void n(e)}l.done?t(c):Promise.resolve(c).then(a,r)}document.addEventListener("DOMContentLoaded",function(){var t=document.querySelector("[data-app-sidebar]"),a=document.querySelector("[data-app-sidebar-backdrop]"),r=document.querySelector("[data-app-sidebar-toggle]"),i=document.querySelector("[data-app-sidebar-close]"),o=Array.from(document.querySelectorAll("[data-app-nav-group]"));if(t&&r){var l=window.matchMedia("(min-width: 981px)"),c=function(e){document.body.classList.toggle("app-sidebar-mobile-open",e),r.setAttribute("aria-expanded",e?"true":"false"),a&&(a.hidden=!e)},u=function(e){document.body.classList.toggle("app-sidebar-collapsed",e),r.setAttribute("aria-expanded",e?"false":"true")},d=function(){return c(!1)};r.addEventListener("click",function(e){e.preventDefault(),l.matches?u(!document.body.classList.contains("app-sidebar-collapsed")):c(!document.body.classList.contains("app-sidebar-mobile-open"))}),null==i||i.addEventListener("click",function(e){e.preventDefault(),d()}),null==a||a.addEventListener("click",d),t.querySelectorAll("[data-app-sidebar-link]").forEach(function(e){e.addEventListener("click",function(){l.matches||d()})}),o.forEach(function(e){var t=e.querySelector("[data-app-nav-toggle]"),n=e.querySelector("[data-app-nav-panel]");if(t&&n){var a=function(a){t.setAttribute("aria-expanded",a?"true":"false"),n.hidden=!a,e.classList.toggle("app-nav-group--open",a)};a("true"===t.getAttribute("aria-expanded")),t.addEventListener("click",function(e){if(e.preventDefault(),l.matches&&document.body.classList.contains("app-sidebar-collapsed"))return u(!1),void a(!0);a("true"!==t.getAttribute("aria-expanded"))})}}),document.addEventListener("keydown",function(e){"Escape"===e.key&&d()});var s=function(){d(),l.matches||document.body.classList.remove("app-sidebar-collapsed")};"function"==typeof l.addEventListener?l.addEventListener("change",s):"function"==typeof l.addListener&&l.addListener(s),c(!1),u(document.body.classList.contains("app-sidebar-collapsed"))}var f=document.querySelector("[data-topbar]");if(f){var p=Array.from(f.querySelectorAll("[data-topbar-menu]")),v=function(e){var t=e.querySelector("[data-topbar-toggle]"),n=e.querySelector("[data-topbar-panel]");t&&t.setAttribute("aria-expanded","false"),n&&(n.hidden=!0),e.classList.remove("menu-group--open")},m=function(){return p.forEach(v)};p.forEach(function(e){var t=e.querySelector("[data-topbar-toggle]"),n=e.querySelector("[data-topbar-panel]");t&&n&&t.addEventListener("click",function(n){n.preventDefault(),n.stopPropagation(),"true"===t.getAttribute("aria-expanded")?v(e):function(e){p.forEach(function(t){t!==e&&v(t)});var t=e.querySelector("[data-topbar-toggle]"),n=e.querySelector("[data-topbar-panel]");t&&t.setAttribute("aria-expanded","true"),n&&(n.hidden=!1),e.classList.add("menu-group--open")}(e)})}),document.addEventListener("click",function(e){f.contains(e.target)||m()}),document.addEventListener("keydown",function(e){"Escape"===e.key&&m()})}var y="[data-panel-action-menu]",g="[data-panel-action-menu-trigger]",h="[data-panel-action-menu-panel]",w="[data-panel-action-menu-item]",b=null,S=function(e){return e?{trigger:e.querySelector(g),panel:e.querySelector(h)}:{trigger:null,panel:null}},L=function(e){return Array.from(e.querySelectorAll(w)).filter(function(e){return"true"!==e.getAttribute("aria-disabled")&&!e.hidden})},k=function(){var e=arguments.length>0&&void 0!==arguments[0]&&arguments[0];if(document.querySelectorAll(y).forEach(function(e){var t=S(e),n=t.trigger,a=t.panel;n&&n.setAttribute("aria-expanded","false"),a&&(a.hidden=!0,a.style.left="",a.style.top="",a.style.right="",a.style.bottom="",a.style.width="",a.style.position="",a.style.maxHeight="",a.style.visibility=""),e.classList.remove("panel-action-menu--open"),e.classList.remove("panel-action-menu--top","panel-action-menu--bottom")}),e&&b){var t=S(b).trigger;null==t||t.focus()}b=null},E=function(e){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:null,n=S(e),a=n.trigger,r=n.panel;a&&r&&(k(!1),b=e,a.setAttribute("aria-expanded","true"),r.hidden=!1,e.classList.add("panel-action-menu--open"),function(e){var t=S(e),n=t.trigger,a=t.panel;if(n&&a&&!a.hidden){a.style.visibility="hidden",a.style.removeProperty("--panel-action-menu-max-height");var r=n.getBoundingClientRect(),i=window.innerWidth,o=window.innerHeight,l=a.getBoundingClientRect(),c=Math.min(Math.max(l.width||220,220),i-24),u=Math.max(l.height||0,180),d=o-r.bottom-12,s=r.top-12,f=d<u&&s>d,p=Math.max(120,Math.min(u,f?s:d,o-24)),v=e.classList.contains("panel-action-menu--start")?r.left:r.right-c,m=Math.max(12,Math.min(v,i-c-12)),y=f?Math.max(12,r.top-8-p):Math.min(o-p-12,r.bottom+8);e.classList.toggle("panel-action-menu--top",f),e.classList.toggle("panel-action-menu--bottom",!f),a.style.setProperty("--panel-action-menu-max-height","".concat(p,"px")),a.style.width="".concat(c,"px"),a.style.position="fixed",a.style.left="".concat(m,"px"),a.style.top="".concat(y,"px"),a.style.right="auto",a.style.bottom="auto",a.style.visibility=""}}(e),null!==t&&function(e){var t,n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:0,a=L(e);if(a.length){var r=a.indexOf(document.activeElement);null===(t=a[0===n?r>=0?r:0:n>0?r>=0?(r+1)%a.length:0:r>=0?(r-1+a.length)%a.length:a.length-1])||void 0===t||t.focus()}}(e,t))},D=function(e){var t=S(e).trigger;"true"===(null==t?void 0:t.getAttribute("aria-expanded"))?k(!0):E(e)};document.addEventListener("click",function(e){var t=e.target.closest(g);if(t){e.preventDefault(),e.stopPropagation();var n=t.closest(y);if(!n)return;D(n)}else e.target.closest(w)?window.setTimeout(function(){return k(!1)},0):e.target.closest(y)||k(!1)}),document.addEventListener("keydown",function(e){var t=e.target.closest(g);if(t){var n=t.closest(y);if(!n)return;return"Escape"===e.key?(e.preventDefault(),void k(!0)):"Enter"===e.key||" "===e.key||"Spacebar"===e.key?(e.preventDefault(),void D(n)):void("ArrowDown"!==e.key&&"ArrowUp"!==e.key&&"Home"!==e.key&&"End"!==e.key||(e.preventDefault(),E(n,"ArrowUp"===e.key||"End"===e.key?-1:0)))}var a=e.target.closest(h);if(a){var r=a.closest(y);if(r){var i=L(r);if(i.length){var o,l,c,u,d=i.indexOf(document.activeElement);if("Escape"===e.key)return e.preventDefault(),void k(!0);if("ArrowDown"===e.key)return e.preventDefault(),void(null===(o=i[(d+1)%i.length])||void 0===o||o.focus());if("ArrowUp"===e.key)return e.preventDefault(),void(null===(l=i[(d-1+i.length)%i.length])||void 0===l||l.focus());if("Home"===e.key)return e.preventDefault(),void(null===(c=i[0])||void 0===c||c.focus());if("End"===e.key)e.preventDefault(),null===(u=i[i.length-1])||void 0===u||u.focus()}}}else"Escape"===e.key&&k(!0)}),document.addEventListener("scroll",function(){b&&k(!1)},!0),window.addEventListener("resize",function(){b&&k(!1)});var q=function(){(arguments.length>0&&void 0!==arguments[0]?arguments[0]:document).querySelectorAll("[data-users-group-shell]").forEach(function(e){if("true"!==e.dataset.usersGroupBound){var t=e.querySelector("[data-users-group-toggle]");if(t){var n=function(n){e.dataset.open=n?"true":"false",t.setAttribute("aria-expanded",n?"true":"false")};n("false"!==e.dataset.open),t.addEventListener("click",function(t){t.preventDefault(),n("true"!==e.dataset.open)}),e.dataset.usersGroupBound="true"}}})};q();var x=function(){k(!1),q()};document.querySelectorAll('[data-panel-live-search="true"], [data-panel-filter-live="true"]').forEach(function(t){var a=t.dataset.panelLiveSearchTarget||t.dataset.panelFilterLiveTarget||"",r=a?document.querySelector(a):null;if(r){var i=t.querySelector("[data-panel-live-search-loading], [data-panel-filter-loading]"),o=t.querySelector("[data-panel-live-search-input], [data-panel-filter-search]"),l=Array.from(t.querySelectorAll("[data-panel-filter-live-field], [data-panel-live-search-input], [data-panel-filter-search]")),c=t.querySelector('button[type="submit"]'),u=Math.max(0,parseInt(t.dataset.panelLiveSearchDebounce||t.dataset.panelFilterDebounce||"500",10)||500),d=null,s=null,f=0,p=function(e){i&&(i.hidden=!e),c&&(c.disabled=e)},v=function(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null;if(e)return new URL(e,window.location.origin);var n=new URL(t.getAttribute("action")||window.location.href,window.location.origin),a=new FormData(t);return n.search=new URLSearchParams(a).toString(),n},m=function(e){window.history.replaceState({},"","".concat(e.pathname).concat(e.search).concat(e.hash))},y=function(e){var t=(new DOMParser).parseFromString(e,"text/html"),n=a?t.querySelector(a):null;return!!n&&(r.outerHTML=n.outerHTML,r=a?document.querySelector(a):null,!0)},g=function(){var t,a=(t=e().m(function t(){var n,a,r,i,o,l=arguments;return e().w(function(e){for(;;)switch(e.p=e.n){case 0:return n=v(l.length>0&&void 0!==l[0]?l[0]:null),a=++f,d&&d.abort(),d=new AbortController,p(!0),e.p=1,e.n=2,fetch(n.toString(),{headers:{"X-Requested-With":"XMLHttpRequest","Cache-Control":"no-cache"},signal:d.signal});case 2:if((r=e.v).ok){e.n=3;break}throw new Error("HTTP ".concat(r.status));case 3:return e.n=4,r.text();case 4:if(i=e.v,a===f){e.n=5;break}return e.a(2);case 5:y(i)&&(x(),m(n)),e.n=8;break;case 6:if(e.p=6,!(o=e.v)||"AbortError"!==o.name){e.n=7;break}return e.a(2);case 7:console.error("No se pudo actualizar el filtro en vivo.",o);case 8:return e.p=8,a===f&&p(!1),e.f(8);case 9:return e.a(2)}},t,null,[[1,6,8,9]])}),function(){var e=this,a=arguments;return new Promise(function(r,i){var o=t.apply(e,a);function l(e){n(o,r,i,l,c,"next",e)}function c(e){n(o,r,i,l,c,"throw",e)}l(void 0)})});return function(){return a.apply(this,arguments)}}(),h=function(){window.clearTimeout(s),s=window.setTimeout(function(){g()},u)};o&&(o.addEventListener("input",function(){h()}),o.addEventListener("keydown",function(e){"Enter"===e.key&&(e.preventDefault(),window.clearTimeout(s),g())})),l.forEach(function(e){e!==o&&e.addEventListener("change",function(){h()})}),t.addEventListener("submit",function(e){e.preventDefault(),window.clearTimeout(s),g()}),document.addEventListener("click",function(e){var t=e.target.closest("".concat(a,' nav[role="navigation"] a[href]'));if(t){var n=t.getAttribute("href");n&&(e.preventDefault(),window.clearTimeout(s),g(n))}})}});var A=function(e){var t=document.querySelector(e.modalSelector);if(t&&"true"!==t.dataset.modalBound){var n=document.querySelectorAll(e.openSelector),a=t.querySelectorAll(e.closeSelector),r=e.idInputSelector?t.querySelector(e.idInputSelector):null,i=e.summarySelector?t.querySelector(e.summarySelector):null,o=t.querySelector("[data-maintenance-date-input]"),l=t.querySelector("[data-maintenance-programmed-date-display]"),c=t.querySelector("form"),u=c?c.querySelector('button[type="submit"]'):null,d=u&&u.textContent||"",s=t.dataset.modalCloseUrl||"",f=t.querySelector("[data-maintenance-file-dropzone]"),p=t.querySelector("[data-maintenance-date-field]"),v=t.querySelector("[data-maintenance-date-trigger]"),m=t.querySelector("[data-maintenance-date-display]"),y=t.querySelector("[data-maintenance-date-picker]"),g=t.querySelector("[data-maintenance-date-month]"),h=t.querySelector("[data-maintenance-date-year]"),w=t.querySelector("[data-maintenance-date-grid]"),b=t.querySelector("[data-maintenance-date-prev]"),S=t.querySelector("[data-maintenance-date-next]"),L=t.querySelector("[data-maintenance-date-today]"),k=t.querySelector("[data-maintenance-date-close]"),E="1"===(null==o?void 0:o.dataset.maintenanceDatePreserve),D=Boolean(p&&v&&m&&y&&g&&h&&w),q=!1,x=!1,A=!1,M=null,T=null,O=null,C=function(e){if(!e)return"";var t=/^(\d{4})-(\d{2})-(\d{2})$/.exec(e);return t?"".concat(t[3],"/").concat(t[2],"/").concat(t[1]):e},P=function(e){return new Date(e.getFullYear(),e.getMonth(),e.getDate())},F=function(e){var t=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(e||"").trim());if(!t)return null;var n=parseInt(t[1],10),a=parseInt(t[2],10)-1,r=parseInt(t[3],10);return new Date(n,a,r)},H=F((null==o?void 0:o.dataset.maintenanceDateMin)||""),I=F((null==o?void 0:o.dataset.maintenanceDateMax)||""),j=function(){try{var e=JSON.parse(String((null==o?void 0:o.dataset.maintenanceDateHolidays)||"[]"));return Array.isArray(e)?new Set(e.filter(function(e){return"string"==typeof e&&/^\d{4}-\d{2}-\d{2}$/.test(e)})):new Set}catch(e){return new Set}}(),R=function(e){var t=P(e),n=t.getFullYear(),a=String(t.getMonth()+1).padStart(2,"0"),r=String(t.getDate()).padStart(2,"0");return"".concat(n,"-").concat(a,"-").concat(r)},U=function(e){return null!==H&&e.getTime()<H.getTime()},B=function(e){return null!==I&&e.getTime()>I.getTime()},G=function(e){return function(e){return[0,6].includes(e.getDay())}(e)||function(e){return j.has(R(e))}(e)},N=function(e){var t=F(e);if(!t)return e;var n=P(t);return U(n)&&(n=P(H)),B(n)&&(n=P(I)),n=function(e){for(var t=P(e);G(t);)t=new Date(t.getFullYear(),t.getMonth(),t.getDate()+1);return t}(n),R(n)},Y=function(e){return e?e.charAt(0).toUpperCase()+e.slice(1):e},V=function(){if(m&&o){var e=F(o.value);m.textContent=e?C(R(e)):"Selecciona una fecha"}},_=function(){(M=P(F((null==o?void 0:o.value)||"")||P(new Date))).setDate(1)},z=function(){if(y&&v&&!y.hidden){var e=v.getBoundingClientRect(),t=Math.max(0,window.innerWidth-32),n=Math.min(720,Math.max(e.width,320)),a=Math.max(Math.min(n,t),Math.min(t,280));y.style.width="".concat(a,"px"),y.style.maxHeight="".concat(Math.max(240,window.innerHeight-32),"px");var r=y.getBoundingClientRect(),i=Math.max(16,(window.innerWidth-a)/2),o=Math.max(16,(window.innerHeight-r.height)/2);y.style.left="".concat(i,"px"),y.style.top="".concat(o,"px")}},W=function(){var e=!(arguments.length>0&&void 0!==arguments[0])||arguments[0];D&&!y.hidden&&(y.hidden=!0,y.setAttribute("aria-hidden","true"),v.setAttribute("aria-expanded","false"),A=!1,T&&(window.removeEventListener("scroll",T,!0),T=null),O&&(window.removeEventListener("resize",O),O=null),e&&window.requestAnimationFrame(function(){v.focus()}))},$=function(e){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},n=t.keepView,a=void 0!==n&&n,r=t.keepOpen,i=void 0!==r&&r;if(o){var l=F(e);l&&(U(l)||B(l)||G(l))||(o.value=e,V(),l&&!a&&(M=P(l)).setDate(1),x&&X(),i||W(!0))}},X=function(){if(D&&M){var e,t=M.getFullYear(),n=M.getMonth(),a=F((null==o?void 0:o.value)||""),r=P(new Date);g.textContent=Y((e=M,new Intl.DateTimeFormat("es-CO",{month:"long",year:"numeric"}).format(e))),h.innerHTML="";for(var i=t+10,l=Math.max(1900,t-10);l<=i;l+=1){var c=document.createElement("option");c.value=String(l),c.textContent=String(l),l===t&&(c.selected=!0),h.appendChild(c)}w.innerHTML="";for(var u=(new Date(t,n,1).getDay()+6)%7,d=new Date(t,n,1-u),s=function(){var e=new Date(d.getFullYear(),d.getMonth(),d.getDate()+f),t=document.createElement("button");t.type="button",t.className="maintenance-date-picker-day",t.dataset.maintenanceDateValue=R(e),t.setAttribute("aria-label",Y(function(e){return new Intl.DateTimeFormat("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(e)}(e))),t.textContent=String(e.getDate()),e.getMonth()!==n&&t.classList.add("maintenance-date-picker-day--outside"),(U(e)||B(e)||G(e))&&(t.disabled=!0,t.classList.add("maintenance-date-picker-day--disabled"),t.setAttribute("aria-disabled","true")),e.getTime()===r.getTime()&&t.classList.add("maintenance-date-picker-day--today"),a&&e.getTime()===a.getTime()&&(t.classList.add("maintenance-date-picker-day--selected"),t.setAttribute("aria-pressed","true")),t.addEventListener("pointerdown",function(e){e.preventDefault(),e.stopPropagation(),$(t.dataset.maintenanceDateValue||"")}),t.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation(),$(t.dataset.maintenanceDateValue||"")}),w.appendChild(t)},f=0;f<42;f+=1)s();z()}},J=function(){D&&(A?W(!0):(_(),y.hidden=!1,y.setAttribute("aria-hidden","false"),v.setAttribute("aria-expanded","true"),A=!0,X(),T=function(){return z()},O=function(){return z()},window.addEventListener("scroll",T,!0),window.addEventListener("resize",O),window.requestAnimationFrame(function(){z();var e=w.querySelector(".maintenance-date-picker-day--selected")||w.querySelector(".maintenance-date-picker-day:not([disabled])");e&&e.focus()})))},K=function(e,t){var n=Array.from(w.querySelectorAll(".maintenance-date-picker-day:not([disabled])")),a=n.indexOf(e);if(-1!==a){var r=n[Math.max(0,Math.min(n.length-1,a+t))];r&&r.focus()}},Q=function(){var e=t.querySelector('[aria-invalid="true"]')||(v?v.disabled||v.closest("[hidden]")?null:v:null)||t.querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea, button[type="submit"]');e&&"function"==typeof e.focus&&e.focus()},Z=function(){u&&(u.disabled=!1,u.textContent=d)},ee=function(){if(f&&!q){var e=f.querySelector("[data-maintenance-file-input]"),t=f.querySelector("[data-maintenance-file-name]"),n=f.querySelector("[data-maintenance-file-clear]"),a=t&&t.textContent||"Sin archivo seleccionado";if(e&&t){var r=function(){var n=e.files&&e.files[0]?e.files[0]:null;n?(f.classList.add("maintenance-upload--has-file"),t.textContent=n.name):(f.classList.remove("maintenance-upload--has-file"),t.textContent=a)};e.addEventListener("change",r),n&&n.addEventListener("click",function(){e.value="",r(),e.focus()}),f.addEventListener("dragover",function(e){e.preventDefault(),f.classList.add("maintenance-upload--dragover")}),f.addEventListener("dragleave",function(){f.classList.remove("maintenance-upload--dragover")}),f.addEventListener("drop",function(t){t.preventDefault(),f.classList.remove("maintenance-upload--dragover"),function(t){if(!t||0===t.length)return e.value="",void r();var n=t[0];if((n.type||"").toLowerCase().includes("pdf")||/\.pdf$/i.test(n.name||"")){if("undefined"!=typeof DataTransfer){var a=new DataTransfer;a.items.add(n),e.files=a.files}r()}}(t.dataTransfer?t.dataTransfer.files:null)}),r(),null==c||c.addEventListener("reset",function(){window.setTimeout(r,0)}),q=!0}}},te=function(){if(""===s){if(t.hidden=!0,t.setAttribute("aria-hidden","true"),document.body.classList.remove("modal-open"),c&&c.reset(),r&&(r.value=""),D&&(W(!1),V()),Z(),f){var e=f.querySelector("[data-maintenance-file-input]");e&&(e.value="")}}else window.location.href=s};if(n.forEach(function(n){n.addEventListener("click",function(){return function(n){var a=n.dataset.maintenanceId||"",c=n.dataset.maintenanceSummary||"",u=n.dataset.maintenanceSuggestedDate||"",d=n.dataset.maintenanceProgrammedDate||"",s=n.dataset.maintenanceTarget||"",f=R(new Date);if(r&&(r.value=a),l&&(l.value=C(d||u)||"Sin fecha programada"),o&&!D){var p=o.getAttribute("min")||"",m=o.getAttribute("max")||"",y="";y="programar"===s?u:p&&m&&p===m?p:p||m||u||o.defaultValue||o.value,o.value=N(y)}D&&o&&("programar"!==s||E?"hecho"===s&&(o.value=N(d||u||o.value||o.defaultValue||f)):o.value=N(u||o.value||o.defaultValue||f)),D&&(V(),_(),X()),i&&(i.textContent=c||e.defaultSummary),Z(),ee(),D&&v.setAttribute("aria-expanded","false"),t.hidden=!1,t.setAttribute("aria-hidden","false"),document.body.classList.add("modal-open"),t.dispatchEvent(new CustomEvent("panel:user-type-sync")),window.requestAnimationFrame(function(){"function"==typeof t.focus&&t.focus()}),Q()}(n)})}),a.forEach(function(e){e.addEventListener("click",te)}),D&&!x){var ne=function(){var e=w.querySelector(".maintenance-date-picker-day--selected")||w.querySelector(".maintenance-date-picker-day");e&&e.focus()};v.addEventListener("click",function(e){e.preventDefault(),A?W(!0):J()}),v.addEventListener("keydown",function(e){"ArrowDown"!==e.key&&"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),J())}),null==b||b.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation(),M||_(),M=new Date(M.getFullYear(),M.getMonth()-1,1),X(),ne()}),null==S||S.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation(),M||_(),M=new Date(M.getFullYear(),M.getMonth()+1,1),X(),ne()}),null==L||L.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation(),$(N(R(new Date)))}),null==k||k.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation(),W(!0)}),h.addEventListener("change",function(){M||_();var e=parseInt(h.value,10);Number.isNaN(e)||(M=new Date(e,M.getMonth(),1),X(),ne())}),w.addEventListener("keydown",function(e){var t=e.target.closest(".maintenance-date-picker-day");if(t)switch(e.key){case"ArrowLeft":e.preventDefault(),K(t,-1);break;case"ArrowRight":e.preventDefault(),K(t,1);break;case"ArrowUp":e.preventDefault(),K(t,-7);break;case"ArrowDown":e.preventDefault(),K(t,7);break;case"Home":e.preventDefault(),K(t,-Array.from(w.querySelectorAll(".maintenance-date-picker-day")).indexOf(t)%7);break;case"End":e.preventDefault(),K(t,6-Array.from(w.querySelectorAll(".maintenance-date-picker-day")).indexOf(t)%7);break;case"PageUp":e.preventDefault(),M=new Date(M.getFullYear(),M.getMonth()-1,1),X(),ne();break;case"PageDown":e.preventDefault(),M=new Date(M.getFullYear(),M.getMonth()+1,1),X(),ne()}}),y.addEventListener("mousedown",function(e){e.stopPropagation()}),y.addEventListener("click",function(e){e.stopPropagation()}),document.addEventListener("click",function(e){A&&!t.hidden&&(y.contains(e.target)||v.contains(e.target)||W(!1))}),x=!0}t.addEventListener("click",function(t){t.target.matches(e.closeSelector)?te():D&&A&&(y.contains(t.target)||v.contains(t.target)||W(!1))}),c&&u&&c.addEventListener("submit",function(){u.disabled=!0,u.textContent="Guardando...",W(!1)}),c&&c.addEventListener("reset",function(){window.setTimeout(function(){Z(),t.dispatchEvent(new CustomEvent("panel:user-type-sync")),D&&(V(),_(),X(),W(!1))},0)}),document.addEventListener("keydown",function(e){if("Escape"===e.key&&!t.hidden)return D&&A?(e.preventDefault(),e.stopImmediatePropagation(),void W(!0)):void(A||te())}),t.hidden||(t.setAttribute("aria-hidden","false"),document.body.classList.add("modal-open"),window.requestAnimationFrame(function(){Q()})),function(){var e=t.querySelector("[data-user-equipo-type-select]"),n=t.querySelector("[data-user-last-maintenance-field]"),a=(null==n?void 0:n.querySelector("[data-user-last-maintenance-input]"))||null,r=(null==n?void 0:n.querySelector("[data-user-last-maintenance-label]"))||null,i=(null==n?void 0:n.querySelector("[data-user-native-date-input]"))||null,o=(null==n?void 0:n.querySelector("[data-user-native-date-trigger]"))||null,l=(null==n?void 0:n.querySelector("[data-maintenance-date-display]"))||null;if(e&&n&&a&&r){var c=function(){if(i&&l){var e=String(i.value||"").trim();a.value=e,l.textContent=e?C(e):"Selecciona una fecha"}},u=function(){var t="nuevo"===e.value;n.hidden=!1,n.setAttribute("aria-hidden","false"),a.disabled=!1,r.innerHTML=t?r.dataset.labelNuevo||"Fecha de compra":r.dataset.labelNormal||"Fecha de último mantenimiento"};i&&(i.value=String(a.value||i.value||"").trim(),i.addEventListener("input",c),i.addEventListener("change",c),c()),o&&i&&o.addEventListener("click",function(e){e.preventDefault(),"function"!=typeof i.showPicker?(i.focus(),i.click()):i.showPicker()}),e.addEventListener("change",u),t.addEventListener("panel:user-type-sync",u),u()}}(),t.dataset.modalBound="true"}},M={modalSelector:"[data-user-create-modal]",openSelector:"[data-user-create-open]",closeSelector:"[data-user-create-close]",idInputSelector:null,summarySelector:null,defaultSummary:""},T={modalSelector:"[data-user-edit-modal]",openSelector:"[data-user-edit-open]",closeSelector:"[data-user-edit-close]",idInputSelector:null,summarySelector:null,defaultSummary:""},O={modalSelector:"[data-maintenance-modal]",openSelector:"[data-open-maintenance-modal]",closeSelector:"[data-maintenance-modal-close]",idInputSelector:"[data-maintenance-id-input]",summarySelector:"[data-maintenance-summary]",defaultSummary:"Selecciona una acción para este mantenimiento."};(x=function(){k(!1),q(),A(M),A(T),A(O)})()})},662:()=>{}},n={};function a(e){var r=n[e];if(void 0!==r)return r.exports;var i=n[e]={exports:{}};return t[e](i,i.exports,a),i.exports}a.m=t,e=[],a.O=(t,n,r,i)=>{if(!n){var o=1/0;for(d=0;d<e.length;d++){for(var[n,r,i]=e[d],l=!0,c=0;c<n.length;c++)(!1&i||o>=i)&&Object.keys(a.O).every(e=>a.O[e](n[c]))?n.splice(c--,1):(l=!1,i<o&&(o=i));if(l){e.splice(d--,1);var u=r();void 0!==u&&(t=u)}}return t}i=i||0;for(var d=e.length;d>0&&e[d-1][2]>i;d--)e[d]=e[d-1];e[d]=[n,r,i]},a.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),(()=>{var e={773:0,170:0};a.O.j=t=>0===e[t];var t=(t,n)=>{var r,i,[o,l,c]=n,u=0;if(o.some(t=>0!==e[t])){for(r in l)a.o(l,r)&&(a.m[r]=l[r]);if(c)var d=c(a)}for(t&&t(n);u<o.length;u++)i=o[u],a.o(e,i)&&e[i]&&e[i][0](),e[o[u]]=0;return a.O(d)},n=self.webpackChunk=self.webpackChunk||[];n.forEach(t.bind(null,0)),n.push=t.bind(null,n.push.bind(n))})(),a.O(void 0,[170],()=>a(80));var r=a.O(void 0,[170],()=>a(662));r=a.O(r)})();
+/******/ (() => { // webpackBootstrap
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./resources/js/app.js":
+/*!*****************************!*\
+  !*** ./resources/js/app.js ***!
+  \*****************************/
+/***/ (() => {
+
+function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
+function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+document.addEventListener('DOMContentLoaded', function () {
+  var appSidebar = document.querySelector('[data-app-sidebar]');
+  var appSidebarBackdrop = document.querySelector('[data-app-sidebar-backdrop]');
+  var appSidebarToggle = document.querySelector('[data-app-sidebar-toggle]');
+  var appSidebarClose = document.querySelector('[data-app-sidebar-close]');
+  var appNavGroups = Array.from(document.querySelectorAll('[data-app-nav-group]'));
+  if (appSidebar && appSidebarToggle) {
+    var desktopQuery = window.matchMedia('(min-width: 981px)');
+    var setMobileOpen = function setMobileOpen(open) {
+      document.body.classList.toggle('app-sidebar-mobile-open', open);
+      appSidebarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (appSidebarBackdrop) {
+        appSidebarBackdrop.hidden = !open;
+      }
+    };
+    var setDesktopCollapsed = function setDesktopCollapsed(collapsed) {
+      document.body.classList.toggle('app-sidebar-collapsed', collapsed);
+      appSidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    };
+    var closeMobileSidebar = function closeMobileSidebar() {
+      return setMobileOpen(false);
+    };
+    appSidebarToggle.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (desktopQuery.matches) {
+        setDesktopCollapsed(!document.body.classList.contains('app-sidebar-collapsed'));
+        return;
+      }
+      setMobileOpen(!document.body.classList.contains('app-sidebar-mobile-open'));
+    });
+    appSidebarClose === null || appSidebarClose === void 0 || appSidebarClose.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeMobileSidebar();
+    });
+    appSidebarBackdrop === null || appSidebarBackdrop === void 0 || appSidebarBackdrop.addEventListener('click', closeMobileSidebar);
+    appSidebar.querySelectorAll('[data-app-sidebar-link]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        if (!desktopQuery.matches) {
+          closeMobileSidebar();
+        }
+      });
+    });
+    appNavGroups.forEach(function (group) {
+      var toggle = group.querySelector('[data-app-nav-toggle]');
+      var panel = group.querySelector('[data-app-nav-panel]');
+      if (!toggle || !panel) {
+        return;
+      }
+      var setOpen = function setOpen(open) {
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        panel.hidden = !open;
+        group.classList.toggle('app-nav-group--open', open);
+      };
+      setOpen(toggle.getAttribute('aria-expanded') === 'true');
+      toggle.addEventListener('click', function (event) {
+        event.preventDefault();
+        if (desktopQuery.matches && document.body.classList.contains('app-sidebar-collapsed')) {
+          setDesktopCollapsed(false);
+          setOpen(true);
+          return;
+        }
+        setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+      });
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeMobileSidebar();
+      }
+    });
+    var syncResponsiveSidebar = function syncResponsiveSidebar() {
+      closeMobileSidebar();
+      if (!desktopQuery.matches) {
+        document.body.classList.remove('app-sidebar-collapsed');
+      }
+    };
+    if (typeof desktopQuery.addEventListener === 'function') {
+      desktopQuery.addEventListener('change', syncResponsiveSidebar);
+    } else if (typeof desktopQuery.addListener === 'function') {
+      desktopQuery.addListener(syncResponsiveSidebar);
+    }
+    setMobileOpen(false);
+    setDesktopCollapsed(document.body.classList.contains('app-sidebar-collapsed'));
+  }
+  var topbar = document.querySelector('[data-topbar]');
+  if (topbar) {
+    var menus = Array.from(topbar.querySelectorAll('[data-topbar-menu]'));
+    var closeMenu = function closeMenu(menu) {
+      var button = menu.querySelector('[data-topbar-toggle]');
+      var panel = menu.querySelector('[data-topbar-panel]');
+      if (button) {
+        button.setAttribute('aria-expanded', 'false');
+      }
+      if (panel) {
+        panel.hidden = true;
+      }
+      menu.classList.remove('menu-group--open');
+    };
+    var closeAllMenus = function closeAllMenus() {
+      return menus.forEach(closeMenu);
+    };
+    var openMenu = function openMenu(menu) {
+      menus.forEach(function (other) {
+        if (other !== menu) {
+          closeMenu(other);
+        }
+      });
+      var button = menu.querySelector('[data-topbar-toggle]');
+      var panel = menu.querySelector('[data-topbar-panel]');
+      if (button) {
+        button.setAttribute('aria-expanded', 'true');
+      }
+      if (panel) {
+        panel.hidden = false;
+      }
+      menu.classList.add('menu-group--open');
+    };
+    menus.forEach(function (menu) {
+      var button = menu.querySelector('[data-topbar-toggle]');
+      var panel = menu.querySelector('[data-topbar-panel]');
+      if (!button || !panel) {
+        return;
+      }
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var isOpen = button.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+          closeMenu(menu);
+          return;
+        }
+        openMenu(menu);
+      });
+    });
+    document.addEventListener('click', function (event) {
+      if (!topbar.contains(event.target)) {
+        closeAllMenus();
+      }
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeAllMenus();
+      }
+    });
+  }
+  var panelActionMenuSelector = '[data-panel-action-menu]';
+  var panelActionMenuTriggerSelector = '[data-panel-action-menu-trigger]';
+  var panelActionMenuPanelSelector = '[data-panel-action-menu-panel]';
+  var panelActionMenuItemSelector = '[data-panel-action-menu-item]';
+  var activePanelActionMenu = null;
+  var getPanelActionMenuElements = function getPanelActionMenuElements(menu) {
+    if (!menu) {
+      return {
+        trigger: null,
+        panel: null
+      };
+    }
+    return {
+      trigger: menu.querySelector(panelActionMenuTriggerSelector),
+      panel: menu.querySelector(panelActionMenuPanelSelector)
+    };
+  };
+  var getPanelActionMenuItems = function getPanelActionMenuItems(menu) {
+    return Array.from(menu.querySelectorAll(panelActionMenuItemSelector)).filter(function (item) {
+      return item.getAttribute('aria-disabled') !== 'true' && !item.hidden;
+    });
+  };
+  var closePanelActionMenus = function closePanelActionMenus() {
+    var focusTrigger = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+    document.querySelectorAll(panelActionMenuSelector).forEach(function (menu) {
+      var _getPanelActionMenuEl = getPanelActionMenuElements(menu),
+        trigger = _getPanelActionMenuEl.trigger,
+        panel = _getPanelActionMenuEl.panel;
+      if (trigger) {
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+      if (panel) {
+        panel.hidden = true;
+        panel.style.left = '';
+        panel.style.top = '';
+        panel.style.right = '';
+        panel.style.bottom = '';
+        panel.style.width = '';
+        panel.style.position = '';
+        panel.style.maxHeight = '';
+        panel.style.visibility = '';
+      }
+      menu.classList.remove('panel-action-menu--open');
+      menu.classList.remove('panel-action-menu--top', 'panel-action-menu--bottom');
+    });
+    if (focusTrigger && activePanelActionMenu) {
+      var _getPanelActionMenuEl2 = getPanelActionMenuElements(activePanelActionMenu),
+        trigger = _getPanelActionMenuEl2.trigger;
+      trigger === null || trigger === void 0 || trigger.focus();
+    }
+    activePanelActionMenu = null;
+  };
+  var positionPanelActionMenu = function positionPanelActionMenu(menu) {
+    var _getPanelActionMenuEl3 = getPanelActionMenuElements(menu),
+      trigger = _getPanelActionMenuEl3.trigger,
+      panel = _getPanelActionMenuEl3.panel;
+    if (!trigger || !panel || panel.hidden) {
+      return;
+    }
+    panel.style.visibility = 'hidden';
+    panel.style.removeProperty('--panel-action-menu-max-height');
+    var triggerRect = trigger.getBoundingClientRect();
+    var viewportWidth = window.innerWidth;
+    var viewportHeight = window.innerHeight;
+    var panelRect = panel.getBoundingClientRect();
+    var menuWidth = Math.min(Math.max(panelRect.width || 220, 220), viewportWidth - 24);
+    var estimatedMenuHeight = Math.max(panelRect.height || 0, 180);
+    var spaceBelow = viewportHeight - triggerRect.bottom - 12;
+    var spaceAbove = triggerRect.top - 12;
+    var openAbove = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    var availableHeight = Math.max(120, Math.min(estimatedMenuHeight, openAbove ? spaceAbove : spaceBelow, viewportHeight - 24));
+    var alignStart = menu.classList.contains('panel-action-menu--start');
+    var horizontalPadding = 12;
+    var preferredLeft = alignStart ? triggerRect.left : triggerRect.right - menuWidth;
+    var left = Math.max(horizontalPadding, Math.min(preferredLeft, viewportWidth - menuWidth - horizontalPadding));
+    var top = openAbove ? Math.max(horizontalPadding, triggerRect.top - 8 - availableHeight) : Math.min(viewportHeight - availableHeight - horizontalPadding, triggerRect.bottom + 8);
+    menu.classList.toggle('panel-action-menu--top', openAbove);
+    menu.classList.toggle('panel-action-menu--bottom', !openAbove);
+    panel.style.setProperty('--panel-action-menu-max-height', "".concat(availableHeight, "px"));
+    panel.style.width = "".concat(menuWidth, "px");
+    panel.style.position = 'fixed';
+    panel.style.left = "".concat(left, "px");
+    panel.style.top = "".concat(top, "px");
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.visibility = '';
+  };
+  var focusPanelActionMenuItem = function focusPanelActionMenuItem(menu) {
+    var _items$index;
+    var direction = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    var items = getPanelActionMenuItems(menu);
+    if (!items.length) {
+      return;
+    }
+    var index = 0;
+    var currentIndex = items.indexOf(document.activeElement);
+    if (direction === 0) {
+      index = currentIndex >= 0 ? currentIndex : 0;
+    } else if (direction > 0) {
+      index = currentIndex >= 0 ? (currentIndex + 1) % items.length : 0;
+    } else {
+      index = currentIndex >= 0 ? (currentIndex - 1 + items.length) % items.length : items.length - 1;
+    }
+    (_items$index = items[index]) === null || _items$index === void 0 || _items$index.focus();
+  };
+  var openPanelActionMenu = function openPanelActionMenu(menu) {
+    var focusDirection = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+    var _getPanelActionMenuEl4 = getPanelActionMenuElements(menu),
+      trigger = _getPanelActionMenuEl4.trigger,
+      panel = _getPanelActionMenuEl4.panel;
+    if (!trigger || !panel) {
+      return;
+    }
+    closePanelActionMenus(false);
+    activePanelActionMenu = menu;
+    trigger.setAttribute('aria-expanded', 'true');
+    panel.hidden = false;
+    menu.classList.add('panel-action-menu--open');
+    positionPanelActionMenu(menu);
+    if (focusDirection !== null) {
+      focusPanelActionMenuItem(menu, focusDirection);
+    }
+  };
+  var togglePanelActionMenu = function togglePanelActionMenu(menu) {
+    var _getPanelActionMenuEl5 = getPanelActionMenuElements(menu),
+      trigger = _getPanelActionMenuEl5.trigger;
+    var isOpen = (trigger === null || trigger === void 0 ? void 0 : trigger.getAttribute('aria-expanded')) === 'true';
+    if (isOpen) {
+      closePanelActionMenus(true);
+      return;
+    }
+    openPanelActionMenu(menu);
+  };
+  document.addEventListener('click', function (event) {
+    var trigger = event.target.closest(panelActionMenuTriggerSelector);
+    if (trigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = trigger.closest(panelActionMenuSelector);
+      if (!menu) {
+        return;
+      }
+      togglePanelActionMenu(menu);
+      return;
+    }
+    if (event.target.closest(panelActionMenuItemSelector)) {
+      window.setTimeout(function () {
+        return closePanelActionMenus(false);
+      }, 0);
+      return;
+    }
+    if (!event.target.closest(panelActionMenuSelector)) {
+      closePanelActionMenus(false);
+    }
+  });
+  document.addEventListener('keydown', function (event) {
+    var trigger = event.target.closest(panelActionMenuTriggerSelector);
+    if (trigger) {
+      var _menu = trigger.closest(panelActionMenuSelector);
+      if (!_menu) {
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePanelActionMenus(true);
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault();
+        togglePanelActionMenu(_menu);
+        return;
+      }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        openPanelActionMenu(_menu, event.key === 'ArrowUp' || event.key === 'End' ? -1 : 0);
+      }
+      return;
+    }
+    var panel = event.target.closest(panelActionMenuPanelSelector);
+    if (!panel) {
+      if (event.key === 'Escape') {
+        closePanelActionMenus(true);
+      }
+      return;
+    }
+    var menu = panel.closest(panelActionMenuSelector);
+    if (!menu) {
+      return;
+    }
+    var items = getPanelActionMenuItems(menu);
+    if (!items.length) {
+      return;
+    }
+    var currentIndex = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePanelActionMenus(true);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      var _items;
+      event.preventDefault();
+      (_items = items[(currentIndex + 1) % items.length]) === null || _items === void 0 || _items.focus();
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      var _items2;
+      event.preventDefault();
+      (_items2 = items[(currentIndex - 1 + items.length) % items.length]) === null || _items2 === void 0 || _items2.focus();
+      return;
+    }
+    if (event.key === 'Home') {
+      var _items$;
+      event.preventDefault();
+      (_items$ = items[0]) === null || _items$ === void 0 || _items$.focus();
+      return;
+    }
+    if (event.key === 'End') {
+      var _items3;
+      event.preventDefault();
+      (_items3 = items[items.length - 1]) === null || _items3 === void 0 || _items3.focus();
+    }
+  });
+  document.addEventListener('scroll', function () {
+    if (activePanelActionMenu) {
+      closePanelActionMenus(false);
+    }
+  }, true);
+  window.addEventListener('resize', function () {
+    if (activePanelActionMenu) {
+      closePanelActionMenus(false);
+    }
+  });
+  var initializeUserGroupToggles = function initializeUserGroupToggles() {
+    var scope = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : document;
+    scope.querySelectorAll('[data-users-group-shell]').forEach(function (shell) {
+      if (shell.dataset.usersGroupBound === 'true') {
+        return;
+      }
+      var toggle = shell.querySelector('[data-users-group-toggle]');
+      if (!toggle) {
+        return;
+      }
+      var setOpen = function setOpen(open) {
+        shell.dataset.open = open ? 'true' : 'false';
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      setOpen(shell.dataset.open !== 'false');
+      toggle.addEventListener('click', function (event) {
+        event.preventDefault();
+        setOpen(shell.dataset.open !== 'true');
+      });
+      shell.dataset.usersGroupBound = 'true';
+    });
+  };
+  initializeUserGroupToggles();
+  var refreshInteractiveBindings = function refreshInteractiveBindings() {
+    closePanelActionMenus(false);
+    initializeUserGroupToggles();
+  };
+  var setupLivePanelFilters = function setupLivePanelFilters() {
+    document.querySelectorAll('[data-panel-live-search="true"], [data-panel-filter-live="true"]').forEach(function (form) {
+      var targetSelector = form.dataset.panelLiveSearchTarget || form.dataset.panelFilterLiveTarget || '';
+      var target = targetSelector ? document.querySelector(targetSelector) : null;
+      if (!target) {
+        return;
+      }
+      var loading = form.querySelector('[data-panel-live-search-loading], [data-panel-filter-loading]');
+      var searchInput = form.querySelector('[data-panel-live-search-input], [data-panel-filter-search]');
+      var liveFields = Array.from(form.querySelectorAll('[data-panel-filter-live-field], [data-panel-live-search-input], [data-panel-filter-search]'));
+      var submitButton = form.querySelector('button[type="submit"]');
+      var debounceDelay = Math.max(0, parseInt(form.dataset.panelLiveSearchDebounce || form.dataset.panelFilterDebounce || '500', 10) || 500);
+      var controller = null;
+      var debounceTimer = null;
+      var sequence = 0;
+      var setLoading = function setLoading(isLoading) {
+        if (loading) {
+          loading.hidden = !isLoading;
+        }
+        if (submitButton) {
+          submitButton.disabled = isLoading;
+        }
+      };
+      var buildRequestUrl = function buildRequestUrl() {
+        var sourceUrl = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+        if (sourceUrl) {
+          return new URL(sourceUrl, window.location.origin);
+        }
+        var url = new URL(form.getAttribute('action') || window.location.href, window.location.origin);
+        var formData = new FormData(form);
+        url.search = new URLSearchParams(formData).toString();
+        return url;
+      };
+      var syncUrl = function syncUrl(url) {
+        window.history.replaceState({}, '', "".concat(url.pathname).concat(url.search).concat(url.hash));
+      };
+      var replaceTarget = function replaceTarget(html) {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        var nextTarget = targetSelector ? doc.querySelector(targetSelector) : null;
+        if (!nextTarget) {
+          return false;
+        }
+        target.outerHTML = nextTarget.outerHTML;
+        target = targetSelector ? document.querySelector(targetSelector) : null;
+        return true;
+      };
+      var runFetch = /*#__PURE__*/function () {
+        var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+          var sourceUrl,
+            requestUrl,
+            currentSequence,
+            response,
+            html,
+            _args = arguments,
+            _t;
+          return _regenerator().w(function (_context) {
+            while (1) switch (_context.p = _context.n) {
+              case 0:
+                sourceUrl = _args.length > 0 && _args[0] !== undefined ? _args[0] : null;
+                requestUrl = buildRequestUrl(sourceUrl);
+                currentSequence = ++sequence;
+                if (controller) {
+                  controller.abort();
+                }
+                controller = new AbortController();
+                setLoading(true);
+                _context.p = 1;
+                _context.n = 2;
+                return fetch(requestUrl.toString(), {
+                  headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                  },
+                  signal: controller.signal
+                });
+              case 2:
+                response = _context.v;
+                if (response.ok) {
+                  _context.n = 3;
+                  break;
+                }
+                throw new Error("HTTP ".concat(response.status));
+              case 3:
+                _context.n = 4;
+                return response.text();
+              case 4:
+                html = _context.v;
+                if (!(currentSequence !== sequence)) {
+                  _context.n = 5;
+                  break;
+                }
+                return _context.a(2);
+              case 5:
+                if (replaceTarget(html)) {
+                  refreshInteractiveBindings();
+                  syncUrl(requestUrl);
+                }
+                _context.n = 8;
+                break;
+              case 6:
+                _context.p = 6;
+                _t = _context.v;
+                if (!(_t && _t.name === 'AbortError')) {
+                  _context.n = 7;
+                  break;
+                }
+                return _context.a(2);
+              case 7:
+                console.error('No se pudo actualizar el filtro en vivo.', _t);
+              case 8:
+                _context.p = 8;
+                if (currentSequence === sequence) {
+                  setLoading(false);
+                }
+                return _context.f(8);
+              case 9:
+                return _context.a(2);
+            }
+          }, _callee, null, [[1, 6, 8, 9]]);
+        }));
+        return function runFetch() {
+          return _ref.apply(this, arguments);
+        };
+      }();
+      var scheduleFetch = function scheduleFetch() {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(function () {
+          runFetch();
+        }, debounceDelay);
+      };
+      if (searchInput) {
+        searchInput.addEventListener('input', function () {
+          scheduleFetch();
+        });
+        searchInput.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            window.clearTimeout(debounceTimer);
+            runFetch();
+          }
+        });
+      }
+      liveFields.forEach(function (field) {
+        if (field === searchInput) {
+          return;
+        }
+        field.addEventListener('change', function () {
+          scheduleFetch();
+        });
+      });
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        window.clearTimeout(debounceTimer);
+        runFetch();
+      });
+      document.addEventListener('click', function (event) {
+        var link = event.target.closest("".concat(targetSelector, " nav[role=\"navigation\"] a[href]"));
+        if (!link) {
+          return;
+        }
+        var linkUrl = link.getAttribute('href');
+        if (!linkUrl) {
+          return;
+        }
+        event.preventDefault();
+        window.clearTimeout(debounceTimer);
+        runFetch(linkUrl);
+      });
+    });
+  };
+  setupLivePanelFilters();
+  var setupModal = function setupModal(options) {
+    var modal = document.querySelector(options.modalSelector);
+    if (!modal) {
+      return;
+    }
+    if (modal.dataset.modalBound === 'true') {
+      return;
+    }
+    var openButtons = document.querySelectorAll(options.openSelector);
+    var closeButtons = modal.querySelectorAll(options.closeSelector);
+    var idInput = options.idInputSelector ? modal.querySelector(options.idInputSelector) : null;
+    var summary = options.summarySelector ? modal.querySelector(options.summarySelector) : null;
+    var dateInput = modal.querySelector('[data-maintenance-date-input]');
+    var programmedDateDisplay = modal.querySelector('[data-maintenance-programmed-date-display]');
+    var form = modal.querySelector('form');
+    var submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    var submitButtonLabel = submitButton ? submitButton.textContent || '' : '';
+    var closeUrl = modal.dataset.modalCloseUrl || '';
+    var fileDropzone = modal.querySelector('[data-maintenance-file-dropzone]');
+    var dateField = modal.querySelector('[data-maintenance-date-field]');
+    var dateTrigger = modal.querySelector('[data-maintenance-date-trigger]');
+    var dateDisplay = modal.querySelector('[data-maintenance-date-display]');
+    var datePicker = modal.querySelector('[data-maintenance-date-picker]');
+    var dateMonthLabel = modal.querySelector('[data-maintenance-date-month]');
+    var dateYearSelect = modal.querySelector('[data-maintenance-date-year]');
+    var dateGrid = modal.querySelector('[data-maintenance-date-grid]');
+    var datePrev = modal.querySelector('[data-maintenance-date-prev]');
+    var dateNext = modal.querySelector('[data-maintenance-date-next]');
+    var dateToday = modal.querySelector('[data-maintenance-date-today]');
+    var dateClose = modal.querySelector('[data-maintenance-date-close]');
+    var shouldPreserveMaintenanceDate = (dateInput === null || dateInput === void 0 ? void 0 : dateInput.dataset.maintenanceDatePreserve) === '1';
+    var hasMaintenanceDatePicker = Boolean(dateField && dateTrigger && dateDisplay && datePicker && dateMonthLabel && dateYearSelect && dateGrid);
+    var fileDropzoneInitialized = false;
+    var datePickerInitialized = false;
+    var datePickerOpen = false;
+    var currentViewDate = null;
+    var datePickerScrollHandler = null;
+    var datePickerResizeHandler = null;
+    var formatDateDisplay = function formatDateDisplay(value) {
+      if (!value) {
+        return '';
+      }
+      var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+      if (!match) {
+        return value;
+      }
+      return "".concat(match[3], "/").concat(match[2], "/").concat(match[1]);
+    };
+    var normalizeDate = function normalizeDate(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+    var parseDateValue = function parseDateValue(value) {
+      var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim());
+      if (!match) {
+        return null;
+      }
+      var year = parseInt(match[1], 10);
+      var month = parseInt(match[2], 10) - 1;
+      var day = parseInt(match[3], 10);
+      return new Date(year, month, day);
+    };
+    var maintenanceDateMin = parseDateValue((dateInput === null || dateInput === void 0 ? void 0 : dateInput.dataset.maintenanceDateMin) || '');
+    var maintenanceDateMax = parseDateValue((dateInput === null || dateInput === void 0 ? void 0 : dateInput.dataset.maintenanceDateMax) || '');
+    var allowNonBusinessDays = (dateInput === null || dateInput === void 0 ? void 0 : dateInput.dataset.maintenanceDateAllowNonBusiness) === '1';
+    var maintenanceHolidaySet = function () {
+      try {
+        var parsed = JSON.parse(String((dateInput === null || dateInput === void 0 ? void 0 : dateInput.dataset.maintenanceDateHolidays) || '[]'));
+        if (!Array.isArray(parsed)) {
+          return new Set();
+        }
+        return new Set(parsed.filter(function (value) {
+          return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+        }));
+      } catch (error) {
+        return new Set();
+      }
+    }();
+    var formatDateValue = function formatDateValue(date) {
+      var local = normalizeDate(date);
+      var year = local.getFullYear();
+      var month = String(local.getMonth() + 1).padStart(2, '0');
+      var day = String(local.getDate()).padStart(2, '0');
+      return "".concat(year, "-").concat(month, "-").concat(day);
+    };
+    var isDateBeforeMin = function isDateBeforeMin(date) {
+      return maintenanceDateMin !== null && date.getTime() < maintenanceDateMin.getTime();
+    };
+    var isDateAfterMax = function isDateAfterMax(date) {
+      return maintenanceDateMax !== null && date.getTime() > maintenanceDateMax.getTime();
+    };
+    var isWeekendDay = function isWeekendDay(date) {
+      return [0, 6].includes(date.getDay());
+    };
+    var isHoliday = function isHoliday(date) {
+      return maintenanceHolidaySet.has(formatDateValue(date));
+    };
+    var isNonBusinessDay = function isNonBusinessDay(date) {
+      return !allowNonBusinessDays && (isWeekendDay(date) || isHoliday(date));
+    };
+    var advanceToBusinessDay = function advanceToBusinessDay(date) {
+      var current = normalizeDate(date);
+      while (isNonBusinessDay(current)) {
+        current = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+      }
+      return current;
+    };
+    var clampDateValue = function clampDateValue(value) {
+      var parsed = parseDateValue(value);
+      if (!parsed) {
+        return value;
+      }
+      var normalized = normalizeDate(parsed);
+      if (isDateBeforeMin(normalized)) {
+        normalized = normalizeDate(maintenanceDateMin);
+      }
+      if (isDateAfterMax(normalized)) {
+        normalized = normalizeDate(maintenanceDateMax);
+      }
+      if (!allowNonBusinessDays) {
+        normalized = advanceToBusinessDay(normalized);
+      }
+      return formatDateValue(normalized);
+    };
+    var formatDateLongEs = function formatDateLongEs(date) {
+      return new Intl.DateTimeFormat('es-CO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+    };
+    var formatMonthYearEs = function formatMonthYearEs(date) {
+      return new Intl.DateTimeFormat('es-CO', {
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+    };
+    var capitalizeFirst = function capitalizeFirst(value) {
+      return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+    };
+    var getSelectedDate = function getSelectedDate() {
+      return parseDateValue((dateInput === null || dateInput === void 0 ? void 0 : dateInput.value) || '') || normalizeDate(new Date());
+    };
+    var syncDateTrigger = function syncDateTrigger() {
+      if (!dateDisplay || !dateInput) {
+        return;
+      }
+      var selected = parseDateValue(dateInput.value);
+      dateDisplay.textContent = selected ? formatDateDisplay(formatDateValue(selected)) : 'Selecciona una fecha';
+    };
+    var syncViewToSelected = function syncViewToSelected() {
+      currentViewDate = normalizeDate(getSelectedDate());
+      currentViewDate.setDate(1);
+    };
+    var positionDatePicker = function positionDatePicker() {
+      if (!datePicker || !dateTrigger || datePicker.hidden) {
+        return;
+      }
+      var triggerRect = dateTrigger.getBoundingClientRect();
+      var padding = 16;
+      var availableWidth = Math.max(0, window.innerWidth - padding * 2);
+      var preferredWidth = Math.min(720, Math.max(triggerRect.width, 320));
+      var finalWidth = Math.max(Math.min(preferredWidth, availableWidth), Math.min(availableWidth, 280));
+      datePicker.style.width = "".concat(finalWidth, "px");
+      datePicker.style.maxHeight = "".concat(Math.max(240, window.innerHeight - padding * 2), "px");
+      var pickerRect = datePicker.getBoundingClientRect();
+      var left = Math.max(padding, (window.innerWidth - finalWidth) / 2);
+      var top = Math.max(padding, (window.innerHeight - pickerRect.height) / 2);
+      datePicker.style.left = "".concat(left, "px");
+      datePicker.style.top = "".concat(top, "px");
+    };
+    var closeDatePicker = function closeDatePicker() {
+      var restoreFocus = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+      if (!hasMaintenanceDatePicker || datePicker.hidden) {
+        return;
+      }
+      datePicker.hidden = true;
+      datePicker.setAttribute('aria-hidden', 'true');
+      dateTrigger.setAttribute('aria-expanded', 'false');
+      datePickerOpen = false;
+      if (datePickerScrollHandler) {
+        window.removeEventListener('scroll', datePickerScrollHandler, true);
+        datePickerScrollHandler = null;
+      }
+      if (datePickerResizeHandler) {
+        window.removeEventListener('resize', datePickerResizeHandler);
+        datePickerResizeHandler = null;
+      }
+      if (restoreFocus) {
+        window.requestAnimationFrame(function () {
+          dateTrigger.focus();
+        });
+      }
+    };
+    var updateSelectedDate = function updateSelectedDate(value) {
+      var _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+        _ref2$keepView = _ref2.keepView,
+        keepView = _ref2$keepView === void 0 ? false : _ref2$keepView,
+        _ref2$keepOpen = _ref2.keepOpen,
+        keepOpen = _ref2$keepOpen === void 0 ? false : _ref2$keepOpen;
+      if (!dateInput) {
+        return;
+      }
+      var selected = parseDateValue(value);
+      if (selected && (isDateBeforeMin(selected) || isDateAfterMax(selected) || isNonBusinessDay(selected))) {
+        return;
+      }
+      dateInput.value = value;
+      syncDateTrigger();
+      if (selected && !keepView) {
+        currentViewDate = normalizeDate(selected);
+        currentViewDate.setDate(1);
+      }
+      if (datePickerInitialized) {
+        renderDatePicker();
+      }
+      if (!keepOpen) {
+        closeDatePicker(true);
+      }
+    };
+    var renderDatePicker = function renderDatePicker() {
+      if (!hasMaintenanceDatePicker || !currentViewDate) {
+        return;
+      }
+      var viewYear = currentViewDate.getFullYear();
+      var viewMonth = currentViewDate.getMonth();
+      var selectedDate = parseDateValue((dateInput === null || dateInput === void 0 ? void 0 : dateInput.value) || '');
+      var today = normalizeDate(new Date());
+      dateMonthLabel.textContent = capitalizeFirst(formatMonthYearEs(currentViewDate));
+      dateYearSelect.innerHTML = '';
+      var startYear = Math.max(1900, viewYear - 10);
+      var endYear = viewYear + 10;
+      for (var year = startYear; year <= endYear; year += 1) {
+        var option = document.createElement('option');
+        option.value = String(year);
+        option.textContent = String(year);
+        if (year === viewYear) {
+          option.selected = true;
+        }
+        dateYearSelect.appendChild(option);
+      }
+      dateGrid.innerHTML = '';
+      var start = new Date(viewYear, viewMonth, 1);
+      var startOffset = (start.getDay() + 6) % 7;
+      var firstCell = new Date(viewYear, viewMonth, 1 - startOffset);
+      var _loop = function _loop() {
+        var current = new Date(firstCell.getFullYear(), firstCell.getMonth(), firstCell.getDate() + index);
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'maintenance-date-picker-day';
+        button.dataset.maintenanceDateValue = formatDateValue(current);
+        button.setAttribute('aria-label', capitalizeFirst(formatDateLongEs(current)));
+        button.textContent = String(current.getDate());
+        if (current.getMonth() !== viewMonth) {
+          button.classList.add('maintenance-date-picker-day--outside');
+        }
+        if (isDateBeforeMin(current) || isDateAfterMax(current) || isNonBusinessDay(current)) {
+          button.disabled = true;
+          button.classList.add('maintenance-date-picker-day--disabled');
+          button.setAttribute('aria-disabled', 'true');
+        }
+        if (current.getTime() === today.getTime()) {
+          button.classList.add('maintenance-date-picker-day--today');
+        }
+        if (selectedDate && current.getTime() === selectedDate.getTime()) {
+          button.classList.add('maintenance-date-picker-day--selected');
+          button.setAttribute('aria-pressed', 'true');
+        }
+        button.addEventListener('pointerdown', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          updateSelectedDate(button.dataset.maintenanceDateValue || '');
+        });
+        button.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          updateSelectedDate(button.dataset.maintenanceDateValue || '');
+        });
+        dateGrid.appendChild(button);
+      };
+      for (var index = 0; index < 42; index += 1) {
+        _loop();
+      }
+      positionDatePicker();
+    };
+    var openDatePicker = function openDatePicker() {
+      if (!hasMaintenanceDatePicker) {
+        return;
+      }
+      if (datePickerOpen) {
+        closeDatePicker(true);
+        return;
+      }
+      syncViewToSelected();
+      datePicker.hidden = false;
+      datePicker.setAttribute('aria-hidden', 'false');
+      dateTrigger.setAttribute('aria-expanded', 'true');
+      datePickerOpen = true;
+      renderDatePicker();
+      datePickerScrollHandler = function datePickerScrollHandler() {
+        return positionDatePicker();
+      };
+      datePickerResizeHandler = function datePickerResizeHandler() {
+        return positionDatePicker();
+      };
+      window.addEventListener('scroll', datePickerScrollHandler, true);
+      window.addEventListener('resize', datePickerResizeHandler);
+      window.requestAnimationFrame(function () {
+        positionDatePicker();
+        var selectedButton = dateGrid.querySelector('.maintenance-date-picker-day--selected') || dateGrid.querySelector('.maintenance-date-picker-day:not([disabled])');
+        if (selectedButton) {
+          selectedButton.focus();
+        }
+      });
+    };
+    var moveGridFocus = function moveGridFocus(activeButton, offset) {
+      var buttons = Array.from(dateGrid.querySelectorAll('.maintenance-date-picker-day:not([disabled])'));
+      var currentIndex = buttons.indexOf(activeButton);
+      if (currentIndex === -1) {
+        return;
+      }
+      var nextIndex = Math.max(0, Math.min(buttons.length - 1, currentIndex + offset));
+      var nextButton = buttons[nextIndex];
+      if (nextButton) {
+        nextButton.focus();
+      }
+    };
+    var getVisibleDateTrigger = function getVisibleDateTrigger() {
+      if (!dateTrigger) {
+        return null;
+      }
+      if (dateTrigger.disabled || dateTrigger.closest('[hidden]')) {
+        return null;
+      }
+      return dateTrigger;
+    };
+    var focusFirstField = function focusFirstField() {
+      var target = modal.querySelector('[aria-invalid="true"]') || getVisibleDateTrigger() || modal.querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea, button[type="submit"]');
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+      }
+    };
+    var setupUserMaintenanceBaseField = function setupUserMaintenanceBaseField() {
+      var typeSelect = modal.querySelector('[data-user-equipo-type-select]');
+      var field = modal.querySelector('[data-user-last-maintenance-field]');
+      var dateInput = (field === null || field === void 0 ? void 0 : field.querySelector('[data-user-last-maintenance-input]')) || null;
+      var fieldLabel = (field === null || field === void 0 ? void 0 : field.querySelector('[data-user-last-maintenance-label]')) || null;
+      var nativeDateInput = (field === null || field === void 0 ? void 0 : field.querySelector('[data-user-native-date-input]')) || null;
+      var nativeDateTrigger = (field === null || field === void 0 ? void 0 : field.querySelector('[data-user-native-date-trigger]')) || null;
+      var nativeDateDisplay = (field === null || field === void 0 ? void 0 : field.querySelector('[data-maintenance-date-display]')) || null;
+      if (!typeSelect || !field || !dateInput || !fieldLabel) {
+        return;
+      }
+      var syncNativeDateDisplay = function syncNativeDateDisplay() {
+        if (!nativeDateInput || !nativeDateDisplay) {
+          return;
+        }
+        var value = String(nativeDateInput.value || '').trim();
+        dateInput.value = value;
+        nativeDateDisplay.textContent = value ? formatDateDisplay(value) : 'Selecciona una fecha';
+      };
+      var syncFieldState = function syncFieldState() {
+        var isNew = typeSelect.value === 'nuevo';
+        field.hidden = false;
+        field.setAttribute('aria-hidden', 'false');
+        dateInput.disabled = false;
+        fieldLabel.innerHTML = isNew ? fieldLabel.dataset.labelNuevo || 'Fecha de compra' : fieldLabel.dataset.labelNormal || 'Fecha de último mantenimiento';
+      };
+      if (nativeDateInput) {
+        nativeDateInput.value = String(dateInput.value || nativeDateInput.value || '').trim();
+        nativeDateInput.addEventListener('input', syncNativeDateDisplay);
+        nativeDateInput.addEventListener('change', syncNativeDateDisplay);
+        syncNativeDateDisplay();
+      }
+      if (nativeDateTrigger && nativeDateInput) {
+        nativeDateTrigger.addEventListener('click', function (event) {
+          event.preventDefault();
+          if (typeof nativeDateInput.showPicker === 'function') {
+            nativeDateInput.showPicker();
+            return;
+          }
+          nativeDateInput.focus();
+          nativeDateInput.click();
+        });
+      }
+      typeSelect.addEventListener('change', syncFieldState);
+      modal.addEventListener('panel:user-type-sync', syncFieldState);
+      syncFieldState();
+    };
+    var restoreSubmitButton = function restoreSubmitButton() {
+      if (!submitButton) {
+        return;
+      }
+      submitButton.disabled = false;
+      submitButton.textContent = submitButtonLabel;
+    };
+    var setupFileDropzone = function setupFileDropzone() {
+      if (!fileDropzone || fileDropzoneInitialized) {
+        return;
+      }
+      var fileInput = fileDropzone.querySelector('[data-maintenance-file-input]');
+      var fileName = fileDropzone.querySelector('[data-maintenance-file-name]');
+      var clearButton = fileDropzone.querySelector('[data-maintenance-file-clear]');
+      var defaultLabel = fileName ? fileName.textContent || 'Sin archivo seleccionado' : 'Sin archivo seleccionado';
+      if (!fileInput || !fileName) {
+        return;
+      }
+      var updateState = function updateState() {
+        var file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        if (file) {
+          fileDropzone.classList.add('maintenance-upload--has-file');
+          fileName.textContent = file.name;
+        } else {
+          fileDropzone.classList.remove('maintenance-upload--has-file');
+          fileName.textContent = defaultLabel;
+        }
+      };
+      var setFileList = function setFileList(files) {
+        if (!files || files.length === 0) {
+          fileInput.value = '';
+          updateState();
+          return;
+        }
+        var file = files[0];
+        var isPdf = (file.type || '').toLowerCase().includes('pdf') || /\.pdf$/i.test(file.name || '');
+        if (!isPdf) {
+          return;
+        }
+        if (typeof DataTransfer !== 'undefined') {
+          var transfer = new DataTransfer();
+          transfer.items.add(file);
+          fileInput.files = transfer.files;
+        }
+        updateState();
+      };
+      fileInput.addEventListener('change', updateState);
+      if (clearButton) {
+        clearButton.addEventListener('click', function () {
+          fileInput.value = '';
+          updateState();
+          fileInput.focus();
+        });
+      }
+      fileDropzone.addEventListener('dragover', function (event) {
+        event.preventDefault();
+        fileDropzone.classList.add('maintenance-upload--dragover');
+      });
+      fileDropzone.addEventListener('dragleave', function () {
+        fileDropzone.classList.remove('maintenance-upload--dragover');
+      });
+      fileDropzone.addEventListener('drop', function (event) {
+        event.preventDefault();
+        fileDropzone.classList.remove('maintenance-upload--dragover');
+        setFileList(event.dataTransfer ? event.dataTransfer.files : null);
+      });
+      updateState();
+      form === null || form === void 0 || form.addEventListener('reset', function () {
+        window.setTimeout(updateState, 0);
+      });
+      fileDropzoneInitialized = true;
+    };
+    var closeModal = function closeModal() {
+      if (closeUrl !== '') {
+        window.location.href = closeUrl;
+        return;
+      }
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      if (form) {
+        form.reset();
+      }
+      if (idInput) {
+        idInput.value = '';
+      }
+      if (hasMaintenanceDatePicker) {
+        closeDatePicker(false);
+        syncDateTrigger();
+      }
+      restoreSubmitButton();
+      if (fileDropzone) {
+        var fileInput = fileDropzone.querySelector('[data-maintenance-file-input]');
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      }
+    };
+    var openModal = function openModal(button) {
+      var mantenimientoId = button.dataset.maintenanceId || '';
+      var resumen = button.dataset.maintenanceSummary || '';
+      var suggestedDate = button.dataset.maintenanceSuggestedDate || '';
+      var programmedDate = button.dataset.maintenanceProgrammedDate || '';
+      var target = button.dataset.maintenanceTarget || '';
+      var todayValue = formatDateValue(new Date());
+      if (idInput) {
+        idInput.value = mantenimientoId;
+      }
+      if (programmedDateDisplay) {
+        programmedDateDisplay.value = formatDateDisplay(programmedDate || suggestedDate) || 'Sin fecha programada';
+      }
+      if (dateInput && !hasMaintenanceDatePicker) {
+        var minDate = dateInput.getAttribute('min') || '';
+        var maxDate = dateInput.getAttribute('max') || '';
+        var value = '';
+        if (target === 'programar') {
+          value = suggestedDate;
+        } else if (minDate && maxDate && minDate === maxDate) {
+          value = minDate;
+        } else {
+          value = minDate || maxDate || suggestedDate || dateInput.defaultValue || dateInput.value;
+        }
+        dateInput.value = clampDateValue(value);
+      }
+      if (hasMaintenanceDatePicker && dateInput) {
+        if (target === 'programar' && !shouldPreserveMaintenanceDate) {
+          dateInput.value = clampDateValue(suggestedDate || dateInput.value || dateInput.defaultValue || todayValue);
+        } else if (target === 'hecho') {
+          dateInput.value = clampDateValue(programmedDate || suggestedDate || dateInput.value || dateInput.defaultValue || todayValue);
+        }
+      }
+      if (hasMaintenanceDatePicker) {
+        syncDateTrigger();
+        syncViewToSelected();
+        renderDatePicker();
+      }
+      if (summary) {
+        summary.textContent = resumen || options.defaultSummary;
+      }
+      restoreSubmitButton();
+      setupFileDropzone();
+      if (hasMaintenanceDatePicker) {
+        dateTrigger.setAttribute('aria-expanded', 'false');
+      }
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      modal.dispatchEvent(new CustomEvent('panel:user-type-sync'));
+      window.requestAnimationFrame(function () {
+        if (typeof modal.focus === 'function') {
+          modal.focus();
+        }
+      });
+      focusFirstField();
+    };
+    openButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        return openModal(button);
+      });
+    });
+    closeButtons.forEach(function (button) {
+      button.addEventListener('click', closeModal);
+    });
+    if (hasMaintenanceDatePicker && !datePickerInitialized) {
+      var focusSelectedDay = function focusSelectedDay() {
+        var selectedButton = dateGrid.querySelector('.maintenance-date-picker-day--selected') || dateGrid.querySelector('.maintenance-date-picker-day');
+        if (selectedButton) {
+          selectedButton.focus();
+        }
+      };
+      dateTrigger.addEventListener('click', function (event) {
+        event.preventDefault();
+        if (datePickerOpen) {
+          closeDatePicker(true);
+          return;
+        }
+        openDatePicker();
+      });
+      dateTrigger.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openDatePicker();
+        }
+      });
+      datePrev === null || datePrev === void 0 || datePrev.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!currentViewDate) {
+          syncViewToSelected();
+        }
+        currentViewDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() - 1, 1);
+        renderDatePicker();
+        focusSelectedDay();
+      });
+      dateNext === null || dateNext === void 0 || dateNext.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!currentViewDate) {
+          syncViewToSelected();
+        }
+        currentViewDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 1);
+        renderDatePicker();
+        focusSelectedDay();
+      });
+      dateToday === null || dateToday === void 0 || dateToday.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        updateSelectedDate(clampDateValue(formatDateValue(new Date())));
+      });
+      dateClose === null || dateClose === void 0 || dateClose.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDatePicker(true);
+      });
+      dateYearSelect.addEventListener('change', function () {
+        if (!currentViewDate) {
+          syncViewToSelected();
+        }
+        var selectedYear = parseInt(dateYearSelect.value, 10);
+        if (Number.isNaN(selectedYear)) {
+          return;
+        }
+        currentViewDate = new Date(selectedYear, currentViewDate.getMonth(), 1);
+        renderDatePicker();
+        focusSelectedDay();
+      });
+      dateGrid.addEventListener('keydown', function (event) {
+        var activeButton = event.target.closest('.maintenance-date-picker-day');
+        if (!activeButton) {
+          return;
+        }
+        switch (event.key) {
+          case 'ArrowLeft':
+            event.preventDefault();
+            moveGridFocus(activeButton, -1);
+            break;
+          case 'ArrowRight':
+            event.preventDefault();
+            moveGridFocus(activeButton, 1);
+            break;
+          case 'ArrowUp':
+            event.preventDefault();
+            moveGridFocus(activeButton, -7);
+            break;
+          case 'ArrowDown':
+            event.preventDefault();
+            moveGridFocus(activeButton, 7);
+            break;
+          case 'Home':
+            event.preventDefault();
+            moveGridFocus(activeButton, -(Array.from(dateGrid.querySelectorAll('.maintenance-date-picker-day')).indexOf(activeButton) % 7));
+            break;
+          case 'End':
+            event.preventDefault();
+            moveGridFocus(activeButton, 6 - Array.from(dateGrid.querySelectorAll('.maintenance-date-picker-day')).indexOf(activeButton) % 7);
+            break;
+          case 'PageUp':
+            event.preventDefault();
+            currentViewDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() - 1, 1);
+            renderDatePicker();
+            focusSelectedDay();
+            break;
+          case 'PageDown':
+            event.preventDefault();
+            currentViewDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 1);
+            renderDatePicker();
+            focusSelectedDay();
+            break;
+          default:
+            break;
+        }
+      });
+      datePicker.addEventListener('mousedown', function (event) {
+        event.stopPropagation();
+      });
+      datePicker.addEventListener('click', function (event) {
+        event.stopPropagation();
+      });
+      document.addEventListener('click', function (event) {
+        if (!datePickerOpen || modal.hidden) {
+          return;
+        }
+        if (datePicker.contains(event.target) || dateTrigger.contains(event.target)) {
+          return;
+        }
+        closeDatePicker(false);
+      });
+      datePickerInitialized = true;
+    }
+    modal.addEventListener('click', function (event) {
+      if (event.target.matches(options.closeSelector)) {
+        closeModal();
+        return;
+      }
+      if (!hasMaintenanceDatePicker || !datePickerOpen) {
+        return;
+      }
+      if (datePicker.contains(event.target) || dateTrigger.contains(event.target)) {
+        return;
+      }
+      closeDatePicker(false);
+    });
+    if (form && submitButton) {
+      form.addEventListener('submit', function () {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Guardando...';
+        closeDatePicker(false);
+      });
+    }
+    if (form) {
+      form.addEventListener('reset', function () {
+        window.setTimeout(function () {
+          restoreSubmitButton();
+          modal.dispatchEvent(new CustomEvent('panel:user-type-sync'));
+          if (hasMaintenanceDatePicker) {
+            syncDateTrigger();
+            syncViewToSelected();
+            renderDatePicker();
+            closeDatePicker(false);
+          }
+        }, 0);
+      });
+    }
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' || modal.hidden) {
+        return;
+      }
+      if (hasMaintenanceDatePicker && datePickerOpen) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeDatePicker(true);
+        return;
+      }
+      if (!datePickerOpen) {
+        closeModal();
+      }
+    });
+    if (!modal.hidden) {
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      window.requestAnimationFrame(function () {
+        focusFirstField();
+      });
+    }
+    setupUserMaintenanceBaseField();
+    modal.dataset.modalBound = 'true';
+  };
+  var userCreateModalOptions = {
+    modalSelector: '[data-user-create-modal]',
+    openSelector: '[data-user-create-open]',
+    closeSelector: '[data-user-create-close]',
+    idInputSelector: null,
+    summarySelector: null,
+    defaultSummary: ''
+  };
+  var userEditModalOptions = {
+    modalSelector: '[data-user-edit-modal]',
+    openSelector: '[data-user-edit-open]',
+    closeSelector: '[data-user-edit-close]',
+    idInputSelector: null,
+    summarySelector: null,
+    defaultSummary: ''
+  };
+  var maintenanceModalOptions = {
+    modalSelector: '[data-maintenance-modal]',
+    openSelector: '[data-open-maintenance-modal]',
+    closeSelector: '[data-maintenance-modal-close]',
+    idInputSelector: '[data-maintenance-id-input]',
+    summarySelector: '[data-maintenance-summary]',
+    defaultSummary: 'Selecciona una acción para este mantenimiento.'
+  };
+  refreshInteractiveBindings = function refreshInteractiveBindings() {
+    closePanelActionMenus(false);
+    initializeUserGroupToggles();
+    setupModal(userCreateModalOptions);
+    setupModal(userEditModalOptions);
+    setupModal(maintenanceModalOptions);
+  };
+  refreshInteractiveBindings();
+});
+
+/***/ }),
+
+/***/ "./resources/css/app.css":
+/*!*******************************!*\
+  !*** ./resources/css/app.css ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = __webpack_modules__;
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/chunk loaded */
+/******/ 	(() => {
+/******/ 		var deferred = [];
+/******/ 		__webpack_require__.O = (result, chunkIds, fn, priority) => {
+/******/ 			if(chunkIds) {
+/******/ 				priority = priority || 0;
+/******/ 				for(var i = deferred.length; i > 0 && deferred[i - 1][2] > priority; i--) deferred[i] = deferred[i - 1];
+/******/ 				deferred[i] = [chunkIds, fn, priority];
+/******/ 				return;
+/******/ 			}
+/******/ 			var notFulfilled = Infinity;
+/******/ 			for (var i = 0; i < deferred.length; i++) {
+/******/ 				var [chunkIds, fn, priority] = deferred[i];
+/******/ 				var fulfilled = true;
+/******/ 				for (var j = 0; j < chunkIds.length; j++) {
+/******/ 					if ((priority & 1 === 0 || notFulfilled >= priority) && Object.keys(__webpack_require__.O).every((key) => (__webpack_require__.O[key](chunkIds[j])))) {
+/******/ 						chunkIds.splice(j--, 1);
+/******/ 					} else {
+/******/ 						fulfilled = false;
+/******/ 						if(priority < notFulfilled) notFulfilled = priority;
+/******/ 					}
+/******/ 				}
+/******/ 				if(fulfilled) {
+/******/ 					deferred.splice(i--, 1)
+/******/ 					var r = fn();
+/******/ 					if (r !== undefined) result = r;
+/******/ 				}
+/******/ 			}
+/******/ 			return result;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/jsonp chunk loading */
+/******/ 	(() => {
+/******/ 		// no baseURI
+/******/ 		
+/******/ 		// object to store loaded and loading chunks
+/******/ 		// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 		// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
+/******/ 		var installedChunks = {
+/******/ 			"/js/app": 0,
+/******/ 			"css/app": 0
+/******/ 		};
+/******/ 		
+/******/ 		// no chunk on demand loading
+/******/ 		
+/******/ 		// no prefetching
+/******/ 		
+/******/ 		// no preloaded
+/******/ 		
+/******/ 		// no HMR
+/******/ 		
+/******/ 		// no HMR manifest
+/******/ 		
+/******/ 		__webpack_require__.O.j = (chunkId) => (installedChunks[chunkId] === 0);
+/******/ 		
+/******/ 		// install a JSONP callback for chunk loading
+/******/ 		var webpackJsonpCallback = (parentChunkLoadingFunction, data) => {
+/******/ 			var [chunkIds, moreModules, runtime] = data;
+/******/ 			// add "moreModules" to the modules object,
+/******/ 			// then flag all "chunkIds" as loaded and fire callback
+/******/ 			var moduleId, chunkId, i = 0;
+/******/ 			if(chunkIds.some((id) => (installedChunks[id] !== 0))) {
+/******/ 				for(moduleId in moreModules) {
+/******/ 					if(__webpack_require__.o(moreModules, moduleId)) {
+/******/ 						__webpack_require__.m[moduleId] = moreModules[moduleId];
+/******/ 					}
+/******/ 				}
+/******/ 				if(runtime) var result = runtime(__webpack_require__);
+/******/ 			}
+/******/ 			if(parentChunkLoadingFunction) parentChunkLoadingFunction(data);
+/******/ 			for(;i < chunkIds.length; i++) {
+/******/ 				chunkId = chunkIds[i];
+/******/ 				if(__webpack_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 					installedChunks[chunkId][0]();
+/******/ 				}
+/******/ 				installedChunks[chunkIds[i]] = 0;
+/******/ 			}
+/******/ 			return __webpack_require__.O(result);
+/******/ 		}
+/******/ 		
+/******/ 		var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
+/******/ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+/******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module depends on other loaded chunks and execution need to be delayed
+/******/ 	__webpack_require__.O(undefined, ["css/app"], () => (__webpack_require__("./resources/js/app.js")))
+/******/ 	var __webpack_exports__ = __webpack_require__.O(undefined, ["css/app"], () => (__webpack_require__("./resources/css/app.css")))
+/******/ 	__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
+/******/ 	
+/******/ })()
+;

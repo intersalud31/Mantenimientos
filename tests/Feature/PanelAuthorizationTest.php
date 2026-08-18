@@ -38,8 +38,11 @@ class PanelAuthorizationTest extends TestCase
         $this->get(route('panel.hechos'))->assertForbidden();
         $this->get(route('panel.usuarios'))->assertForbidden();
         $this->get(route('panel.configuracion'))->assertForbidden();
+        $this->get(route('panel.configuracion.buscar', ['q' => '845']))->assertForbidden();
         $this->get(route('panel.evidencia.pdf', ['mantenimientoId' => 1]))->assertForbidden();
         $this->post(route('panel.usuarios.crear'), [])->assertForbidden();
+        $this->post(route('panel.configuracion.preview'), [])->assertForbidden();
+        $this->post(route('panel.configuracion.gestionar'), [])->assertForbidden();
         $this->post(route('panel.configuracion.revertir'), [])->assertForbidden();
     }
 

@@ -51,6 +51,12 @@ class PanelActionFlowTest extends TestCase
         Storage::fake('public');
 
         $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldReceive('obtenerMantenimientoPorId')
+            ->with(123)
+            ->andReturn([
+                'id' => 123,
+                'fecha_programada' => '2026-08-04',
+            ]);
         $repo->shouldReceive('obtenerNombreTecnicoPorId')
             ->with(7)
             ->andReturn('Tecnico Uno');
@@ -81,7 +87,11 @@ class PanelActionFlowTest extends TestCase
             'programados_por_pagina' => 25,
         ]));
         $response->assertSessionHas('panel_message', 'Mantenimiento marcado como hecho.');
-        $this->assertCount(1, Storage::disk('public')->allFiles('constancias'));
+        Storage::disk('public')->assertExists('constancias/123/constancia.pdf');
+        $this->assertSame(
+            ['constancias/123/constancia.pdf'],
+            Storage::disk('public')->allFiles('constancias/123')
+        );
     }
 
     public function test_programados_renderiza_busqueda_y_contenedor_propios(): void
@@ -138,9 +148,12 @@ class PanelActionFlowTest extends TestCase
         $response->assertSee('Selecciona una persona');
         $response->assertSee('Seleccionar constancia en PDF');
         $response->assertSee('data-maintenance-date-trigger', false);
+        $response->assertSee('data-maintenance-date-max', false);
+        $response->assertDontSee('data-maintenance-date-min', false);
         $response->assertSee('data-maintenance-date-picker', false);
         $response->assertSee('data-maintenance-date-grid', false);
         $response->assertSee('Marcar como hecho', false);
+        $response->assertSee('Puedes registrar la fecha real en la que se realizó el mantenimiento.');
         $response->assertDontSee('name="q_proximos"', false);
         $response->assertDontSee('Cierre operativo');
         $response->assertDontSee('ID mantenimiento:');
@@ -531,6 +544,48 @@ class PanelActionFlowTest extends TestCase
         $response->assertDontSee('data-user-actions-trigger', false);
     }
 
+    public function test_lista_de_usuarios_y_formularios_presentan_origen_con_etiquetas_actualizadas(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10101, 'Admin Origen Usuarios', 'origen-usuarios@example.com', 'admin'));
+
+        DB::table('usuarios')->insert([
+            [
+                'nombre' => 'Usuario Inventario Base',
+                'codigo_activo' => 992011,
+                'serial_equipo' => 'SER-ORIGEN-001',
+                'tipo_equipo' => 'normal',
+                'area_id' => null,
+                'estado_usuario' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Usuario Adquisicion Posterior',
+                'codigo_activo' => 992012,
+                'serial_equipo' => 'SER-ORIGEN-002',
+                'tipo_equipo' => 'nuevo',
+                'area_id' => null,
+                'estado_usuario' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->get(route('panel.usuarios', [
+            'q_usuarios' => 'Usuario',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('>Origen<', false);
+        $response->assertSee('>Inventario base<', false);
+        $response->assertSee('>Adquisición posterior<', false);
+        $response->assertSee('value="normal"', false);
+        $response->assertSee('value="nuevo"', false);
+        $response->assertDontSee('>Tipo<', false);
+        $response->assertDontSee('>Viejo<', false);
+        $response->assertDontSee('>Nuevo<', false);
+    }
+
     public function test_hechos_renderiza_el_menu_de_acciones_compartido_con_evidencia(): void
     {
         $this->actingAs($this->makeLegacyUser(1011, 'Admin Menus Hechos', 'menus-hechos@example.com', 'admin'));
@@ -603,6 +658,25 @@ class PanelActionFlowTest extends TestCase
         $this->assertSame('ZX-TST-2345D4', $resultados[0]['serial_equipo']);
     }
 
+    public function test_busqueda_de_usuarios_por_serial_funciona_en_minusculas(): void
+    {
+        DB::table('usuarios')->insert([
+            'nombre' => 'Usuario Serial Minusculas',
+            'codigo_activo' => 991244,
+            'serial_equipo' => 'ZX-TST-LOWER-01',
+            'tipo_equipo' => 'normal',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resultados = app(UsuarioRepository::class)->listarTodos('zx-tst-lower-01');
+
+        $this->assertCount(1, $resultados);
+        $this->assertSame('ZX-TST-LOWER-01', $resultados[0]['serial_equipo']);
+    }
+
     public function test_busqueda_de_usuarios_encuentra_area_caas(): void
     {
         DB::table('areas')->updateOrInsert(
@@ -651,6 +725,31 @@ class PanelActionFlowTest extends TestCase
         $response->assertSessionHasErrors('fecha_ultimo_mantenimiento_base');
     }
 
+    public function test_crear_usuario_normaliza_serial_a_mayusculas_y_recorta_espacios(): void
+    {
+        $this->actingAs($this->makeLegacyUser(100411, 'Admin Serial Crear', 'serial-crear@example.com', 'admin'));
+
+        $response = $this->post(route('panel.usuarios.crear'), [
+            'nombre' => 'Usuario Serial Crear',
+            'codigo_activo' => 991246,
+            'serial_equipo' => '  Rbn0Cx02D8Z9642  ',
+            'tipo_equipo' => 'nuevo',
+            'form_context' => 'crear_usuario',
+        ]);
+
+        $response->assertRedirect(route('panel.usuarios', [
+            'area_id' => 0,
+            'q_usuarios' => '',
+            'nuevo_usuario' => 1,
+        ]));
+
+        $this->assertDatabaseHas('usuarios', [
+            'codigo_activo' => 991246,
+            'serial_equipo' => 'RBN0CX02D8Z9642',
+            'tipo_equipo' => 'nuevo',
+        ]);
+    }
+
     public function test_actualizar_usuario_viejo_sin_historial_real_requiere_fecha_base(): void
     {
         $this->actingAs($this->makeLegacyUser(10042, 'Admin Editar', 'editar@example.com', 'admin'));
@@ -680,6 +779,42 @@ class PanelActionFlowTest extends TestCase
         $response->assertSessionHasErrors('fecha_ultimo_mantenimiento_base');
     }
 
+    public function test_actualizar_usuario_normaliza_serial_a_mayusculas_y_recorta_espacios(): void
+    {
+        $this->actingAs($this->makeLegacyUser(100421, 'Admin Serial Editar', 'serial-editar@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Serial Editar',
+            'codigo_activo' => 991247,
+            'serial_equipo' => 'SER-EDITAR-OLD',
+            'tipo_equipo' => 'nuevo',
+            'fecha_ultimo_mantenimiento_base' => null,
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario Serial Editar',
+            'codigo_activo' => 991247,
+            'serial_equipo' => '  System Serial Number9  ',
+            'tipo_equipo' => 'nuevo',
+            'form_context' => 'editar_usuario',
+        ]);
+
+        $response->assertRedirect(route('panel.usuarios', [
+            'area_id' => 0,
+            'q_usuarios' => '',
+        ]));
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'serial_equipo' => 'SYSTEM SERIAL NUMBER9',
+        ]);
+    }
+
     public function test_lista_de_usuarios_no_muestra_fecha_base_en_tabla(): void
     {
         $this->actingAs($this->makeLegacyUser(10043, 'Admin Lista', 'lista@example.com', 'admin'));
@@ -701,7 +836,7 @@ class PanelActionFlowTest extends TestCase
         $response->assertOk();
         $response->assertSee('Usuario Fecha Base Lista');
         $response->assertSee('991238');
-        $response->assertSee('Ser-Lista-001');
+        $response->assertSee('SER-LISTA-001');
 
         $html = $response->getContent();
         $inicioTabla = strpos($html, 'id="usuarios-listado"');
@@ -710,6 +845,74 @@ class PanelActionFlowTest extends TestCase
 
         $this->assertStringNotContainsString('Fecha de &uacute;ltimo mantenimiento', $htmlTabla);
         $this->assertStringNotContainsString('15/06/2026', $htmlTabla);
+    }
+
+    public function test_lista_de_usuarios_muestra_seriales_normalizados_y_preserva_no_disponible(): void
+    {
+        $this->actingAs($this->makeLegacyUser(100431, 'Admin Lista Serial', 'lista-serial@example.com', 'admin'));
+
+        DB::table('usuarios')->insert([
+            [
+                'nombre' => 'Usuario Serial Visible',
+                'codigo_activo' => 991248,
+                'serial_equipo' => 'System Serial Number10',
+                'tipo_equipo' => 'normal',
+                'area_id' => null,
+                'estado_usuario' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Usuario Sin Serial Visible',
+                'codigo_activo' => 991249,
+                'serial_equipo' => 'No disponible',
+                'tipo_equipo' => 'normal',
+                'area_id' => null,
+                'estado_usuario' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->get(route('panel.usuarios', [
+            'q_usuarios' => 'Usuario Serial Visible',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('SYSTEM SERIAL NUMBER10', false);
+        $response->assertDontSee('System Serial Number10', false);
+
+        $responseEspecial = $this->get(route('panel.usuarios', [
+            'q_usuarios' => 'Usuario Sin Serial Visible',
+        ]));
+
+        $responseEspecial->assertOk();
+        $responseEspecial->assertSee('No disponible', false);
+        $responseEspecial->assertDontSee('NO DISPONIBLE', false);
+    }
+
+    public function test_comando_dry_run_de_seriales_reporta_cambios_sin_modificar_datos(): void
+    {
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Dry Run Serial',
+            'codigo_activo' => 991250,
+            'serial_equipo' => 'System Serial Number11',
+            'tipo_equipo' => 'normal',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->artisan('usuarios:normalizar-seriales', ['--dry-run' => true])
+            ->expectsOutputToContain('[dry-run] #' . $usuarioId . ' "System Serial Number11" => "SYSTEM SERIAL NUMBER11"')
+            ->expectsOutputToContain('Cambios detectados:')
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'serial_equipo' => 'System Serial Number11',
+        ]);
     }
 
     public function test_editar_usuario_sin_enviar_fecha_base_no_borra_la_existente(): void
@@ -741,6 +944,7 @@ class PanelActionFlowTest extends TestCase
             'id' => $usuarioId,
             'nombre' => 'Usuario Preserva Fecha Editado',
             'fecha_ultimo_mantenimiento_base' => '2026-05-10',
+            'tipo_equipo' => 'normal',
         ]);
     }
 
@@ -996,7 +1200,7 @@ class PanelActionFlowTest extends TestCase
         $response->assertSessionHas('panel_error', 'La fecha programada debe ser un dia habil.');
     }
 
-    public function test_no_permite_marcar_como_hecho_con_fecha_pasada(): void
+    public function test_permite_marcar_como_hecho_con_fecha_pasada(): void
     {
         $this->actingAs($this->makeLegacyUser(1008, 'Admin Hecho Fecha', 'hecho-fecha@example.com', 'admin'));
         Storage::fake('public');
@@ -1046,7 +1250,7 @@ class PanelActionFlowTest extends TestCase
             'mantenimiento_id' => $mantenimientoId,
             'fecha_ejecucion' => $fechaPasada,
             'tecnico_id' => $tecnicoId,
-            'observaciones' => 'No debe guardarse.',
+            'observaciones' => 'Debe guardarse con fecha histórica.',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
             'q_programados' => 'Usuario Fecha Pasada',
             'programados_pagina' => 1,
@@ -1058,23 +1262,23 @@ class PanelActionFlowTest extends TestCase
             'programados_pagina' => 1,
             'programados_por_pagina' => 10,
         ]));
-        $response->assertSessionHas('panel_error', 'La fecha de ejecucion no puede ser anterior a hoy.');
+        $response->assertSessionHas('panel_message');
 
         $this->assertDatabaseHas('mantenimientos', [
             'id' => $mantenimientoId,
-            'estado' => 'programado',
-            'fecha_ejecucion' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaPasada,
         ]);
     }
 
-    public function test_no_permite_marcar_como_hecho_en_fin_de_semana(): void
+    public function test_no_permite_marcar_como_hecho_con_fecha_futura(): void
     {
         $this->actingAs($this->makeLegacyUser(10081, 'Admin Hecho Fin', 'hecho-fin@example.com', 'admin'));
         Storage::fake('public');
 
         $periodo = app(SemestreService::class)->actual();
         $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
-        $fechaFinDeSemana = \Illuminate\Support\Carbon::today()->next('Sunday')->format('Y-m-d');
+        $fechaFutura = now()->addDay()->format('Y-m-d');
 
         $usuarioId = DB::table('usuarios')->insertGetId([
             'area_id' => null,
@@ -1108,12 +1312,13 @@ class PanelActionFlowTest extends TestCase
 
         $repo = Mockery::mock(MantenimientoRepository::class);
         $repo->shouldNotReceive('obtenerNombreTecnicoPorId');
+        $repo->shouldNotReceive('obtenerMantenimientoPorId');
         $repo->shouldNotReceive('marcarProgramadoComoHechoYGenerarSiguiente');
         $this->instance(MantenimientoRepository::class, $repo);
 
         $response = $this->post(route('panel.programados.hecho'), [
             'mantenimiento_id' => $mantenimientoId,
-            'fecha_ejecucion' => $fechaFinDeSemana,
+            'fecha_ejecucion' => $fechaFutura,
             'tecnico_id' => 7,
             'observaciones' => 'No debe guardarse.',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
@@ -1127,7 +1332,96 @@ class PanelActionFlowTest extends TestCase
             'programados_pagina' => 1,
             'programados_por_pagina' => 10,
         ]));
-        $response->assertSessionHas('panel_error', 'La fecha de ejecucion debe ser un dia habil.');
+        $response->assertSessionHas('panel_error', 'La fecha de ejecucion no puede ser posterior a hoy.');
+    }
+
+    public function test_exige_confirmacion_si_la_ejecucion_es_anterior_a_la_programacion(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10082, 'Admin Hecho Confirmacion', 'hecho-confirmacion@example.com', 'admin'));
+        Storage::fake('public');
+
+        $fechaProgramada = now()->addDay()->format('Y-m-d');
+        $fechaEjecucion = now()->format('Y-m-d');
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Hecho Confirmacion',
+            'codigo_activo' => 729004,
+            'serial_equipo' => 'SER-HECHO-CONF',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Programado para requerir confirmación.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $tecnicoId = DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Confirmacion',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $payload = [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_id' => $tecnicoId,
+            'observaciones' => 'Requiere confirmación por fecha anterior.',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
+            'q_programados' => 'Usuario Hecho Confirmacion',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ];
+
+        $primero = $this->post(route('panel.programados.hecho'), $payload);
+
+        $primero->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Hecho Confirmacion',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $primero->assertSessionHas('panel_error', 'La fecha de ejecucion es anterior a la fecha programada. Confirma que la informacion sea correcta.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+        ]);
+
+        $segundo = $this->post(route('panel.programados.hecho'), $payload + [
+            'confirmar_ejecucion_antes_programacion' => '1',
+        ]);
+
+        $segundo->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Hecho Confirmacion',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $segundo->assertSessionHas('panel_message');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaEjecucion,
+        ]);
     }
 
     public function test_busqueda_de_proximos_encuentra_area_caas(): void
@@ -1247,6 +1541,7 @@ class PanelActionFlowTest extends TestCase
             'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Ejecucion realizada hoy.',
+            'confirmar_ejecucion_antes_programacion' => '1',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
             'q_programados' => 'Maria Paula',
             'programados_pagina' => 1,

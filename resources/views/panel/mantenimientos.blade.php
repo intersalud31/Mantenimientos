@@ -164,6 +164,9 @@
                         <td class="tabla-programados-columna-fecha">{{ $item['proxima_fecha_programada'] ?? '-' }}</td>
                         <td>
                             <div class="maintenance-action-summary">
+                                <span class="estado-tabla {{ $item['estado_vigente_badge_clase'] ?? 'estado-tabla-info' }}">
+                                    {{ $item['estado_vigente_etiqueta'] ?? 'Programado' }}
+                                </span>
                                 <button
                                     type="button"
                                     class="btn"
@@ -314,7 +317,8 @@
                                     name="fecha_ejecucion"
                                     value="{{ $fechaEjecucionInicial }}"
                                     data-maintenance-date-input
-                                    data-maintenance-date-min="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
+                                    data-maintenance-date-max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
+                                    data-maintenance-date-allow-non-business="1"
                                     data-maintenance-date-holidays='@json($festivosCalendario ?? [])'
                                 >
                                 <button
@@ -362,6 +366,7 @@
                                         <button type="button" class="btn btn-ghost maintenance-date-picker-close" data-maintenance-date-close>Listo</button>
                                     </div>
                                 </div>
+                                <p class="field-help">Puedes registrar la fecha real en la que se realizó el mantenimiento.</p>
                             </div>
                             <div class="field">
                                 <label>Fecha programada</label>
@@ -379,6 +384,12 @@
                             <div class="field maintenance-modal-full">
                                 <label>Observaciones</label>
                                 <textarea name="observaciones" rows="4"></textarea>
+                            </div>
+                            <div class="field maintenance-modal-full">
+                                <label class="maintenance-modal-checkbox">
+                                    <input type="checkbox" name="confirmar_ejecucion_antes_programacion" value="1" {{ old('confirmar_ejecucion_antes_programacion') ? 'checked' : '' }}>
+                                    <span>Confirmo la ejecución cuando la fecha real sea anterior a la fecha programada.</span>
+                                </label>
                             </div>
                             <div class="field maintenance-modal-full">
                                 <label>Constancia PDF</label>

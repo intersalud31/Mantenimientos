@@ -1,4 +1,5 @@
 @php
+    $origenEquipoPresenter = $origenEquipoPresenter ?? app(\App\Services\Legacy\OrigenEquipoPresenter::class);
     $usuariosObjeto = $usuarios ?? null;
     $usuariosFuente = is_object($usuariosObjeto) && method_exists($usuariosObjeto, 'items')
         ? $usuariosObjeto->items()
@@ -55,8 +56,7 @@
                     <th>C&oacute;digo</th>
                     <th>Serial</th>
                     <th>&Aacute;rea</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
+                    <th>{{ $origenEquipoPresenter->fieldLabel() }}</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -64,7 +64,7 @@
                 <tbody class="users-group-shell" data-users-group-shell data-open="true">
                     @php $grupoCount = count($grupoUsuarios); @endphp
                     <tr class="group-row">
-                        <td colspan="7">
+                        <td colspan="6">
                             <button type="button" class="users-group-toggle" data-users-group-toggle aria-expanded="true">
                                 <span class="users-group-toggle-main">
                                     <span class="users-group-caret"></span>
@@ -76,14 +76,15 @@
                             </button>
                         </td>
                     </tr>
-                    @foreach ($grupoUsuarios as $fila)
+                        @foreach ($grupoUsuarios as $fila)
                         @php
                             $estadoActivo = (int) ($fila['estado_usuario'] ?? 0) === 1;
                             $tipoEquipo = (string) ($fila['tipo_equipo'] ?? 'normal');
                             $areaFila = $presentarTexto($fila['area_nombre'] ?? $sinArea);
                             $nombreFila = $presentarTexto($fila['nombre'] ?? '');
                             $codigoFila = (string) ($fila['codigo_activo'] ?? '');
-                            $serialFila = $presentarTexto($fila['serial_equipo'] ?? '');
+                            $serialFila = trim((string) ($fila['serial_equipo'] ?? ''));
+                            $serialFila = $serialFila !== '' ? $serialFila : '-';
                             $accionesFila = [
                                 [
                                     'type' => 'link',
@@ -123,10 +124,7 @@
                             <td>{{ $serialFila }}</td>
                             <td><span class="user-badge-area">{{ $areaFila }}</span></td>
                             <td>
-                                <span class="user-badge-type user-badge-type--{{ $tipoEquipo === 'nuevo' ? 'nuevo' : 'normal' }}">{{ $tipoEquipo === 'nuevo' ? 'Nuevo' : 'Viejo' }}</span>
-                            </td>
-                            <td>
-                                <span class="user-badge-state user-badge-state--{{ $estadoActivo ? 'activo' : 'inactivo' }}">{{ $estadoActivo ? 'Activo' : 'Inactivo' }}</span>
+                                <span class="user-badge-type user-badge-type--{{ $origenEquipoPresenter->badgeVariant($tipoEquipo) }}">{{ $origenEquipoPresenter->label($tipoEquipo) }}</span>
                             </td>
                             <td>
                                 <x-panel.action-menu
@@ -141,7 +139,7 @@
             @empty
                 <tbody>
                     <tr>
-                        <td colspan="7" class="muted panel-table-empty">No hay usuarios para mostrar.</td>
+                        <td colspan="6" class="muted panel-table-empty">No hay usuarios para mostrar.</td>
                     </tr>
                 </tbody>
             @endforelse

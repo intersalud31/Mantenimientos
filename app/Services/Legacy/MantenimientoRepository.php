@@ -15,7 +15,8 @@ class MantenimientoRepository
         private readonly UsuarioMantenimientoResumenService $resumenService,
         private readonly TextoLegacyNormalizer $textoNormalizer,
         private readonly SemestreService $semestreService,
-        private readonly PeriodicidadMantenimientoService $periodicidadService
+        private readonly PeriodicidadMantenimientoService $periodicidadService,
+        private readonly EstadoMantenimientoVigenteService $estadoVigenteService
     ) {
     }
 
@@ -55,6 +56,16 @@ class MantenimientoRepository
     {
         $fila = DB::table('mantenimientos')
             ->select('id', 'usuario_id', 'estado', 'evidencia_pdf')
+            ->where('id', $mantenimientoId)
+            ->first();
+
+        return $fila ? (array) $fila : null;
+    }
+
+    public function obtenerMantenimientoPorId(int $mantenimientoId): ?array
+    {
+        $fila = DB::table('mantenimientos')
+            ->select('id', 'usuario_id', 'estado', 'fecha_programada', 'fecha_ejecucion', 'updated_at')
             ->where('id', $mantenimientoId)
             ->first();
 
@@ -281,6 +292,8 @@ class MantenimientoRepository
             ->take($limite);
 
         $filas = $query->get()->map(static fn ($row) => (array) $row)->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
 
         foreach ($filas as &$fila) {
             $this->hidratarEvidenciaPublica($fila);
@@ -519,6 +532,8 @@ class MantenimientoRepository
         }
 
         $filas = $query->get()->map(static fn ($row) => (array) $row)->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
 
         foreach ($filas as &$fila) {
             $this->hidratarEvidenciaPublica($fila);
@@ -847,6 +862,13 @@ class MantenimientoRepository
         }
 
         return $principal ? (int) $principal->id : null;
+    }
+
+    public function materializarPendienteSemestral(int $usuarioId, string $fechaProgramada, string $observaciones): ?int
+    {
+        return DB::transaction(function () use ($usuarioId, $fechaProgramada, $observaciones): ?int {
+            return $this->asegurarPendienteSemestral($usuarioId, $fechaProgramada, $observaciones);
+        });
     }
 
     public function marcarProgramadoComoHechoYGenerarSiguiente(

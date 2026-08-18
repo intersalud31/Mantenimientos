@@ -171,17 +171,6 @@
         </div>
     </nav>
 
-    <div class="app-sidebar-user">
-        <span class="app-user-avatar" aria-hidden="true">{{ $authInitials }}</span>
-        <span class="app-user-copy">
-            <strong>{{ $authName }}</strong>
-            @if ($authRole !== '')
-                <span>{{ mb_convert_case($authRole, MB_CASE_TITLE, 'UTF-8') }}</span>
-            @else
-                <span>Usuario activo</span>
-            @endif
-        </span>
-    </div>
 </aside>
 
 <div class="app-sidebar-backdrop" data-app-sidebar-backdrop hidden></div>

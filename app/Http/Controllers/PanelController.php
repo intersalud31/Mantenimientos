@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Services\Legacy\MantenimientoRepository;
+use App\Services\Legacy\OrigenEquipoPresenter;
 use App\Services\Legacy\PeriodicidadMantenimientoService;
 use App\Services\Legacy\PanelNavigationService;
+use App\Services\Legacy\ReversionEstadoMantenimientoService;
 use App\Services\Legacy\UsuarioRepository;
 use App\Services\SemestreService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -53,27 +56,117 @@ class PanelController extends Controller
         ]);
     }
 
-    public function configuracion(Request $request, UsuarioRepository $usuarioRepo, MantenimientoRepository $repo): View
+    public function configuracion(
+        Request $request,
+        UsuarioRepository $usuarioRepo,
+        MantenimientoRepository $repo,
+        ReversionEstadoMantenimientoService $reversionService
+    ): View
     {
         $busquedaUsuario = trim((string) $request->query('busqueda_usuario', ''));
-        $cantidadReversiones = max(1, min(10, (int) $request->query('cantidad_reversiones', 1)));
         $codigoActivo = max(0, (int) $request->query('codigo_activo', 0));
+        $estadoDestino = trim((string) $request->query('estado_destino', ''));
         $usuarioResuelto = null;
+        $reversionAnalisis = null;
+        $reversionPreview = session('gestion_preview');
+        $configSearchState = 'initial';
+        $configSearchMatches = [];
         $consultaUsuario = $codigoActivo > 0 ? (string) $codigoActivo : $busquedaUsuario;
         if ($consultaUsuario !== '') {
             $resultadoBusqueda = $usuarioRepo->resolverCodigoActivoPorBusqueda($consultaUsuario);
             if (($resultadoBusqueda['ok'] ?? false) === true) {
                 $usuarioResuelto = $resultadoBusqueda;
+                $reversionAnalisis = $reversionService->analizarUsuarioPorCodigoActivo((int) ($resultadoBusqueda['codigo_activo'] ?? 0));
+                $configSearchState = 'resolved';
+            } else {
+                $configSearchState = 'no_results';
             }
         }
 
         return view('panel.configuracion', [
             'usuario' => session('usuario_autenticado'),
             'busquedaUsuario' => $busquedaUsuario,
-            'cantidadReversiones' => $cantidadReversiones,
             'codigoActivo' => $codigoActivo,
+            'estadoDestino' => $estadoDestino,
             'usuarioResuelto' => $usuarioResuelto,
+            'reversionAnalisis' => $reversionAnalisis,
+            'reversionPreview' => is_array($reversionPreview) ? $reversionPreview : null,
+            'configSearchState' => $configSearchState,
+            'configSearchMatches' => $configSearchMatches,
             'tecnicos' => $repo->listarTecnicosActivos(),
+        ]);
+    }
+
+    public function buscarUsuarioConfiguracion(
+        Request $request,
+        UsuarioRepository $usuarioRepo,
+        MantenimientoRepository $repo,
+        ReversionEstadoMantenimientoService $reversionService
+    ): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:150'],
+            'codigo_activo' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $busquedaUsuario = trim((string) ($data['q'] ?? ''));
+        $codigoActivo = (int) ($data['codigo_activo'] ?? 0);
+        $tecnicos = $repo->listarTecnicosActivos();
+        $usuarioResuelto = null;
+        $reversionAnalisis = null;
+        $configSearchState = 'initial';
+        $configSearchMatches = [];
+
+        if ($codigoActivo > 0) {
+            $resultadoBusqueda = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) $codigoActivo);
+            if (($resultadoBusqueda['ok'] ?? false) === true) {
+                $usuarioResuelto = $resultadoBusqueda;
+                $reversionAnalisis = $reversionService->analizarUsuarioPorCodigoActivo((int) ($resultadoBusqueda['codigo_activo'] ?? 0));
+                $configSearchState = 'resolved';
+            } else {
+                $configSearchState = 'no_results';
+            }
+        } elseif ($this->debeBuscarUsuarioConfiguracion($busquedaUsuario)) {
+            $configSearchMatches = $usuarioRepo->buscarCoincidenciasConfiguracion($busquedaUsuario, 8);
+
+            if ($configSearchMatches === []) {
+                $configSearchState = 'no_results';
+            } else {
+                $coincidenciaAutomatica = $this->resolverCoincidenciaAutomaticaConfiguracion($busquedaUsuario, $configSearchMatches);
+
+                if ($coincidenciaAutomatica !== null) {
+                    $resultadoBusqueda = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) $coincidenciaAutomatica);
+                    if (($resultadoBusqueda['ok'] ?? false) === true) {
+                        $usuarioResuelto = $resultadoBusqueda;
+                        $reversionAnalisis = $reversionService->analizarUsuarioPorCodigoActivo((int) ($resultadoBusqueda['codigo_activo'] ?? 0));
+                        $configSearchState = 'resolved';
+                    } else {
+                        $configSearchState = 'no_results';
+                    }
+                } else {
+                    $configSearchState = 'multiple';
+                }
+            }
+        }
+
+        $html = view('panel.partials.configuracion-gestion-estado-body', [
+            'busquedaUsuario' => $busquedaUsuario,
+            'estadoDestino' => '',
+            'usuarioResuelto' => $usuarioResuelto,
+            'reversionAnalisis' => $reversionAnalisis,
+            'reversionPreview' => null,
+            'tecnicos' => $tecnicos,
+            'configSearchState' => $configSearchState,
+            'configSearchMatches' => $configSearchMatches,
+        ])->render();
+
+        return response()->json([
+            'ok' => true,
+            'mode' => $configSearchState,
+            'html' => $html,
+            'query' => $busquedaUsuario,
+            'codigo_activo' => $usuarioResuelto['codigo_activo'] ?? $codigoActivo,
+            'matches_count' => count($configSearchMatches),
         ]);
     }
 
@@ -212,7 +305,7 @@ class PanelController extends Controller
         ]);
     }
 
-    public function usuarios(Request $request, UsuarioRepository $repo): View
+    public function usuarios(Request $request, UsuarioRepository $repo, OrigenEquipoPresenter $origenEquipoPresenter): View
     {
         $busqueda = trim((string) $request->query('q_usuarios', ''));
         $editarUsuarioId = (int) $request->query('editar_usuario_id', 0);
@@ -226,6 +319,8 @@ class PanelController extends Controller
             'nuevoUsuario' => (int) $request->query('nuevo_usuario', 0) === 1,
             'usuarioEdicion' => $usuarioEdicion,
             'editarUsuarioId' => $editarUsuarioId,
+            'origenEquipoPresenter' => $origenEquipoPresenter,
+            'origenEquipoOptions' => $origenEquipoPresenter->options(),
         ]);
     }
 
@@ -245,7 +340,7 @@ class PanelController extends Controller
 
         if (($data['tipo_equipo'] ?? 'normal') === 'normal' && empty($data['fecha_ultimo_mantenimiento_base'])) {
             throw ValidationException::withMessages([
-                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria para usuarios viejos.',
+                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria para equipos de inventario base.',
             ]);
         }
 
@@ -326,7 +421,7 @@ class PanelController extends Controller
             && !$repo->usuarioTieneHistorialReal((int) $data['usuario_id'])
         ) {
             throw ValidationException::withMessages([
-                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria mientras este usuario viejo no tenga historial real.',
+                'fecha_ultimo_mantenimiento_base' => 'La fecha de último mantenimiento es obligatoria mientras este equipo de inventario base no tenga historial real.',
             ]);
         }
 
@@ -418,17 +513,14 @@ class PanelController extends Controller
             'fecha_ejecucion' => ['required', 'date_format:Y-m-d'],
             'tecnico_id' => ['required', 'integer', 'min:1'],
             'observaciones' => ['nullable', 'string'],
+            'confirmar_ejecucion_antes_programacion' => ['nullable', 'boolean'],
             'constancia_pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:5120'],
         ]);
 
         $fechaEjecucion = \DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_ejecucion']);
-        $hoy = new \DateTimeImmutable('today');
-        if ($fechaEjecucion === false || $fechaEjecucion < $hoy) {
-            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion no puede ser anterior a hoy.');
-        }
-
-        if (!$periodicidadService->esDiaHabil($data['fecha_ejecucion'])) {
-            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion debe ser un dia habil.');
+        $hoy = Carbon::today(config('app.timezone'));
+        if ($fechaEjecucion === false || $fechaEjecucion > $hoy) {
+            return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'La fecha de ejecucion no puede ser posterior a hoy.');
         }
 
         $tecnico = $repo->obtenerNombreTecnicoPorId((int) $data['tecnico_id']);
@@ -436,14 +528,26 @@ class PanelController extends Controller
             return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', 'Debes seleccionar un técnico o responsable válido.');
         }
 
+        $mantenimiento = $repo->obtenerMantenimientoPorId((int) $data['mantenimiento_id']);
+        $fechaProgramada = trim((string) ($mantenimiento['fecha_programada'] ?? ''));
+        if ($fechaProgramada !== '' && $data['fecha_ejecucion'] < $fechaProgramada && !$request->boolean('confirmar_ejecucion_antes_programacion')) {
+            return $this->redirectConContexto($request, 'panel.programados', $contexto)
+                ->withInput($request->except(['constancia_pdf']))
+                ->with('panel_error', 'La fecha de ejecucion es anterior a la fecha programada. Confirma que la informacion sea correcta.');
+        }
+
         /** @var UploadedFile $pdf */
         $pdf = $request->file('constancia_pdf');
-        $nombreArchivo = sprintf(
-            'constancia_%d_%s.pdf',
-            (int) $data['mantenimiento_id'],
-            Str::uuid()->toString()
+        $nombreArchivo = basename((string) $pdf->getClientOriginalName());
+        if ($nombreArchivo === '') {
+            $nombreArchivo = 'constancia.pdf';
+        }
+
+        $rutaRelativa = $pdf->storeAs(
+            'constancias/' . (int) $data['mantenimiento_id'],
+            $nombreArchivo,
+            'public'
         );
-        $rutaRelativa = $pdf->storeAs('constancias', $nombreArchivo, 'public');
 
         $resultado = $repo->marcarProgramadoComoHechoYGenerarSiguiente(
             (int) $data['mantenimiento_id'],
@@ -472,35 +576,37 @@ class PanelController extends Controller
 
         return $this->redirectConContexto($request, 'panel.configuracion', [
             'busqueda_usuario' => (string) ($request->input('busqueda_usuario', '')),
-            'cantidad_reversiones' => (int) ($request->input('cantidad_reversiones', 1)),
+            'codigo_activo' => (int) ($request->input('codigo_activo', 0)),
+            'estado_destino' => (string) ($request->input('estado_destino', '')),
         ])->with(
             $resultado['ok'] ? 'panel_message' : 'panel_error',
             $resultado['mensaje'] ?? 'No fue posible registrar el técnico.'
         );
     }
 
-    public function revertirUltimaAccion(Request $request, UsuarioRepository $usuarioRepo, MantenimientoRepository $repo): RedirectResponse
+    public function previsualizarGestionEstado(
+        Request $request,
+        UsuarioRepository $usuarioRepo,
+        ReversionEstadoMantenimientoService $reversionService
+    ): RedirectResponse
     {
         $data = $request->validate([
             'busqueda_usuario' => ['required', 'string', 'max:150'],
-            'cantidad_reversiones' => ['required', 'integer', 'min:1', 'max:10'],
+            'estado_destino' => ['required', 'string', 'max:50'],
             'codigo_activo' => ['nullable', 'integer', 'min:1'],
+            'fecha_programada' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_ejecucion' => ['nullable', 'date_format:Y-m-d'],
+            'tecnico_id' => ['nullable', 'integer', 'min:1'],
+            'observaciones' => ['nullable', 'string'],
+            'confirmar_ejecucion_antes_programacion' => ['nullable', 'boolean'],
         ]);
 
-        $codigoActivoForzado = (int) ($data['codigo_activo'] ?? 0);
-        $resolucion = null;
-        if ($codigoActivoForzado > 0) {
-            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) $codigoActivoForzado);
-        }
-
-        if (($resolucion['ok'] ?? false) !== true) {
-            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda($data['busqueda_usuario']);
-        }
+        $resolucion = $this->resolverCodigoActivoConfiguracion($usuarioRepo, $data);
 
         if (($resolucion['ok'] ?? false) !== true) {
             return $this->redirectConContexto($request, 'panel.configuracion', [
                 'busqueda_usuario' => $data['busqueda_usuario'],
-                'cantidad_reversiones' => (int) $data['cantidad_reversiones'],
+                'estado_destino' => (string) $data['estado_destino'],
             ])->with('panel_error', $resolucion['mensaje'] ?? 'No se pudo identificar el usuario.');
         }
 
@@ -508,21 +614,178 @@ class PanelController extends Controller
         if ($codigoActivo <= 0) {
             return $this->redirectConContexto($request, 'panel.configuracion', [
                 'busqueda_usuario' => $data['busqueda_usuario'],
-                'cantidad_reversiones' => (int) $data['cantidad_reversiones'],
+                'estado_destino' => (string) $data['estado_destino'],
             ])->with('panel_error', 'No se encontró un código activo válido para el usuario.');
         }
 
-        $resultado = $repo->revertirAccionesPorCodigoActivo($codigoActivo, (int) $data['cantidad_reversiones']);
+        $resultado = $reversionService->previsualizarPorCodigoActivo(
+            $codigoActivo,
+            (string) $data['estado_destino'],
+            [
+                'fecha_programada' => (string) ($data['fecha_programada'] ?? ''),
+                'fecha_ejecucion' => (string) ($data['fecha_ejecucion'] ?? ''),
+                'tecnico_id' => (int) ($data['tecnico_id'] ?? 0),
+                'observaciones' => (string) ($data['observaciones'] ?? ''),
+            ]
+        );
 
         return $this->redirectConContexto($request, 'panel.configuracion', [
             'busqueda_usuario' => $data['busqueda_usuario'],
-            'cantidad_reversiones' => (int) $data['cantidad_reversiones'],
             'codigo_activo' => $codigoActivo,
+            'estado_destino' => (string) $data['estado_destino'],
         ])
+            ->withInput($request->except(['_token']))
             ->with(
-                ($resultado['ok'] ?? false) ? 'panel_message' : 'panel_error',
-                $resultado['mensaje'] ?? 'No fue posible revertir la acción.'
+                ($resultado['ok'] ?? false) ? 'gestion_preview' : 'panel_error',
+                ($resultado['ok'] ?? false) ? ($resultado['preview'] ?? null) : ($resultado['mensaje'] ?? 'No fue posible generar la previsualización.')
             );
+    }
+
+    public function gestionarEstadoMantenimiento(
+        Request $request,
+        UsuarioRepository $usuarioRepo,
+        ReversionEstadoMantenimientoService $reversionService
+    ): RedirectResponse {
+        $data = $request->validate([
+            'busqueda_usuario' => ['required', 'string', 'max:150'],
+            'estado_destino' => ['required', 'string', 'max:50'],
+            'codigo_activo' => ['nullable', 'integer', 'min:1'],
+            'fecha_programada' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_ejecucion' => ['nullable', 'date_format:Y-m-d'],
+            'tecnico_id' => ['nullable', 'integer', 'min:1'],
+            'observaciones' => ['nullable', 'string'],
+            'confirmar_ejecucion_antes_programacion' => ['nullable', 'boolean'],
+            'motivo' => ['required', 'string', 'min:5', 'max:500'],
+            'preview_hash' => ['required', 'string', 'min:20'],
+            'constancia_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'max:5120'],
+        ]);
+
+        $resolucion = $this->resolverCodigoActivoConfiguracion($usuarioRepo, $data);
+
+        if (($resolucion['ok'] ?? false) !== true) {
+            return $this->redirectConContexto($request, 'panel.configuracion', [
+                'busqueda_usuario' => $data['busqueda_usuario'],
+                'estado_destino' => (string) $data['estado_destino'],
+            ])->with('panel_error', $resolucion['mensaje'] ?? 'No se pudo identificar el usuario.');
+        }
+
+        $codigoActivo = (int) ($resolucion['codigo_activo'] ?? 0);
+        if ($codigoActivo <= 0) {
+            return $this->redirectConContexto($request, 'panel.configuracion', [
+                'busqueda_usuario' => $data['busqueda_usuario'],
+                'estado_destino' => (string) $data['estado_destino'],
+            ])->with('panel_error', 'No se encontró un código activo válido para el usuario.');
+        }
+
+        $rutaRelativa = '';
+        if ((string) $data['estado_destino'] === \App\Services\Legacy\EstadoMantenimientoVigenteService::EJECUTADO) {
+            $request->validate([
+                'constancia_pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:5120'],
+            ]);
+
+            /** @var UploadedFile $pdf */
+            $pdf = $request->file('constancia_pdf');
+            $nombreArchivo = basename((string) $pdf->getClientOriginalName());
+            if ($nombreArchivo === '') {
+                $nombreArchivo = 'constancia.pdf';
+            }
+
+            $rutaRelativa = $pdf->storeAs(
+                'constancias/gestion/' . $codigoActivo,
+                $nombreArchivo,
+                'public'
+            );
+        }
+
+        $resultado = $reversionService->ejecutarPorCodigoActivo(
+            $codigoActivo,
+            (string) $data['estado_destino'],
+            [
+                'fecha_programada' => (string) ($data['fecha_programada'] ?? ''),
+                'fecha_ejecucion' => (string) ($data['fecha_ejecucion'] ?? ''),
+                'tecnico_id' => (int) ($data['tecnico_id'] ?? 0),
+                'observaciones' => (string) ($data['observaciones'] ?? ''),
+                'confirmar_ejecucion_antes_programacion' => $request->boolean('confirmar_ejecucion_antes_programacion'),
+                'constancia_pdf_path' => $rutaRelativa,
+            ],
+            (string) $data['motivo'],
+            (string) $data['preview_hash'],
+            [
+                'id' => (int) (auth()->user()?->id ?? 0),
+                'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
+            ]
+        );
+
+        if (!($resultado['ok'] ?? false) && $rutaRelativa !== '') {
+            Storage::disk('public')->delete($rutaRelativa);
+        }
+
+        return $this->redirectConContexto($request, 'panel.configuracion', [
+            'busqueda_usuario' => $data['busqueda_usuario'],
+            'codigo_activo' => $codigoActivo,
+        ])->with(
+            ($resultado['ok'] ?? false) ? 'panel_message' : 'panel_error',
+            $resultado['mensaje'] ?? 'No fue posible gestionar el estado del mantenimiento.'
+        );
+    }
+
+    public function revertirUltimaAccion(Request $request, UsuarioRepository $usuarioRepo, ReversionEstadoMantenimientoService $reversionService): RedirectResponse
+    {
+        return $this->gestionarEstadoMantenimiento($request, $usuarioRepo, $reversionService);
+    }
+
+    private function resolverCodigoActivoConfiguracion(UsuarioRepository $usuarioRepo, array $data): ?array
+    {
+        $codigoActivoForzado = (int) ($data['codigo_activo'] ?? 0);
+        $resolucion = null;
+        if ($codigoActivoForzado > 0) {
+            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) $codigoActivoForzado);
+        }
+
+        if (($resolucion['ok'] ?? false) !== true) {
+            $resolucion = $usuarioRepo->resolverCodigoActivoPorBusqueda((string) ($data['busqueda_usuario'] ?? ''));
+        }
+
+        return $resolucion;
+    }
+
+    private function debeBuscarUsuarioConfiguracion(string $busqueda): bool
+    {
+        $busqueda = trim($busqueda);
+        if ($busqueda === '') {
+            return false;
+        }
+
+        if (ctype_digit($busqueda)) {
+            return strlen($busqueda) >= 3;
+        }
+
+        return mb_strlen($busqueda, 'UTF-8') >= 2;
+    }
+
+    private function resolverCoincidenciaAutomaticaConfiguracion(string $busqueda, array $coincidencias): ?int
+    {
+        $busqueda = trim($busqueda);
+        if ($busqueda === '' || $coincidencias === []) {
+            return null;
+        }
+
+        if (ctype_digit($busqueda)) {
+            foreach ($coincidencias as $coincidencia) {
+                if ((int) ($coincidencia['codigo_activo'] ?? 0) === (int) $busqueda) {
+                    return (int) $coincidencia['codigo_activo'];
+                }
+            }
+        }
+
+        $normalizado = mb_strtolower($busqueda, 'UTF-8');
+        $exactas = array_values(array_filter($coincidencias, static function (array $coincidencia) use ($normalizado): bool {
+            return mb_strtolower((string) ($coincidencia['nombre'] ?? ''), 'UTF-8') === $normalizado;
+        }));
+
+        return count($exactas) === 1
+            ? (int) ($exactas[0]['codigo_activo'] ?? 0)
+            : null;
     }
 
     private function redirectConContexto(Request $request, string $rutaFallback, array $parametrosFallback = []): RedirectResponse

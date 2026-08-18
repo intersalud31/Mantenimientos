@@ -25,6 +25,7 @@ Route::middleware(['legacy.auth', 'can:access-panel'])->group(function () {
     Route::get('/panel/reportes', [PanelController::class, 'reportes'])->name('panel.reportes');
     Route::get('/panel/usuarios', [PanelController::class, 'usuarios'])->name('panel.usuarios');
     Route::get('/panel/configuracion', [PanelController::class, 'configuracion'])->name('panel.configuracion');
+    Route::get('/panel/configuracion/buscar', [PanelController::class, 'buscarUsuarioConfiguracion'])->name('panel.configuracion.buscar');
     Route::get('/panel/proximos', [PanelController::class, 'proximos'])->name('panel.proximos');
     Route::get('/panel/programados', [PanelController::class, 'programados'])->name('panel.programados');
     Route::get('/panel/hechos', [PanelController::class, 'hechos'])->name('panel.hechos');
@@ -36,5 +37,7 @@ Route::middleware(['legacy.auth', 'can:access-panel'])->group(function () {
     Route::post('/panel/proximos/programar', [PanelController::class, 'programarProximo'])->name('panel.proximos.programar');
     Route::post('/panel/programados/hecho', [PanelController::class, 'marcarProgramadoComoHecho'])->name('panel.programados.hecho');
     Route::post('/panel/tecnicos/crear', [PanelController::class, 'crearTecnico'])->name('panel.tecnicos.crear');
-    Route::post('/panel/configuracion/revertir', [PanelController::class, 'revertirUltimaAccion'])->name('panel.configuracion.revertir');
+    Route::post('/panel/configuracion/preview', [PanelController::class, 'previsualizarGestionEstado'])->name('panel.configuracion.preview');
+    Route::post('/panel/configuracion/gestionar', [PanelController::class, 'gestionarEstadoMantenimiento'])->name('panel.configuracion.gestionar');
+    Route::post('/panel/configuracion/revertir', [PanelController::class, 'gestionarEstadoMantenimiento'])->name('panel.configuracion.revertir');
 });

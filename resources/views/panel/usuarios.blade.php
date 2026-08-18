@@ -25,6 +25,8 @@
         </section>
 
         @php
+            $origenEquipoPresenter = $origenEquipoPresenter ?? app(\App\Services\Legacy\OrigenEquipoPresenter::class);
+            $origenEquipoOptions = $origenEquipoOptions ?? $origenEquipoPresenter->options();
             $usuariosObjeto = $usuarios ?? null;
 
             $usuariosFuente = is_object($usuariosObjeto) && method_exists($usuariosObjeto, 'items')
@@ -159,7 +161,7 @@
                         </label>
                         <label>
                             <span>Serial</span>
-                            <input id="serial_equipo" name="serial_equipo" value="{{ old('serial_equipo') }}" @error('serial_equipo') aria-invalid="true" @enderror required>
+                            <input id="serial_equipo" name="serial_equipo" value="{{ old('serial_equipo') }}" style="text-transform: uppercase;" autocapitalize="characters" spellcheck="false" @error('serial_equipo') aria-invalid="true" @enderror required>
                             @error('serial_equipo')<span class="field-error">{{ $message }}</span>@enderror
                         </label>
                         <label>
@@ -173,10 +175,11 @@
                             @error('area_id')<span class="field-error">{{ $message }}</span>@enderror
                         </label>
                         <label class="field-wide">
-                            <span>Tipo</span>
+                            <span>{{ $origenEquipoPresenter->fieldLabel() }}</span>
                             <select id="tipo_equipo" name="tipo_equipo" data-user-equipo-type-select @error('tipo_equipo') aria-invalid="true" @enderror>
-                                <option value="normal" @selected(old('tipo_equipo', 'normal') === 'normal')>Viejo</option>
-                                <option value="nuevo" @selected(old('tipo_equipo') === 'nuevo')>Nuevo</option>
+                                @foreach ($origenEquipoOptions as $origenEquipoOption)
+                                    <option value="{{ $origenEquipoOption['value'] }}" @selected(old('tipo_equipo', 'normal') === $origenEquipoOption['value'])>{{ $origenEquipoOption['label'] }}</option>
+                                @endforeach
                             </select>
                             @error('tipo_equipo')<span class="field-error">{{ $message }}</span>@enderror
                         </label>
@@ -285,7 +288,7 @@
                             </label>
                             <label>
                                 <span>Serial</span>
-                                <input id="editar_serial_equipo" name="serial_equipo" value="{{ old('serial_equipo', $usuarioEdicion['serial_equipo']) }}" @error('serial_equipo') aria-invalid="true" @enderror required>
+                                <input id="editar_serial_equipo" name="serial_equipo" value="{{ old('serial_equipo', $usuarioEdicion['serial_equipo']) }}" style="text-transform: uppercase;" autocapitalize="characters" spellcheck="false" @error('serial_equipo') aria-invalid="true" @enderror required>
                                 @error('serial_equipo')<span class="field-error">{{ $message }}</span>@enderror
                             </label>
                             <label>
@@ -301,10 +304,11 @@
                                 @error('area_id')<span class="field-error">{{ $message }}</span>@enderror
                             </label>
                             <label class="field-wide">
-                                <span>Tipo</span>
+                                <span>{{ $origenEquipoPresenter->fieldLabel() }}</span>
                                 <select id="editar_tipo_equipo" name="tipo_equipo" data-user-equipo-type-select @error('tipo_equipo') aria-invalid="true" @enderror>
-                                    <option value="normal" @selected(old('tipo_equipo', $usuarioEdicion['tipo_equipo']) === 'normal')>Viejo</option>
-                                    <option value="nuevo" @selected(old('tipo_equipo', $usuarioEdicion['tipo_equipo']) === 'nuevo')>Nuevo</option>
+                                    @foreach ($origenEquipoOptions as $origenEquipoOption)
+                                        <option value="{{ $origenEquipoOption['value'] }}" @selected(old('tipo_equipo', $usuarioEdicion['tipo_equipo']) === $origenEquipoOption['value'])>{{ $origenEquipoOption['label'] }}</option>
+                                    @endforeach
                                 </select>
                                 @error('tipo_equipo')<span class="field-error">{{ $message }}</span>@enderror
                             </label>

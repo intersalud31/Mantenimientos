@@ -198,12 +198,6 @@
                             </td>
                             <td data-label="FECHA DE EJECUCIÓN">
                                 <div>{{ $fechaEjecucion }}</div>
-                                <div class="muted mini">
-                                    @include('panel.partials.status-badge', [
-                                        'state' => 'realizado',
-                                        'label' => $item['estado_etiqueta'] ?? 'Hecho',
-                                    ])
-                                </div>
                             </td>
                             <td data-label="TÉCNICO / RESPONSABLE">
                                 <span class="texto-principal-tabla">{{ $tecnicoFila }}</span>
@@ -256,20 +250,29 @@
             @endif
         </nav>
     </section>
-    <div class="modal-panel modal-panel-estatico" data-detalle-realizado-modal hidden>
+    <div class="modal-panel modal-panel-estatico detalle-realizado-modal" data-detalle-realizado-modal hidden>
         <div class="modal-panel-backdrop" data-close-detalle-realizado></div>
-        <div class="modal-panel-dialogo modal-panel-dialogo-operativo modal-panel-dialogo-detalle" role="dialog" aria-modal="true" aria-labelledby="detalle-realizado-titulo">
+        <div class="modal-panel-dialogo modal-panel-dialogo-operativo modal-panel-dialogo-detalle detalle-realizado-modal-dialogo" role="dialog" aria-modal="true" aria-labelledby="detalle-realizado-titulo">
             <div class="modal-panel-cabecera">
-                <div>
+                <div class="detalle-realizado-modal-heading">
+                    <span class="detalle-realizado-modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M8 3.75V6m8-2.25V6M4.75 9h14.5M6.5 5.25h11A1.75 1.75 0 0 1 19.25 7v10.5A1.75 1.75 0 0 1 17.5 19.25h-11A1.75 1.75 0 0 1 4.75 17.5V7A1.75 1.75 0 0 1 6.5 5.25Zm2.5 7.5h2.25m2.5 0H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
                     <p class="modal-panel-kicker">Detalle validado</p>
                     <h4 id="detalle-realizado-titulo">Información del mantenimiento realizado</h4>
                     <p class="modal-panel-texto">Consulta la ejecución, las observaciones registradas y la constancia PDF del cierre realizado.</p>
                 </div>
-                <button type="button" class="modal-panel-cerrar" data-close-detalle-realizado aria-label="Cerrar detalle del mantenimiento">&times;</button>
+                <button type="button" class="modal-panel-cerrar detalle-realizado-modal-close" data-close-detalle-realizado aria-label="Cerrar detalle del mantenimiento">
+                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                        <path d="M8 8l8 8m0-8-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </button>
             </div>
 
-            <div class="modal-panel-resumen">
-                <article class="modal-panel-resumen-item">
+            <div class="modal-panel-resumen detalle-realizado-modal-resumen">
+                <article class="modal-panel-resumen-item detalle-realizado-card">
                     <span>Usuario</span>
                     <strong data-detalle-modal-usuario>Sin seleccionar</strong>
                 </article>
@@ -319,13 +322,20 @@
                     </div>
 
                     <div class="detalle-realizado-evidencia-vacio" data-detalle-evidencia-vacio>
-                        <span class="estado-tabla estado-tabla-info">No registrado</span>
-                        <p class="muted">No se adjuntó constancia PDF en este mantenimiento.</p>
+                        <span class="evidencia-pdf-icono detalle-realizado-evidencia-icono">PDF</span>
+                        <div class="evidencia-pdf-copy">
+                            <strong>Sin constancia adjunta</strong>
+                            <span>No se adjuntó constancia PDF en este mantenimiento.</span>
+                        </div>
+                        <div class="evidencia-pdf-acciones detalle-realizado-pdf-actions">
+                            <span class="btn-link secondary is-disabled" aria-disabled="true">Ver</span>
+                            <span class="btn-link is-disabled" aria-disabled="true">Descargar</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="actions panel-page-actions">
+            <div class="actions panel-page-actions detalle-realizado-modal-actions">
                 <button type="button" class="btn" data-close-detalle-realizado>Cerrar</button>
             </div>
         </div>

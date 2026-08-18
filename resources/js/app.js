@@ -731,6 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const maintenanceDateMin = parseDateValue(dateInput?.dataset.maintenanceDateMin || '');
         const maintenanceDateMax = parseDateValue(dateInput?.dataset.maintenanceDateMax || '');
+        const allowNonBusinessDays = dateInput?.dataset.maintenanceDateAllowNonBusiness === '1';
         const maintenanceHolidaySet = (() => {
             try {
                 const parsed = JSON.parse(String(dateInput?.dataset.maintenanceDateHolidays || '[]'));
@@ -760,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isHoliday = (date) => maintenanceHolidaySet.has(formatDateValue(date));
 
-        const isNonBusinessDay = (date) => isWeekendDay(date) || isHoliday(date);
+        const isNonBusinessDay = (date) => !allowNonBusinessDays && (isWeekendDay(date) || isHoliday(date));
 
         const advanceToBusinessDay = (date) => {
             let current = normalizeDate(date);
@@ -788,7 +789,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 normalized = normalizeDate(maintenanceDateMax);
             }
 
-            normalized = advanceToBusinessDay(normalized);
+            if (!allowNonBusinessDays) {
+                normalized = advanceToBusinessDay(normalized);
+            }
 
             return formatDateValue(normalized);
         };

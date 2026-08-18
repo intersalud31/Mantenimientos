@@ -60,72 +60,133 @@
     }
 
     body.dashboard-modern .users-group-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 12px 14px;
-        border-radius: 18px;
-        background: #f8fafc;
-        border: 1px solid #dfe7f2;
+        display: none;
+    }
+
+    body.dashboard-modern .user-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #fff;
+    }
+
+    body.dashboard-modern .user-table th:nth-child(5),
+    body.dashboard-modern .user-table td:nth-child(5) {
+        width: 190px;
+        min-width: 190px;
+    }
+
+    body.dashboard-modern .users-group-shell {
+        position: relative;
     }
 
     body.dashboard-modern .users-group-title {
         margin: 0;
-        font-size: .96rem;
         color: #0f172a;
-        font-weight: 800;
+        font-size: .92rem;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     body.dashboard-modern .users-group-count {
-        color: #64748b;
-        font-size: .82rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #f3f6fb;
+        border: 1px solid #e1e8f0;
+        color: #526072;
+        font-size: .74rem;
         font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        flex: none;
     }
 
     body.dashboard-modern .users-group-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 10px;
+        display: block;
         width: 100%;
+        min-height: 46px;
+        padding: 0 14px;
         cursor: pointer;
         color: inherit;
         text-align: left;
         background: transparent;
         border: 0;
-        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        transition: background-color .14s ease;
+    }
+
+    body.dashboard-modern .users-group-toggle:hover {
+        background: rgba(15, 23, 42, .018);
+    }
+
+    body.dashboard-modern .users-group-toggle:focus-visible {
+        outline: none;
+        background: rgba(37, 99, 235, .05);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .22);
     }
 
     body.dashboard-modern .users-group-toggle::before {
-        content: '';
-        width: 10px;
-        height: 10px;
-        border-radius: 4px;
-        background: linear-gradient(135deg, #dbeafe, #60a5fa);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
-        flex: none;
+        content: none;
     }
 
     body.dashboard-modern .users-group-toggle-main {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: 10px;
+        width: 100%;
+        min-height: 46px;
+        min-width: 0;
+    }
+
+    body.dashboard-modern .users-group-toggle-main > span:last-child {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
         min-width: 0;
     }
 
     body.dashboard-modern .users-group-caret {
-        width: 0;
-        height: 0;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 6px solid #64748b;
-        transition: transform .18s ease;
+        position: relative;
+        width: 14px;
+        height: 14px;
+        border: 0;
         flex: none;
     }
 
-    body.dashboard-modern .users-group-shell[data-open='true'] .users-group-caret {
-        transform: rotate(180deg);
+    body.dashboard-modern .users-group-caret::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 6px;
+        height: 6px;
+        border-right: 1.5px solid #6b7a90;
+        border-bottom: 1.5px solid #6b7a90;
+        transform: translate(-58%, -50%) rotate(-45deg);
+        transition: transform .18s ease, border-color .18s ease;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .users-group-caret::before {
+        transform: translate(-50%, -62%) rotate(45deg);
+        border-color: #315ea8;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .users-group-toggle {
+        background: #f7faff;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .users-group-count {
+        background: #eaf1ff;
+        border-color: #d5e2fb;
+        color: #315ea8;
     }
 
     body.dashboard-modern .users-group-shell[data-open='false'] .user-record {
@@ -156,6 +217,7 @@
         font-size: .76rem;
         font-weight: 700;
         line-height: 1;
+        white-space: nowrap;
     }
 
     body.dashboard-modern .user-badge-type--normal {
@@ -383,14 +445,36 @@
     }
 
     body.dashboard-modern .group-row td {
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
-        border-bottom: 1px solid #e2e8f0;
         padding: 0;
+        background: #fff;
+        border-top: 1px solid #e7edf5;
+        border-bottom: 1px solid #e7edf5;
+    }
+
+    body.dashboard-modern .users-group-shell:first-of-type .group-row td {
+        border-top: 0;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .group-row td {
+        background: #f7faff;
+        border-bottom-color: #edf2f8;
     }
 
     body.dashboard-modern .group-row td .users-group-header {
-        margin: 12px 14px;
+        margin: 0;
+        display: none;
+    }
+
+    body.dashboard-modern .group-row td .users-group-toggle {
+        margin: 0;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .user-record:first-of-type td {
+        border-top-color: #edf2f8;
+    }
+
+    body.dashboard-modern .users-group-shell[data-open='true'] .user-record td {
+        background: #fff;
     }
 
     body.dashboard-modern .user-table tbody tr.user-record:hover td {
@@ -409,6 +493,28 @@
         body.dashboard-modern .user-modal-grid .field-wide,
         body.dashboard-modern .user-modal-grid .field-actions {
             grid-column: 1 / -1;
+        }
+
+        body.dashboard-modern .users-group-toggle {
+            padding: 0 12px;
+        }
+
+        body.dashboard-modern .users-group-toggle-main {
+            min-height: 44px;
+            gap: 8px;
+        }
+
+        body.dashboard-modern .users-group-toggle-main > span:last-child {
+            gap: 8px;
+        }
+
+        body.dashboard-modern .users-group-title {
+            font-size: .88rem;
+        }
+
+        body.dashboard-modern .users-group-count {
+            padding: 3px 7px;
+            font-size: .7rem;
         }
     }
 </style>

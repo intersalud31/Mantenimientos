@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\DB;
 class UsuarioRepository
 {
     public function __construct(
+        private readonly SerialEquipoNormalizer $serialNormalizer,
         private readonly UsuarioMantenimientoResumenService $resumenService,
-        private readonly PeriodicidadMantenimientoService $periodicidadService
+        private readonly PeriodicidadMantenimientoService $periodicidadService,
+        private readonly EstadoMantenimientoVigenteService $estadoVigenteService
     ) {
     }
 
@@ -49,7 +51,14 @@ class UsuarioRepository
             });
         }
 
-        return $query->get()->map(static fn ($row) => (array) $row)->all();
+        $filas = $query->get()->map(function ($row) {
+            $fila = (array) $row;
+            $fila['serial_equipo'] = $this->serialNormalizer->normalizar($fila['serial_equipo'] ?? null);
+
+            return $fila;
+        })->all();
+
+        return $this->estadoVigenteService->anexarEstadoVigente($filas, null, 'id');
     }
 
     public function listarAreasActivas(): array
@@ -82,13 +91,21 @@ class UsuarioRepository
             ->where('id', $usuarioId)
             ->first();
 
-        return $fila ? (array) $fila : null;
+        if (!$fila) {
+            return null;
+        }
+
+        $usuario = (array) $fila;
+        $usuario['serial_equipo'] = $this->serialNormalizer->normalizar($usuario['serial_equipo'] ?? null);
+
+        return $usuario;
     }
 
     public function crearUsuario(string $nombre, int $codigoActivo, string $serialEquipo, ?int $areaId, string $tipoEquipo = 'normal', ?string $fechaUltimoMantenimientoBase = null): array
     {
         $tipoEquipo = $this->normalizarTipoEquipo($tipoEquipo);
         $fechaUltimoMantenimientoBase = $this->normalizarFechaBase($fechaUltimoMantenimientoBase);
+        $serialEquipo = (string) $this->serialNormalizer->normalizar($serialEquipo);
 
         try {
             DB::transaction(function () use ($nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase): void {
@@ -151,6 +168,7 @@ class UsuarioRepository
     {
         $tipoEquipo = $this->normalizarTipoEquipo($tipoEquipo);
         $fechaUltimoMantenimientoBase = $this->normalizarFechaBase($fechaUltimoMantenimientoBase);
+        $serialEquipo = (string) $this->serialNormalizer->normalizar($serialEquipo);
 
         return DB::transaction(function () use ($usuarioId, $nombre, $codigoActivo, $serialEquipo, $areaId, $tipoEquipo, $fechaUltimoMantenimientoBase, $actualizarFechaBase, $priorizarFechaBase): bool {
             $usuarioExiste = DB::table('usuarios')
@@ -264,6 +282,41 @@ class UsuarioRepository
             'nombre' => (string) $coincidencia->nombre,
             'codigo_activo' => (int) $coincidencia->codigo_activo,
         ];
+    }
+
+    public function buscarCoincidenciasConfiguracion(string $busqueda, int $limit = 8): array
+    {
+        $busqueda = trim($busqueda);
+        if ($busqueda === '') {
+            return [];
+        }
+
+        $limit = max(1, min(15, $limit));
+        $normalizado = mb_strtolower($busqueda, 'UTF-8');
+
+        $query = DB::table('usuarios')
+            ->select('id', 'nombre', 'codigo_activo', 'estado_usuario')
+            ->where(function ($subquery) use ($normalizado, $busqueda): void {
+                $subquery->whereRaw('LOWER(nombre) LIKE ?', ['%' . $normalizado . '%']);
+
+                if (ctype_digit($busqueda)) {
+                    $subquery->orWhere('codigo_activo', (int) $busqueda);
+                    $subquery->orWhereRaw('CAST(codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+                }
+            })
+            ->orderByRaw('CASE WHEN LOWER(nombre) = ? THEN 0 ELSE 1 END', [$normalizado])
+            ->orderByRaw('CASE WHEN LOWER(nombre) LIKE ? THEN 0 ELSE 1 END', [$normalizado . '%'])
+            ->orderBy('nombre')
+            ->limit($limit)
+            ->get();
+
+        return $query->map(static fn ($row) => [
+            'usuario_id' => (int) $row->id,
+            'nombre' => (string) $row->nombre,
+            'codigo_activo' => (int) $row->codigo_activo,
+            'estado_usuario' => (int) $row->estado_usuario,
+            'activo' => (int) $row->estado_usuario === 1,
+        ])->all();
     }
 
     public function listarTecnicosActivos(): array
