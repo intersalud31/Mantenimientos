@@ -1311,8 +1311,8 @@
         margin: 0 0 10px;
         font-size: .75rem;
         font-weight: 800;
-        letter-spacing: .16em;
-        text-transform: uppercase;
+        letter-spacing: 0;
+        text-transform: none;
     }
 
     body.dashboard-modern .modal-panel-cabecera h4 {
@@ -1363,8 +1363,8 @@
         color: #64748b;
         font-size: .75rem;
         font-weight: 800;
-        letter-spacing: .12em;
-        text-transform: uppercase;
+        letter-spacing: 0;
+        text-transform: none;
     }
 
     body.dashboard-modern .modal-panel-resumen-item strong {
@@ -1396,8 +1396,8 @@
         color: #334155;
         font-size: .82rem;
         font-weight: 800;
-        letter-spacing: .04em;
-        text-transform: uppercase;
+        letter-spacing: 0;
+        text-transform: none;
     }
 
     body.dashboard-modern .campo-fecha-inline textarea,

@@ -156,28 +156,6 @@
                                 ],
                             ];
 
-                            if ($evidenciaDisponible && $urlEvidencia !== '') {
-                                $accionesFila[] = [
-                                    'type' => 'link',
-                                    'label' => 'Ver constancia PDF',
-                                    'href' => $urlEvidencia,
-                                    'target' => '_blank',
-                                    'rel' => 'noopener noreferrer',
-                                ];
-
-                                $accionesFila[] = [
-                                    'type' => 'link',
-                                    'label' => 'Descargar constancia',
-                                    'href' => $urlDescarga,
-                                    'download' => $nombreArchivoPdf,
-                                ];
-                            } elseif ($rutaEvidencia !== '') {
-                                $accionesFila[] = [
-                                    'type' => 'text',
-                                    'label' => 'Archivo no disponible',
-                                    'variant' => 'disabled',
-                                ];
-                            }
                         @endphp
                         <tr>
                             <td data-label="ÁREA / EQUIPO">
@@ -291,12 +269,12 @@
             </div>
 
             <div class="modal-panel-grid">
-                <label class="campo-fecha-inline">
+                <label class="campo-fecha-inline campo-fecha-inline-con-icono">
                     <span>Fecha programada</span>
                     <input class="input-fecha-programar" type="text" data-detalle-modal-fecha-programada readonly>
                 </label>
 
-                <label class="campo-fecha-inline">
+                <label class="campo-fecha-inline campo-fecha-inline-con-icono">
                     <span>Fecha ejecución</span>
                     <input class="input-fecha-programar" type="text" data-detalle-modal-fecha-ejecucion readonly>
                 </label>
@@ -361,18 +339,41 @@
         const modalEvidenciaVer = modal.querySelector('[data-detalle-modal-evidencia-ver]');
         const modalEvidenciaDescargar = modal.querySelector('[data-detalle-modal-evidencia-descargar]');
 
+        const normalizarTextoVisible = (valor, { titleCase = false } = {}) => {
+            const limpio = String(valor || '').trim();
+            if (limpio === '') {
+                return limpio;
+            }
+
+            if (!titleCase) {
+                return limpio;
+            }
+
+            const soloLetras = limpio.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
+            const pareceMayuscula = soloLetras !== '' && soloLetras === soloLetras.toUpperCase();
+            const esAcronimo = /^[A-ZÁÉÍÓÚÜÑ0-9]{1,4}$/.test(limpio);
+
+            if (!pareceMayuscula || esAcronimo) {
+                return limpio;
+            }
+
+            return limpio
+                .toLowerCase()
+                .replace(/\b([a-záéíóúüñ])/g, (match) => match.toUpperCase());
+        };
+
         const abrirModal = (evento) => {
             const boton = evento.currentTarget;
             const evidenciaUrl = boton.dataset.detalleEvidenciaUrl || '';
             const evidenciaNombre = boton.dataset.detalleEvidenciaNombre || 'Sin constancia adjunta';
 
-            modalUsuario.textContent = boton.dataset.detalleUsuario || 'Sin seleccionar';
-            modalArea.textContent = boton.dataset.detalleArea || 'Sin seleccionar';
+            modalUsuario.textContent = normalizarTextoVisible(boton.dataset.detalleUsuario || 'Sin seleccionar');
+            modalArea.textContent = normalizarTextoVisible(boton.dataset.detalleArea || 'Sin seleccionar', { titleCase: true });
             modalActivo.textContent = boton.dataset.detalleActivo || 'Sin seleccionar';
-            modalTecnico.textContent = boton.dataset.detalleTecnico || 'No registrado';
+            modalTecnico.textContent = normalizarTextoVisible(boton.dataset.detalleTecnico || 'No registrado', { titleCase: true });
             modalFechaProgramada.value = boton.dataset.detalleFechaProgramada || '';
             modalFechaEjecucion.value = boton.dataset.detalleFechaEjecucion || '';
-            modalObservaciones.value = boton.dataset.detalleObservaciones || 'No registrado';
+            modalObservaciones.value = normalizarTextoVisible(boton.dataset.detalleObservaciones || 'No registrado');
             modalEvidenciaNombre.textContent = evidenciaNombre;
 
             if (evidenciaUrl) {

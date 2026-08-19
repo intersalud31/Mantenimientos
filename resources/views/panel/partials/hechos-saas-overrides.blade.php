@@ -473,7 +473,7 @@
         display: grid;
         grid-template-columns: 42px minmax(0, 1fr);
         column-gap: 14px;
-        row-gap: 4px;
+        row-gap: 6px;
         align-items: start;
     }
 
@@ -499,16 +499,18 @@
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-kicker {
         margin: 2px 0 0;
-        font-size: .7rem;
-        letter-spacing: .12em;
-        font-weight: 800;
+        font-size: .82rem;
+        letter-spacing: 0;
+        font-weight: 600;
+        text-transform: none;
+        color: #475569;
     }
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-cabecera h4 {
         margin: 0;
-        font-size: 1.12rem;
+        font-size: 1.1rem;
         font-weight: 700;
-        line-height: 1.25;
+        line-height: 1.35;
     }
 
     body.dashboard-modern .detalle-realizado-modal-dialogo .modal-panel-texto {
@@ -518,6 +520,7 @@
         max-width: 58ch;
         font-family: inherit;
         font-weight: 500;
+        color: #64748b;
     }
 
     body.dashboard-modern .detalle-realizado-modal-close {
@@ -534,28 +537,28 @@
 
     body.dashboard-modern .detalle-realizado-modal-resumen {
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
     }
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item {
         position: relative;
-        min-height: 78px;
-        padding: 16px 16px 16px 52px;
+        min-height: 88px;
+        padding: 14px 16px 14px 48px;
         border-radius: 14px;
         border: 1px solid #dbe5f1;
         background: #fbfdff;
         box-shadow: none;
-        gap: 5px;
+        gap: 6px;
         align-content: center;
     }
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item::before {
         content: "";
         position: absolute;
-        left: 16px;
-        top: 18px;
-        width: 20px;
-        height: 20px;
+        left: 15px;
+        top: 16px;
+        width: 16px;
+        height: 16px;
         background-color: #2563eb;
         mask-repeat: no-repeat;
         mask-position: center;
@@ -586,39 +589,49 @@
     }
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item span {
-        color: #7c8aa5;
-        font-size: .72rem;
-        letter-spacing: .08em;
+        color: #64748b;
+        font-size: .76rem;
+        letter-spacing: 0;
         font-family: inherit;
-        font-weight: 700;
-        text-transform: uppercase;
+        font-weight: 500;
+        text-transform: none;
+        line-height: 1.35;
     }
 
     body.dashboard-modern .detalle-realizado-modal .modal-panel-resumen-item strong {
         color: #0f172a;
-        font-size: .98rem;
-        line-height: 1.35;
+        font-size: .93rem;
+        line-height: 1.5;
         font-family: inherit;
-        font-weight: 700;
+        font-weight: 500;
         word-break: break-word;
     }
 
     body.dashboard-modern .detalle-realizado-modal-grid {
-        gap: 16px;
+        gap: 18px;
     }
 
     body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline {
-        gap: 9px;
+        gap: 8px;
+    }
+
+    body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline-con-icono {
+        position: relative;
+    }
+
+    body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline-con-icono::after {
+        content: none;
     }
 
     body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline > span,
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-label {
-        color: #334155;
-        font-size: .76rem;
-        letter-spacing: .06em;
+        color: #475569;
+        font-size: .78rem;
+        letter-spacing: 0;
         font-family: inherit;
-        font-weight: 700;
-        text-transform: uppercase;
+        font-weight: 600;
+        text-transform: none;
+        line-height: 1.35;
     }
 
     body.dashboard-modern .detalle-realizado-modal .input-fecha-programar,
@@ -634,21 +647,22 @@
     }
 
     body.dashboard-modern .detalle-realizado-modal .input-fecha-programar {
-        min-height: 48px;
-        padding: 12px 16px 12px 42px;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 3.75V6m8-2.25V6M4.75 9h14.5M6.5 5.25h11A1.75 1.75 0 0 1 19.25 7v10.5A1.75 1.75 0 0 1 17.5 19.25h-11A1.75 1.75 0 0 1 4.75 17.5V7A1.75 1.75 0 0 1 6.5 5.25Zm2.5 7.5h2.25m2.5 0H15' fill='none' stroke='%232563eb' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: 14px center;
-        background-size: 16px 16px;
-        font-size: .96rem;
+        height: 42px;
+        min-height: 42px;
+        box-sizing: border-box;
+        padding: 9px 14px;
+        background-image: none;
+        font-size: .92rem;
         font-weight: 500;
-        line-height: 1.35;
+        line-height: 1.4;
         display: block;
+        text-indent: 0;
+        vertical-align: middle;
     }
 
     body.dashboard-modern .detalle-realizado-modal .campo-fecha-inline textarea {
-        min-height: 136px;
-        padding: 14px 16px;
+        min-height: 106px;
+        padding: 12px 14px;
         resize: none;
         font-size: .94rem;
         font-weight: 500;
@@ -657,16 +671,16 @@
     }
 
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-wrap {
-        gap: 10px;
+        gap: 8px;
     }
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-card-modal,
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-vacio {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: 14px;
         align-items: center;
-        padding: 18px 20px;
+        padding: 14px 16px;
         border-radius: 16px;
         border: 1px solid #dbe5f1;
         background: #fbfdff;
@@ -677,15 +691,15 @@
     }
 
     body.dashboard-modern .detalle-realizado-modal .detalle-realizado-evidencia-icono {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
         background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
         border: 1px solid #dbe5f1;
         color: #ef4444;
-        font-size: .72rem;
-        font-weight: 800;
-        letter-spacing: .08em;
+        font-size: .68rem;
+        font-weight: 700;
+        letter-spacing: 0;
         align-self: center;
         justify-self: start;
         display: inline-flex;
@@ -696,24 +710,24 @@
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy {
         display: grid;
-        gap: 4px;
+        gap: 2px;
         align-content: center;
         min-width: 0;
     }
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy strong {
         color: #0f172a;
-        font-size: .95rem;
-        font-weight: 600;
+        font-size: .9rem;
+        font-weight: 500;
         font-family: inherit;
-        line-height: 1.35;
+        line-height: 1.45;
         word-break: break-word;
     }
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-copy span {
         color: #64748b;
-        font-size: .88rem;
-        line-height: 1.45;
+        font-size: .84rem;
+        line-height: 1.5;
         font-family: inherit;
         font-weight: 500;
     }
@@ -728,11 +742,11 @@
 
     body.dashboard-modern .detalle-realizado-modal .evidencia-pdf-acciones .btn-link {
         min-width: 82px;
-        min-height: 44px;
+        min-height: 40px;
         justify-content: center;
         border-radius: 12px;
-        padding: 12px 16px;
-        font-weight: 700;
+        padding: 10px 14px;
+        font-weight: 600;
         font-family: inherit;
         text-decoration: none;
         box-shadow: none;
@@ -761,7 +775,7 @@
 
     body.dashboard-modern .detalle-realizado-modal-actions {
         margin-top: 4px;
-        padding-top: 18px;
+        padding-top: 16px;
         border-top: 1px solid #e2e8f0;
         justify-content: flex-end;
     }

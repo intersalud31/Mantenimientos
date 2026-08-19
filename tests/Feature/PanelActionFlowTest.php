@@ -634,8 +634,8 @@ class PanelActionFlowTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-panel-action-menu', false);
         $response->assertSee('Ver detalle', false);
-        $response->assertSee('Ver constancia PDF', false);
-        $response->assertSee('Descargar constancia', false);
+        $response->assertDontSee('Ver constancia PDF', false);
+        $response->assertDontSee('Descargar constancia', false);
         $response->assertDontSee('menu-acciones-usuario', false);
     }
 
