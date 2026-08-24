@@ -142,7 +142,7 @@ class AuthSecurityTest extends TestCase
         $this->actingAs($admin);
 
         $periodo = app(\App\Services\SemestreService::class)->actual();
-        $this->get(route('panel'))->assertRedirect(route('panel.proximos', [
+        $this->get(route('panel'))->assertRedirect(route('panel.reportes', [
             'anio' => (int) $periodo['anio'],
             'semestre' => (int) $periodo['semestre'],
         ]));

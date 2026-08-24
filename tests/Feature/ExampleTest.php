@@ -57,7 +57,7 @@ class ExampleTest extends TestCase
             'password' => $password,
         ]);
 
-        $response->assertRedirect(route('panel.proximos'));
+        $response->assertRedirect(route('panel'));
         $response->assertSessionHas('usuario_autenticado', function (array $usuario) use ($usuarioId, $correo, $nombre): bool {
             return (int) ($usuario['id'] ?? 0) === $usuarioId
                 && ($usuario['nombre'] ?? null) === $nombre
@@ -70,7 +70,7 @@ class ExampleTest extends TestCase
 
         $periodo = app(SemestreService::class)->actual();
         $panel = $this->get(route('panel'));
-        $panel->assertRedirect(route('panel.proximos', [
+        $panel->assertRedirect(route('panel.reportes', [
             'anio' => (int) $periodo['anio'],
             'semestre' => (int) $periodo['semestre'],
         ]));
@@ -101,7 +101,7 @@ class ExampleTest extends TestCase
             'password' => $password,
         ]);
 
-        $login->assertRedirect(route('panel.proximos'));
+        $login->assertRedirect(route('panel'));
 
         $panel = $this->get(route('panel', [
             'apartado' => 'hechos',

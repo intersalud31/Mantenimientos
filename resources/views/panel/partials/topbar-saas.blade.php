@@ -33,6 +33,12 @@
     $sidebarEntries = [
         [
             'type' => 'link',
+            'label' => 'Dashboard',
+            'route' => 'panel.reportes',
+            'icon' => 'DB',
+        ],
+        [
+            'type' => 'link',
             'label' => 'Usuarios',
             'route' => 'panel.usuarios',
             'icon' => 'US',
@@ -45,15 +51,6 @@
                 ['label' => 'Pr&oacute;ximos', 'route' => 'panel.proximos', 'icon' => 'PX'],
                 ['label' => 'Programados', 'route' => 'panel.programados', 'icon' => 'PG'],
                 ['label' => 'Ejecutados', 'route' => 'panel.hechos', 'icon' => 'HE'],
-            ],
-        ],
-        [
-            'type' => 'group',
-            'label' => 'Reportes',
-            'icon' => 'RP',
-            'items' => [
-                ['label' => 'Reporte general', 'route' => 'panel.reportes', 'icon' => 'RG'],
-                ['label' => 'Equipos nuevos', 'route' => 'panel.reportes.equipos-nuevos', 'icon' => 'EN'],
             ],
         ],
         [
@@ -95,7 +92,7 @@
 
 <aside class="app-sidebar" id="app-sidebar" data-app-sidebar aria-label="Navegaci&oacute;n principal del panel">
     <div class="app-sidebar-brand">
-        <a class="app-brand-link" href="{{ Route::has('panel.proximos') ? route('panel.proximos') : '#' }}" aria-label="{{ $brand }}">
+        <a class="app-brand-link" href="{{ Route::has('panel.reportes') ? route('panel.reportes') : '#' }}" aria-label="{{ $brand }}">
             <span class="app-brand-mark" aria-hidden="true">TI</span>
             <span class="app-brand-copy">
                 <strong>{{ $brand }}</strong>

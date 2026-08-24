@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reportes</title>
+    <title>Dashboard</title>
     @include('panel.partials.dashboard-modern-styles')
     @include('panel.partials.hechos-saas-overrides')
     <style>
@@ -277,10 +277,10 @@
     @endphp
 
     <main class="wrap reportes-stack">
-        <section class="module-header" aria-label="Reportes">
+        <section class="module-header" aria-label="Dashboard">
             <div class="module-header-copy">
-                <p class="module-header-kicker">Reportes</p>
-                <h1 class="module-header-title">Reporte semestral</h1>
+                <p class="module-header-kicker">Dashboard</p>
+                <h1 class="module-header-title">Dashboard</h1>
                 <p class="module-header-subtitle">Consulta el cumplimiento del periodo y la actividad operativa registrada para cada semestre.</p>
             </div>
             <div class="reportes-module-actions">

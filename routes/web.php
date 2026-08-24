@@ -6,12 +6,12 @@ use App\Http\Controllers\PanelController;
 
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('panel.proximos')
+        ? redirect()->route('panel')
         : redirect()->route('login.form');
 });
 
 Route::get('/inicio', function () {
-    return redirect()->route('panel.proximos');
+    return redirect()->route('panel');
 });
 
 Route::get('/login', [AuthController::class, 'create'])->name('login.form');

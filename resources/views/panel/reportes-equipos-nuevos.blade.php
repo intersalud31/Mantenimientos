@@ -9,7 +9,7 @@
 </head>
 <body class="dashboard-modern">
     @php
-        $currentRoute = request()->route()?->getName() ?? 'panel.reportes.equipos-nuevos';
+        $currentRoute = 'panel.reportes';
     @endphp
     @include('panel.partials.topbar-saas', [
         'activeRoute' => $currentRoute,

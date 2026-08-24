@@ -43,7 +43,7 @@ class PanelController extends Controller
             'semestre' => (int) ($periodo['semestre'] ?? ((int) date('n') <= 6 ? 1 : 2)),
         ]);
 
-        return redirect()->route('panel.proximos', $query);
+        return redirect()->route('panel.reportes', $query);
     }
 
     public function reportes(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View

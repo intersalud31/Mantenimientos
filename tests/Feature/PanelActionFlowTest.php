@@ -231,7 +231,7 @@ class PanelActionFlowTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('Reporte semestral', false);
+        $response->assertSee('Dashboard', false);
         $response->assertSee('Periodo de consulta', false);
         $response->assertSee('Consultar periodo', false);
         $response->assertSee('Ejecutados', false);
