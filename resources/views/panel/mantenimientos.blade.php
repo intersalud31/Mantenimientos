@@ -163,7 +163,7 @@
                         <td>{{ $item['area_nombre'] ?? '-' }}</td>
                         <td class="tabla-programados-columna-fecha">{{ $item['proxima_fecha_programada'] ?? '-' }}</td>
                         <td>
-                            <div class="maintenance-action-summary">
+                            <div class="maintenance-action-summary maintenance-action-summary--programados">
                                 <span class="estado-tabla {{ $item['estado_vigente_badge_clase'] ?? 'estado-tabla-info' }}">
                                     {{ $item['estado_vigente_etiqueta'] ?? 'Programado' }}
                                 </span>
@@ -384,12 +384,6 @@
                             <div class="field maintenance-modal-full">
                                 <label>Observaciones</label>
                                 <textarea name="observaciones" rows="4"></textarea>
-                            </div>
-                            <div class="field maintenance-modal-full">
-                                <label class="maintenance-modal-checkbox">
-                                    <input type="checkbox" name="confirmar_ejecucion_antes_programacion" value="1" {{ old('confirmar_ejecucion_antes_programacion') ? 'checked' : '' }}>
-                                    <span>Confirmo la ejecución cuando la fecha real sea anterior a la fecha programada.</span>
-                                </label>
                             </div>
                             <div class="field maintenance-modal-full">
                                 <label>Constancia PDF</label>

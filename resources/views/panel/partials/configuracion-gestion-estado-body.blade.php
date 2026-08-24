@@ -4,15 +4,12 @@
     $usuarioResueltoNombre = trim((string) ($usuarioResuelto['nombre'] ?? ''));
     $usuarioResueltoCodigo = (int) ($usuarioResuelto['codigo_activo'] ?? 0);
     $usuarioConfirmado = $usuarioResueltoNombre !== '' && $usuarioResueltoCodigo > 0;
-    $preview = is_array($reversionPreview ?? null) ? $reversionPreview : null;
-    $pasoActual = !$usuarioConfirmado ? 1 : ($preview ? 3 : 2);
     $estadoActual = is_array($reversionAnalisis ?? null) ? ($reversionAnalisis['estado_actual']['valor'] ?? null) : null;
     $estadoActualEtiqueta = is_array($reversionAnalisis ?? null) ? ($reversionAnalisis['estado_actual']['etiqueta'] ?? 'Sin estado') : 'Sin estado';
     $periodoActualEtiqueta = is_array($reversionAnalisis ?? null) ? ($reversionAnalisis['periodo']['etiqueta'] ?? '') : '';
     $destinos = collect($reversionAnalisis['destinos'] ?? []);
     $requiereProgramacion = in_array($estadoDestinoSeleccionado, ['programado', 'ejecutado'], true);
     $requiereEjecucion = $estadoDestinoSeleccionado === 'ejecutado';
-    $motivoAnterior = old('motivo', '');
     $tecnicosActivos = collect($tecnicos ?? []);
     $configSearchState = (string) ($configSearchState ?? 'initial');
     $configSearchMatches = collect($configSearchMatches ?? []);
@@ -67,6 +64,7 @@
             <section class="state-management-summary" aria-label="Usuario confirmado">
                 <div class="state-management-summary-main">
                     <p class="section-kicker">Usuario confirmado</p>
+                    <p class="state-management-summary-label">Usuario / Equipo</p>
                     <h3>{{ $usuarioResueltoNombre }}</h3>
                     <p class="state-management-summary-intro">Revisa el estado vigente del equipo antes de preparar cualquier transición.</p>
                 </div>
@@ -90,9 +88,9 @@
                 </div>
             </section>
 
-            <form method="POST" action="{{ route('panel.configuracion.preview') }}" class="config-revert-form">
+            <form method="POST" action="{{ route('panel.configuracion.preview') }}" enctype="multipart/form-data" class="config-revert-form">
                 @csrf
-                <input type="hidden" name="return_url" value="{{ request()->fullUrl() }}">
+                <input type="hidden" name="return_url" value="">
                 <input type="hidden" name="busqueda_usuario" value="{{ $busquedaUsuario }}">
                 <input type="hidden" name="codigo_activo" value="{{ $usuarioResueltoCodigo }}">
 
@@ -234,10 +232,18 @@
                                 <span class="field-error">{{ $message }}</span>
                             @enderror
                         </div>
+
+                        <div class="field maintenance-modal-full">
+                            <label for="constancia_pdf_directa">Constancia PDF</label>
+                            <input id="constancia_pdf_directa" type="file" name="constancia_pdf" accept="application/pdf" required>
+                            @error('constancia_pdf')
+                                <span class="field-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     @endif
 
                     <div class="field-actions state-management-actions">
-                        <button class="btn btn-primary" type="submit">Generar previsualización</button>
+                        <button class="btn btn-primary" type="submit">Aplicar cambio de estado</button>
                     </div>
                 </div>
 
@@ -246,98 +252,6 @@
                 </div>
             </form>
 
-            @if ($preview)
-                <section class="card panel-card state-management-preview">
-                    <div class="panel-card-header">
-                        <div class="panel-title-block">
-                            <p class="section-kicker">Previsualización</p>
-                            <h3 class="panel-section-title">Cambio preparado</h3>
-                            <p class="muted panel-section-subtitle">Revisa el impacto antes de confirmar. Esta vista aún no modifica datos.</p>
-                        </div>
-                    </div>
-
-                    <div class="state-management-preview-grid">
-                        <div class="state-management-preview-item"><strong>Usuario</strong><span>{{ $preview['usuario']['nombre'] ?? '-' }}</span></div>
-                        <div class="state-management-preview-item"><strong>Código activo</strong><span>{{ $preview['usuario']['codigo_activo'] ?? '-' }}</span></div>
-                        <div class="state-management-preview-item"><strong>Estado actual</strong><span>{{ $preview['estado_actual']['etiqueta'] ?? '-' }}</span></div>
-                        <div class="state-management-preview-item"><strong>Estado destino</strong><span>{{ $preview['estado_destino']['etiqueta'] ?? '-' }}</span></div>
-                        <div class="state-management-preview-item"><strong>Semestre</strong><span>{{ $preview['periodo']['etiqueta'] ?? '-' }}</span></div>
-                        <div class="state-management-preview-item"><strong>Mantenimiento objetivo</strong><span>#{{ $preview['mantenimiento_objetivo']['id'] ?? 0 }}</span></div>
-                    </div>
-
-                    @if (!empty($preview['datos_ingresados']))
-                        <div class="state-management-preview-list">
-                            @foreach ($preview['datos_ingresados'] as $dato)
-                                <div class="state-management-preview-item"><strong>{{ $dato['campo'] ?? 'Dato' }}</strong><span>{{ $dato['valor'] ?? '-' }}</span></div>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <div class="state-management-preview-grid">
-                        <div class="state-management-preview-item"><strong>Registros creados</strong><span>{{ count($preview['registros_creados'] ?? []) }}</span></div>
-                        <div class="state-management-preview-item"><strong>Registros actualizados</strong><span>{{ count($preview['registros_actualizados'] ?? []) }}</span></div>
-                        <div class="state-management-preview-item"><strong>Registros eliminados</strong><span>{{ count($preview['registros_eliminados'] ?? []) }}</span></div>
-                        <div class="state-management-preview-item"><strong>Resúmenes a recalcular</strong><span>{{ count($preview['resumenes_recalculados'] ?? []) }}</span></div>
-                    </div>
-
-                    <div class="config-revert-note">
-                        {{ $preview['consecuencia_funcional'] ?? '' }}
-                    </div>
-
-                    @if (!empty($preview['advertencias']))
-                        <div class="config-empty-callout">
-                            <strong>Advertencias</strong>
-                            @foreach ($preview['advertencias'] as $advertencia)
-                                <p class="muted">{{ $advertencia }}</p>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <form method="POST" action="{{ route('panel.configuracion.gestionar') }}" enctype="multipart/form-data" class="config-revert-form">
-                        @csrf
-                        <input type="hidden" name="return_url" value="{{ request()->fullUrl() }}">
-                        <input type="hidden" name="busqueda_usuario" value="{{ $busquedaUsuario }}">
-                        <input type="hidden" name="codigo_activo" value="{{ $usuarioResueltoCodigo }}">
-                        <input type="hidden" name="estado_destino" value="{{ $estadoDestinoSeleccionado }}">
-                        <input type="hidden" name="preview_hash" value="{{ $preview['hash'] ?? '' }}">
-                        <input type="hidden" name="fecha_programada" value="{{ old('fecha_programada') }}">
-                        <input type="hidden" name="fecha_ejecucion" value="{{ old('fecha_ejecucion') }}">
-                        <input type="hidden" name="tecnico_id" value="{{ old('tecnico_id') }}">
-                        <input type="hidden" name="observaciones" value="{{ old('observaciones') }}">
-
-                        @if ($requiereEjecucion)
-                            <div class="field">
-                                <label for="constancia_pdf">Constancia PDF</label>
-                                <input id="constancia_pdf" type="file" name="constancia_pdf" accept="application/pdf" required>
-                                @error('constancia_pdf')
-                                    <span class="field-error">{{ $message }}</span>
-                                @enderror
-                            </div>
-                        @endif
-
-                        @if (($preview['metadata']['requiere_confirmacion_fecha_ejecucion_antes_programacion'] ?? false) === true)
-                            <div class="field">
-                                <label class="maintenance-modal-checkbox">
-                                    <input type="checkbox" name="confirmar_ejecucion_antes_programacion" value="1" {{ old('confirmar_ejecucion_antes_programacion') ? 'checked' : '' }} required>
-                                    <span>Confirmo que la fecha de ejecución es anterior a la fecha programada y que la información es correcta.</span>
-                                </label>
-                            </div>
-                        @endif
-
-                        <div class="field">
-                            <label for="motivo">Motivo obligatorio</label>
-                            <textarea id="motivo" name="motivo" rows="3" required placeholder="Explica por qué se realizará este cambio de estado">{{ $motivoAnterior }}</textarea>
-                            @error('motivo')
-                                <span class="field-error">{{ $message }}</span>
-                            @enderror
-                        </div>
-
-                        <div class="field-actions state-management-actions">
-                            <button class="btn btn-primary" type="submit">Confirmar cambio de estado</button>
-                        </div>
-                    </form>
-                </section>
-            @endif
         </section>
     @endif
 </div>

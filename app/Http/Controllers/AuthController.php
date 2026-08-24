@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function create(): View|RedirectResponse
     {
         if (auth()->check()) {
-            return redirect()->route('panel');
+            return redirect()->route('panel.proximos');
         }
 
         return view('auth.login');
@@ -73,7 +73,7 @@ class AuthController extends Controller
             report($exception);
         }
 
-        return redirect()->route('panel');
+        return redirect()->route('panel.proximos');
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -193,6 +193,81 @@ class MantenimientoRepository
         return array_slice($actividad, 0, $limite);
     }
 
+    /**
+     * @return array{0:\Illuminate\Database\Query\Builder,1:string,2:string}
+     */
+    private function consultaEquiposNuevosSinMantenimiento(?array $periodo = null): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->where('u.tipo_equipo', 'nuevo')
+            ->whereNotNull('u.proxima_fecha_mantenimiento');
+
+        if ($inicio !== '' && $fin !== '') {
+            $query->where(function ($subquery) use ($inicio, $fin): void {
+                $subquery->where('u.proxima_fecha_mantenimiento', '<', $inicio)
+                    ->orWhere('u.proxima_fecha_mantenimiento', '>', $fin);
+            });
+        }
+
+        return [$query, $inicio, $fin];
+    }
+
+    public function contarEquiposNuevosSinMantenimiento(string $busqueda = '', ?array $periodo = null): int
+    {
+        [$query] = $this->consultaEquiposNuevosSinMantenimiento($periodo);
+
+        $busqueda = trim($busqueda);
+        if ($busqueda !== '') {
+            $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+            $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+                $subquery
+                    ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+            });
+        }
+
+        return (int) $query->count('u.id');
+    }
+
+    public function listarEquiposNuevosSinMantenimiento(int $limite, int $desplazamiento, string $busqueda = '', ?array $periodo = null): array
+    {
+        [$query] = $this->consultaEquiposNuevosSinMantenimiento($periodo);
+
+        $query->select([
+            'u.id as usuario_id',
+            'u.nombre',
+            'u.codigo_activo',
+            'u.tipo_equipo',
+            DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+            'u.fecha_ultimo_mantenimiento_base',
+            'u.proxima_fecha_mantenimiento',
+        ]);
+
+        $busqueda = trim($busqueda);
+        if ($busqueda !== '') {
+            $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+            $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+                $subquery
+                    ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                    ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+            });
+        }
+
+        $query->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->skip($desplazamiento)
+            ->take($limite);
+
+        return $query->get()->map(static fn ($row) => (array) $row)->all();
+    }
+
     public function contarProximosPorPeriodo(string $busqueda = '', ?array $periodo = null): int
     {
         $this->sincronizarPendientesProximosPorPeriodo($periodo);
@@ -227,6 +302,30 @@ class MantenimientoRepository
                     ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
             });
         }
+
+        return (int) $query->count('u.id');
+    }
+
+    public function contarProximosParaNotificacion(?array $periodo = null): int
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
+            ->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+                $subquery->select(DB::raw(1))
+                    ->from('mantenimientos as bloqueador')
+                    ->whereColumn('bloqueador.usuario_id', 'u.id')
+                    ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                    ->where(function ($query) use ($inicio, $fin): void {
+                        $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
+                            ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
+                    });
+            });
 
         return (int) $query->count('u.id');
     }
@@ -679,6 +778,200 @@ class MantenimientoRepository
         }
 
         return (int) $query->distinct('u.id')->count('u.id');
+    }
+
+    public function contarProgramadosHoy(): int
+    {
+        $hoy = today()->toDateString();
+
+        $query = DB::table('usuarios as u')
+            ->join('mantenimientos as m', 'm.usuario_id', '=', 'u.id')
+            ->where('u.estado_usuario', 1)
+            ->whereIn('m.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+            ->whereDate('m.fecha_programada', $hoy)
+            ->whereNull('m.fecha_ejecucion');
+
+        return (int) $query->distinct('u.id')->count('u.id');
+    }
+
+    public function contarNotificacionesVencidas(?array $periodo = null): int
+    {
+        return count($this->consultarNotificacionesVencidas($periodo));
+    }
+
+    public function contarNotificacionesProximas(?array $periodo = null): int
+    {
+        return count($this->consultarNotificacionesProximas($periodo));
+    }
+
+    public function contarNotificacionesHoy(): int
+    {
+        return count($this->consultarNotificacionesHoy());
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listarNotificacionesVencidas(int $limite = 100, int $desplazamiento = 0, ?array $periodo = null): array
+    {
+        return array_slice($this->consultarNotificacionesVencidas($periodo), $desplazamiento, $limite);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listarNotificacionesProximas(int $limite = 100, int $desplazamiento = 0, ?array $periodo = null): array
+    {
+        return array_slice($this->consultarNotificacionesProximas($periodo), $desplazamiento, $limite);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listarNotificacionesHoy(int $limite = 100, int $desplazamiento = 0): array
+    {
+        return array_slice($this->consultarNotificacionesHoy(), $desplazamiento, $limite);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function consultarNotificacionesVencidas(?array $periodo = null): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        $hoy = today()->toDateString();
+
+        $filas = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereDate('u.proxima_fecha_mantenimiento', '<', $hoy)
+            ->whereNotExists(function ($query): void {
+                $query->from('mantenimientos as cancelado')
+                    ->whereColumn('cancelado.usuario_id', 'u.id')
+                    ->where('cancelado.estado', MantenimientoEstados::CANCELADO)
+                    ->whereColumn('cancelado.fecha_programada', 'u.proxima_fecha_mantenimiento');
+            })
+            ->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->select([
+                'u.id as usuario_id',
+                'u.nombre',
+                'u.codigo_activo',
+                'u.tipo_equipo',
+                DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+                'u.proxima_fecha_mantenimiento as fecha_limite',
+            ])
+            ->get()
+            ->map(static fn ($row) => (array) $row)
+            ->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
+
+        return array_values(array_filter(array_map(function (array $fila) use ($hoy): ?array {
+            if (($fila['estado_vigente'] ?? null) === EstadoMantenimientoVigenteService::EJECUTADO) {
+                return null;
+            }
+
+            $fechaLimite = (string) ($fila['fecha_limite'] ?? '');
+            $fila['dias_atraso'] = $fechaLimite !== ''
+                ? max(0, today()->diffInDays($fechaLimite, false) * -1)
+                : 0;
+            $fila['estado_actual'] = (string) ($fila['estado_vigente_etiqueta'] ?? 'No programado');
+            $fila['estado_actual_clase'] = (string) ($fila['estado_vigente_badge_clase'] ?? 'estado-tabla-alerta');
+            $fila['fecha_referencia'] = $fechaLimite;
+            $fila['hoy'] = $hoy;
+
+            return $fila;
+        }, $filas)));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function consultarNotificacionesProximas(?array $periodo = null): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        $hoy = today()->toDateString();
+        $finRango = today()->addDays(7)->toDateString();
+
+        $filas = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->whereBetween('u.proxima_fecha_mantenimiento', [$hoy, $finRango])
+            ->whereNotExists(function ($query): void {
+                $query->from('mantenimientos as cancelado')
+                    ->whereColumn('cancelado.usuario_id', 'u.id')
+                    ->where('cancelado.estado', MantenimientoEstados::CANCELADO)
+                    ->whereColumn('cancelado.fecha_programada', 'u.proxima_fecha_mantenimiento');
+            })
+            ->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->select([
+                'u.id as usuario_id',
+                'u.nombre',
+                'u.codigo_activo',
+                'u.tipo_equipo',
+                DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+                'u.proxima_fecha_mantenimiento as fecha_programada',
+            ])
+            ->get()
+            ->map(static fn ($row) => (array) $row)
+            ->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
+
+        return array_values(array_filter(array_map(function (array $fila): ?array {
+            if (($fila['estado_vigente'] ?? null) === EstadoMantenimientoVigenteService::EJECUTADO) {
+                return null;
+            }
+
+            $fechaProgramada = (string) ($fila['fecha_programada'] ?? '');
+            $fila['dias_restantes'] = $fechaProgramada !== ''
+                ? max(0, today()->diffInDays($fechaProgramada, false))
+                : 0;
+            $fila['fecha_referencia'] = $fechaProgramada;
+
+            return $fila;
+        }, $filas)));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function consultarNotificacionesHoy(): array
+    {
+        $hoy = today()->toDateString();
+
+        return DB::table('mantenimientos as m')
+            ->join('usuarios as u', 'u.id', '=', 'm.usuario_id')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->where('m.estado', MantenimientoEstados::PROGRAMADO)
+            ->whereDate('m.fecha_programada', $hoy)
+            ->whereNull('m.fecha_ejecucion')
+            ->orderBy('m.hora_programada')
+            ->orderBy('u.nombre')
+            ->select([
+                'm.id as mantenimiento_id',
+                'u.id as usuario_id',
+                'u.nombre',
+                'u.codigo_activo',
+                'u.tipo_equipo',
+                DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+                'm.fecha_programada',
+                'm.hora_programada',
+                'm.tecnico_responsable',
+            ])
+            ->get()
+            ->map(static function ($row): array {
+                $fila = (array) $row;
+                $fila['tecnico_responsable'] = trim((string) ($fila['tecnico_responsable'] ?? '')) ?: 'No registrado';
+
+                return $fila;
+            })
+            ->all();
     }
 
     public function normalizarPendientesDuplicados(): int

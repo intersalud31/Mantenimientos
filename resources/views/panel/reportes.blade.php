@@ -8,8 +8,16 @@
     @include('panel.partials.hechos-saas-overrides')
     <style>
         body.dashboard-modern .reportes-stack {
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 18px;
+            align-items: stretch;
+        }
+
+        body.dashboard-modern .reportes-stack > * {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
         }
 
         body.dashboard-modern .reportes-filter-wrap .panel-filter-card {
@@ -36,6 +44,14 @@
             margin: 0;
             color: #475569;
             line-height: 1.65;
+        }
+
+        body.dashboard-modern .reportes-module-actions {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         body.dashboard-modern .reportes-compliance {
@@ -195,6 +211,10 @@
                 justify-content: stretch;
             }
 
+            body.dashboard-modern .reportes-module-actions {
+                width: 100%;
+            }
+
             body.dashboard-modern .reportes-metric {
                 border-right: 0;
             }
@@ -262,6 +282,11 @@
                 <p class="module-header-kicker">Reportes</p>
                 <h1 class="module-header-title">Reporte semestral</h1>
                 <p class="module-header-subtitle">Consulta el cumplimiento del periodo y la actividad operativa registrada para cada semestre.</p>
+            </div>
+            <div class="reportes-module-actions">
+                <a class="chip chip--neutral" href="{{ route('panel.reportes.equipos-nuevos') }}">
+                    Equipos nuevos sin mantenimiento
+                </a>
             </div>
         </section>
 

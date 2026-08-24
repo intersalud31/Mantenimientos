@@ -13,7 +13,6 @@
         padding-block-start: 0 !important;
         font-family: var(--panel-font-base);
         min-height: 100vh;
-        overflow-x: hidden;
         background:
             radial-gradient(circle at top left, rgba(37, 99, 235, .08), transparent 28%),
             radial-gradient(circle at top right, rgba(37, 99, 235, .06), transparent 24%),
@@ -53,8 +52,9 @@
     body.dashboard-modern .topbar-shell {
         position: relative;
         top: 0;
-        width: 100vw;
-        margin: -8px 0 0;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
         padding-top: 0;
         z-index: 30;
         background: rgba(15, 23, 42, .92);
@@ -460,66 +460,6 @@
         max-width: 760px;
     }
 
-    body.dashboard-modern .dashboard-welcome-wrap {
-        min-height: calc(100vh - 130px);
-        display: grid;
-        align-items: center;
-    }
-
-    body.dashboard-modern .dashboard-welcome {
-        display: grid;
-        gap: 34px;
-        justify-items: center;
-        text-align: center;
-    }
-
-    body.dashboard-modern .dashboard-welcome-copy {
-        max-width: 820px;
-    }
-
-    body.dashboard-modern .dashboard-welcome-copy h1 {
-        margin: 0;
-        color: #0f2f57;
-        font-size: clamp(1.8rem, 2.3vw, 2.6rem);
-        line-height: 1.15;
-        letter-spacing: 0;
-    }
-
-    body.dashboard-modern .dashboard-welcome-copy p:not(.module-header-kicker) {
-        margin: 12px auto 0;
-        color: #475569;
-        max-width: 680px;
-        font-size: 1rem;
-        line-height: 1.6;
-    }
-
-    body.dashboard-modern .dashboard-welcome-media {
-        width: min(980px, 100%);
-        border-radius: 8px;
-        overflow: hidden;
-        background: #e2e8f0;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, .14);
-    }
-
-    body.dashboard-modern .dashboard-welcome-media img {
-        display: block;
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1200 / 520;
-        object-fit: cover;
-    }
-
-    @media (max-width: 760px) {
-        body.dashboard-modern .dashboard-welcome-wrap {
-            align-items: start;
-            padding-top: 28px;
-        }
-
-        body.dashboard-modern .dashboard-welcome {
-            gap: 22px;
-        }
-    }
-
     body.dashboard-modern .hero-meta,
     body.dashboard-modern .period-meta {
         display: flex;
@@ -688,41 +628,6 @@
     body.dashboard-modern .config-empty-state p,
     body.dashboard-modern .config-empty-callout p {
         margin: 0;
-    }
-
-    body.dashboard-modern .config-stepbar {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-    }
-
-    body.dashboard-modern .config-step {
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
-        color: #334155;
-        font-size: .84rem;
-        font-weight: 700;
-        text-align: center;
-    }
-
-    body.dashboard-modern .config-step--current {
-        background: #2563eb;
-        border-color: #2563eb;
-        color: #fff;
-        box-shadow: 0 12px 28px rgba(37, 99, 235, .22);
-    }
-
-    body.dashboard-modern .config-step--done {
-        background: #eff6ff;
-        border-color: #dbeafe;
-        color: #1d4ed8;
-    }
-
-    body.dashboard-modern .config-step--pending {
-        background: #f8fafc;
-        color: #64748b;
     }
 
     body.dashboard-modern .config-reversion-summary {
@@ -1076,7 +981,7 @@
         top: calc(100% + 8px);
         z-index: 1000;
         width: 220px;
-        max-width: min(220px, calc(100vw - 24px));
+        max-width: min(220px, calc(100dvw - 24px));
         max-height: var(--panel-action-menu-max-height, min(260px, calc(100vh - 24px)));
         padding: 8px;
         border-radius: 14px;
@@ -1085,7 +990,7 @@
         box-shadow: 0 18px 42px rgba(15, 23, 42, .14);
         display: grid;
         gap: 6px;
-        overflow-x: hidden;
+        overflow-x: auto;
         overflow-y: auto;
         box-sizing: border-box;
         transform-origin: top right;
@@ -1837,10 +1742,6 @@
         body.dashboard-modern .config-inline-form-row,
         body.dashboard-modern .config-reversion-summary,
         body.dashboard-modern .config-revert-grid {
-            grid-template-columns: 1fr;
-        }
-
-        body.dashboard-modern .config-stepbar {
             grid-template-columns: 1fr;
         }
 

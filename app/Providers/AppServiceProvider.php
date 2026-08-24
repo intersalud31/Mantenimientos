@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\Legacy\NotificationSummaryService;
 use App\Services\Legacy\PeriodicidadMantenimientoService;
+use App\Services\SemestreService;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        View::composer('panel.partials.topbar-saas', function ($view): void {
+            $periodo = app(SemestreService::class)->desdeRequest(request());
+
+            $view->with('notificationSummary', app(NotificationSummaryService::class)->resumen($periodo));
+        });
     }
 }

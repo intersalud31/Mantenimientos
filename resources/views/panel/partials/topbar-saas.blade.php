@@ -25,17 +25,15 @@
     $authName = trim((string) ($authUser->name ?? $authUser->nombre ?? $authUser->correo ?? 'Administrador'));
     $authRole = trim((string) ($authUser->rol ?? ''));
     $authInitials = mb_strtoupper(mb_substr($authName, 0, 2, 'UTF-8'), 'UTF-8');
+    $notificationSummary = is_array($notificationSummary ?? null) ? $notificationSummary : [];
+    $notificationCount = (int) ($notificationSummary['total'] ?? 0);
+    $notificationItems = is_array($notificationSummary['items'] ?? null) ? $notificationSummary['items'] : [];
+    $notificationEmptyMessage = (string) ($notificationSummary['empty_message'] ?? 'No tienes notificaciones pendientes.');
 
     $sidebarEntries = [
         [
             'type' => 'link',
-            'label' => 'Panel principal',
-            'route' => 'panel',
-            'icon' => 'PN',
-        ],
-        [
-            'type' => 'link',
-            'label' => 'Lista de usuarios',
+            'label' => 'Usuarios',
             'route' => 'panel.usuarios',
             'icon' => 'US',
         ],
@@ -50,16 +48,22 @@
             ],
         ],
         [
-            'type' => 'link',
+            'type' => 'group',
             'label' => 'Reportes',
-            'route' => 'panel.reportes',
             'icon' => 'RP',
+            'items' => [
+                ['label' => 'Reporte general', 'route' => 'panel.reportes', 'icon' => 'RG'],
+                ['label' => 'Equipos nuevos', 'route' => 'panel.reportes.equipos-nuevos', 'icon' => 'EN'],
+            ],
         ],
         [
-            'type' => 'link',
+            'type' => 'group',
             'label' => 'Configuraci&oacute;n',
-            'route' => 'panel.configuracion',
             'icon' => 'CF',
+            'items' => [
+                ['label' => 'T&eacute;cnicos activos', 'route' => 'panel.configuracion.tecnicos', 'icon' => 'TA'],
+                ['label' => 'Gestionar estados', 'route' => 'panel.configuracion.estados', 'icon' => 'GE'],
+            ],
         ],
     ];
 
@@ -91,7 +95,7 @@
 
 <aside class="app-sidebar" id="app-sidebar" data-app-sidebar aria-label="Navegaci&oacute;n principal del panel">
     <div class="app-sidebar-brand">
-        <a class="app-brand-link" href="{{ Route::has('panel') ? route('panel') : '#' }}" aria-label="{{ $brand }}">
+        <a class="app-brand-link" href="{{ Route::has('panel.proximos') ? route('panel.proximos') : '#' }}" aria-label="{{ $brand }}">
             <span class="app-brand-mark" aria-hidden="true">TI</span>
             <span class="app-brand-copy">
                 <strong>{{ $brand }}</strong>
@@ -171,11 +175,19 @@
         </div>
     </nav>
 
+    <div class="app-sidebar-user-shell">
+        <span class="app-sidebar-user" aria-label="Usuario autenticado">
+            <span class="app-user-avatar" aria-hidden="true">{{ $authInitials }}</span>
+            <span class="app-user-copy">
+                <span class="app-user-name">{{ $authName }}</span>
+            </span>
+        </span>
+    </div>
 </aside>
 
 <div class="app-sidebar-backdrop" data-app-sidebar-backdrop hidden></div>
 
-<header class="app-topbar" data-app-topbar>
+<header class="app-topbar" data-app-topbar data-topbar>
     <div class="app-topbar-left">
         <button
             type="button"
@@ -208,10 +220,58 @@
             </form>
         @endif
 
-        <span class="app-topbar-user">
-            <span class="app-user-avatar" aria-hidden="true">{{ $authInitials }}</span>
-            <span class="app-user-name">{{ $authName }}</span>
-        </span>
+        <div class="app-notifications-menu" data-topbar-menu>
+            <button
+                type="button"
+                class="app-notifications-trigger"
+                data-topbar-toggle
+                aria-expanded="false"
+                aria-controls="app-notifications-panel"
+                aria-label="Abrir notificaciones"
+                title="Notificaciones"
+            >
+                <span class="app-notifications-bell" aria-hidden="true">&#128276;</span>
+                <span class="app-notifications-label">Notificaciones</span>
+                @if ($notificationCount > 0)
+                    <span class="app-notifications-count" aria-label="{{ $notificationCount }} notificaciones pendientes">{{ $notificationCount }}</span>
+                @endif
+            </button>
+
+            <div class="app-notifications-panel" id="app-notifications-panel" data-topbar-panel hidden>
+                <div class="app-notifications-panel-head">
+                    <strong>Notificaciones</strong>
+                    <span>Resumen operativo</span>
+                </div>
+
+                @if ($notificationCount <= 0 || $notificationItems === [])
+                    <div class="app-notifications-empty">
+                        <strong>{{ $notificationEmptyMessage }}</strong>
+                        <p>Cuando existan vencidos, pr&oacute;ximos o programados para hoy, aparecer&aacute;n aqu&iacute;.</p>
+                    </div>
+                @else
+                    <div class="app-notifications-list">
+                        @foreach ($notificationItems as $notification)
+                            <article class="app-notification-item app-notification-item--{{ $notification['tone'] ?? 'neutral' }}">
+                                <div class="app-notification-item-copy">
+                                    <strong>{{ $notification['title'] ?? '' }}</strong>
+                                    <p>{{ $notification['description'] ?? '' }}</p>
+                                </div>
+
+                                @if (!empty($notification['route']) && Route::has($notification['route']))
+                                    <a
+                                        class="app-notification-action"
+                                        href="{{ $periodoQuery !== [] ? route($notification['route'], $periodoQuery) : route($notification['route']) }}"
+                                        data-app-sidebar-link
+                                    >
+                                        {{ $notification['link_label'] ?? 'Ver' }}
+                                    </a>
+                                @endif
+                            </article>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
 
         @if (Route::has('logout'))
             <form method="POST" action="{{ route('logout') }}" class="app-logout-form">

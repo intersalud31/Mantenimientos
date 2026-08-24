@@ -16,13 +16,20 @@ class PanelAuthorizationTest extends TestCase
 
         $this->actingAs($admin);
 
-        $this->get(route('panel'))->assertOk();
+        $periodo = app(\App\Services\SemestreService::class)->actual();
+        $this->get(route('panel'))->assertRedirect(route('panel.proximos', [
+            'anio' => (int) $periodo['anio'],
+            'semestre' => (int) $periodo['semestre'],
+        ]));
         $this->get(route('panel.reportes'))->assertOk();
+        $this->get(route('panel.reportes.equipos-nuevos'))->assertOk();
         $this->get(route('panel.proximos'))->assertOk();
         $this->get(route('panel.programados'))->assertOk();
         $this->get(route('panel.hechos'))->assertOk();
         $this->get(route('panel.usuarios'))->assertOk();
         $this->get(route('panel.configuracion'))->assertOk();
+        $this->get(route('panel.configuracion.tecnicos'))->assertOk();
+        $this->get(route('panel.configuracion.estados'))->assertOk();
     }
 
     public function test_usuario_no_admin_recibe_forbidden_en_panel_y_acciones_sensibles(): void
@@ -38,6 +45,9 @@ class PanelAuthorizationTest extends TestCase
         $this->get(route('panel.hechos'))->assertForbidden();
         $this->get(route('panel.usuarios'))->assertForbidden();
         $this->get(route('panel.configuracion'))->assertForbidden();
+        $this->get(route('panel.reportes.equipos-nuevos'))->assertForbidden();
+        $this->get(route('panel.configuracion.tecnicos'))->assertForbidden();
+        $this->get(route('panel.configuracion.estados'))->assertForbidden();
         $this->get(route('panel.configuracion.buscar', ['q' => '845']))->assertForbidden();
         $this->get(route('panel.evidencia.pdf', ['mantenimientoId' => 1]))->assertForbidden();
         $this->post(route('panel.usuarios.crear'), [])->assertForbidden();

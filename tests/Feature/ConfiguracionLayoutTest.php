@@ -21,7 +21,7 @@ class ConfiguracionLayoutTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_configuracion_renderiza_tres_tarjetas_verticales_con_etiquetas_actualizadas(): void
+    public function test_configuracion_principal_renderiza_el_formulario_y_listado_de_tecnicos(): void
     {
         $this->actingAs($this->makeLegacyUser(2001, 'Admin Config', 'config@example.com', 'admin'));
 
@@ -29,6 +29,12 @@ class ConfiguracionLayoutTest extends TestCase
         $usuarioRepo->shouldNotReceive('resolverCodigoActivoPorBusqueda');
 
         $mantenimientoRepo = Mockery::mock(MantenimientoRepository::class);
+        $mantenimientoRepo->shouldReceive('contarProximosParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoyParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoy')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesVencidas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesProximas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesHoy')->andReturn(0)->byDefault();
         $mantenimientoRepo->shouldReceive('listarTecnicosActivos')
             ->once()
             ->andReturn([
@@ -45,13 +51,15 @@ class ConfiguracionLayoutTest extends TestCase
         $response = $this->get(route('panel.configuracion'));
 
         $response->assertOk();
+        $response->assertSee(route('panel.configuracion.estados'), false);
+        $response->assertSee(route('panel.configuracion.tecnicos'), false);
         $response->assertSee('Registrar técnico');
         $response->assertSee('Técnicos activos');
-        $response->assertSee('Gestión de estados');
-        $response->assertSee('Gestionar estado del mantenimiento');
         $response->assertSee('Giuliano');
         $response->assertSee('Juan Manuel');
-        $response->assertSee('Lista de usuarios');
+        $response->assertDontSee('Buscar usuario');
+        $response->assertDontSee('Gestionar estado del mantenimiento');
+        $response->assertSee('Usuarios');
         $response->assertSee('Ejecutados');
         $response->assertDontSee('Vista general');
         $response->assertDontSee('Cantidad de reversiones');
@@ -74,6 +82,12 @@ class ConfiguracionLayoutTest extends TestCase
             ]);
 
         $mantenimientoRepo = Mockery::mock(MantenimientoRepository::class);
+        $mantenimientoRepo->shouldReceive('contarProximosParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoyParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoy')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesVencidas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesProximas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesHoy')->andReturn(0)->byDefault();
         $mantenimientoRepo->shouldReceive('listarTecnicosActivos')
             ->once()
             ->andReturn([]);
@@ -125,19 +139,29 @@ class ConfiguracionLayoutTest extends TestCase
         $this->instance(MantenimientoRepository::class, $mantenimientoRepo);
         $this->instance(ReversionEstadoMantenimientoService::class, $gestionService);
 
-        $response = $this->get(route('panel.configuracion', [
+        $response = $this->get(route('panel.configuracion.estados', [
             'busqueda_usuario' => 'Natalia',
         ]));
 
         $response->assertOk();
         $response->assertSee('Usuario confirmado');
         $response->assertSee('Natalia Romero');
-        $response->assertSee('Código activo 845');
         $response->assertSee('Estado actual:');
         $response->assertSee('Programado');
         $response->assertSee('No programado');
         $response->assertSee('Ejecutado');
-        $response->assertSee('Generar previsualización');
+        $response->assertDontSee('Registrar técnico');
+        $response->assertSee(route('panel.configuracion.tecnicos'), false);
+        $response->assertSee('Buscar usuario');
+        $response->assertSee('Gestionar estado del mantenimiento');
+        $response->assertSee('Aplicar cambio de estado');
+        $response->assertDontSee('1. Buscar usuario');
+        $response->assertDontSee('2. Confirmar objetivo');
+        $response->assertDontSee('3. Confirmar cambio');
+        $response->assertDontSee('Generar previsualizaci');
+        $response->assertDontSee('Confirmar cambio de estado');
+        $response->assertDontSee('Giuliano');
+        $response->assertDontSee('Juan Manuel');
         $response->assertDontSee('>Tipo<', false);
         $response->assertDontSee('Cantidad de reversiones');
         $response->assertDontSee('Revertir acciones');
@@ -170,6 +194,12 @@ class ConfiguracionLayoutTest extends TestCase
         $usuarioRepo->shouldNotReceive('resolverCodigoActivoPorBusqueda');
 
         $mantenimientoRepo = Mockery::mock(MantenimientoRepository::class);
+        $mantenimientoRepo->shouldReceive('contarProximosParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoyParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoy')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesVencidas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesProximas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesHoy')->andReturn(0)->byDefault();
         $mantenimientoRepo->shouldReceive('listarTecnicosActivos')
             ->once()
             ->andReturn([]);
@@ -211,6 +241,12 @@ class ConfiguracionLayoutTest extends TestCase
             ]);
 
         $mantenimientoRepo = Mockery::mock(MantenimientoRepository::class);
+        $mantenimientoRepo->shouldReceive('contarProximosParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoyParaNotificacion')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarProgramadosHoy')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesVencidas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesProximas')->andReturn(0)->byDefault();
+        $mantenimientoRepo->shouldReceive('contarNotificacionesHoy')->andReturn(0)->byDefault();
         $mantenimientoRepo->shouldReceive('listarTecnicosActivos')
             ->once()
             ->andReturn([
@@ -287,3 +323,4 @@ class ConfiguracionLayoutTest extends TestCase
         return $user;
     }
 }
+

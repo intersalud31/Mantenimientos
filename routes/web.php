@@ -6,12 +6,12 @@ use App\Http\Controllers\PanelController;
 
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('panel')
+        ? redirect()->route('panel.proximos')
         : redirect()->route('login.form');
 });
 
 Route::get('/inicio', function () {
-    return redirect()->route('panel');
+    return redirect()->route('panel.proximos');
 });
 
 Route::get('/login', [AuthController::class, 'create'])->name('login.form');
@@ -23,9 +23,15 @@ Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 Route::middleware(['legacy.auth', 'can:access-panel'])->group(function () {
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
     Route::get('/panel/reportes', [PanelController::class, 'reportes'])->name('panel.reportes');
+    Route::get('/panel/reportes/equipos-nuevos', [PanelController::class, 'reportesEquiposNuevos'])->name('panel.reportes.equipos-nuevos');
     Route::get('/panel/usuarios', [PanelController::class, 'usuarios'])->name('panel.usuarios');
     Route::get('/panel/configuracion', [PanelController::class, 'configuracion'])->name('panel.configuracion');
+    Route::get('/panel/configuracion/tecnicos', [PanelController::class, 'configuracion'])->name('panel.configuracion.tecnicos');
+    Route::get('/panel/configuracion/estados', [PanelController::class, 'configuracion'])->name('panel.configuracion.estados');
     Route::get('/panel/configuracion/buscar', [PanelController::class, 'buscarUsuarioConfiguracion'])->name('panel.configuracion.buscar');
+    Route::get('/panel/notificaciones/vencidos', [PanelController::class, 'notificacionesVencidos'])->name('panel.notificaciones.vencidos');
+    Route::get('/panel/notificaciones/proximos', [PanelController::class, 'notificacionesProximos'])->name('panel.notificaciones.proximos');
+    Route::get('/panel/notificaciones/hoy', [PanelController::class, 'notificacionesHoy'])->name('panel.notificaciones.hoy');
     Route::get('/panel/proximos', [PanelController::class, 'proximos'])->name('panel.proximos');
     Route::get('/panel/programados', [PanelController::class, 'programados'])->name('panel.programados');
     Route::get('/panel/hechos', [PanelController::class, 'hechos'])->name('panel.hechos');

@@ -1489,7 +1489,7 @@ class PanelActionFlowTest extends TestCase
         }));
     }
 
-    public function test_marcar_como_hecho_con_fecha_libre_aparece_en_hechos_del_periodo_programado(): void
+    public function test_marcar_como_hecho_con_fecha_anterior_no_requiere_confirmacion_extra(): void
     {
         $this->actingAs($this->makeLegacyUser(1006, 'Admin Hechos', 'hechos@example.com', 'admin'));
         Storage::fake('public');
@@ -1541,7 +1541,6 @@ class PanelActionFlowTest extends TestCase
             'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Ejecucion realizada hoy.',
-            'confirmar_ejecucion_antes_programacion' => '1',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
             'q_programados' => 'Maria Paula',
             'programados_pagina' => 1,
@@ -1558,6 +1557,7 @@ class PanelActionFlowTest extends TestCase
         ) . '.';
 
         $response->assertSessionHas('panel_message', $respuestaEsperada);
+        $response->assertSessionMissing('panel_error');
 
         $this->assertDatabaseHas('mantenimientos', [
             'id' => $mantenimientoId,

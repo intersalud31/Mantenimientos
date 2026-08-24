@@ -11,8 +11,7 @@
     }
 
     $sections = [
-        ['route' => 'panel', 'label' => 'Panel principal'],
-        ['route' => 'panel.usuarios', 'label' => 'Lista de usuarios'],
+        ['route' => 'panel.usuarios', 'label' => 'Usuarios'],
         ['route' => 'panel.proximos', 'label' => 'Próximos'],
         ['route' => 'panel.programados', 'label' => 'Programados'],
         ['route' => 'panel.hechos', 'label' => 'Ejecutados'],

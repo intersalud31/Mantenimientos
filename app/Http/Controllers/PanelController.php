@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Legacy\MantenimientoRepository;
+use App\Services\Legacy\NotificationSummaryService;
 use App\Services\Legacy\OrigenEquipoPresenter;
 use App\Services\Legacy\PeriodicidadMantenimientoService;
 use App\Services\Legacy\PanelNavigationService;
@@ -25,10 +26,7 @@ class PanelController extends Controller
         $this->middleware('can:access-panel');
     }
 
-    /**
-     * @return View|RedirectResponse
-     */
-    public function index(Request $request)
+    public function index(Request $request, SemestreService $semestreService): RedirectResponse
     {
         $apartado = trim((string) $request->query('apartado', ''));
         if ($apartado !== '') {
@@ -39,21 +37,178 @@ class PanelController extends Controller
             }
         }
 
-        return view('panel.index', [
-            'usuario' => session('usuario_autenticado'),
+        $periodo = $semestreService->desdeRequest($request);
+        $query = array_merge($request->query(), [
+            'anio' => (int) ($periodo['anio'] ?? date('Y')),
+            'semestre' => (int) ($periodo['semestre'] ?? ((int) date('n') <= 6 ? 1 : 2)),
         ]);
+
+        return redirect()->route('panel.proximos', $query);
     }
 
     public function reportes(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
     {
         $periodo = $semestreService->desdeRequest($request);
+        $anioSeleccionado = (int) ($periodo['anio'] ?? (int) date('Y'));
+        $semestreSeleccionado = (int) ($periodo['semestre'] ?? ((int) date('n') <= 6 ? 1 : 2));
 
         return view('panel.reportes', [
             'usuario' => session('usuario_autenticado'),
             'periodoConsulta' => $periodo,
             'resumenSemestral' => $repo->obtenerResumenSemestralActual($periodo),
             'actividadReciente' => $repo->listarActividadReciente(5, $periodo),
+            'periodoQuery' => array_filter([
+                'anio' => $anioSeleccionado,
+                'semestre' => $semestreSeleccionado,
+            ], static fn ($valor) => $valor !== null && $valor !== ''),
         ]);
+    }
+
+    public function reportesEquiposNuevos(
+        Request $request,
+        MantenimientoRepository $repo,
+        SemestreService $semestreService,
+        OrigenEquipoPresenter $origenEquipoPresenter
+    ): View {
+        $periodo = $semestreService->desdeRequest($request);
+        $busqueda = trim((string) $request->query('q_reportes_nuevos', ''));
+        $pagina = max(1, (int) $request->query('reportes_nuevos_pagina', 1));
+        $porPagina = (int) $request->query('reportes_nuevos_por_pagina', 10);
+        if (!in_array($porPagina, [10, 25, 50], true)) {
+            $porPagina = 10;
+        }
+
+        $total = $repo->contarEquiposNuevosSinMantenimiento($busqueda, $periodo);
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
+        if ($pagina > $totalPaginas) {
+            $pagina = $totalPaginas;
+        }
+
+        $offset = $this->navigation->offset($pagina, $porPagina);
+
+        return view('panel.reportes-equipos-nuevos', [
+            'usuario' => session('usuario_autenticado'),
+            'periodoConsulta' => $periodo,
+            'items' => $repo->listarEquiposNuevosSinMantenimiento($porPagina, $offset, $busqueda, $periodo),
+            'busqueda' => $busqueda,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'total' => $total,
+            'totalPaginas' => $totalPaginas,
+            'periodoQuery' => array_filter([
+                'anio' => $periodo['anio'] ?? null,
+                'semestre' => $periodo['semestre'] ?? null,
+            ], static fn ($valor) => $valor !== null && $valor !== ''),
+            'origenEquipoPresenter' => $origenEquipoPresenter,
+        ]);
+    }
+
+    public function notificacionesVencidos(
+        Request $request,
+        NotificationSummaryService $notificationService,
+        SemestreService $semestreService
+    ): View {
+        $periodo = $semestreService->desdeRequest($request);
+        $items = array_map(function (array $item): array {
+            return [
+                'usuario' => (string) ($item['nombre'] ?? ''),
+                'area' => (string) ($item['area_nombre'] ?? 'SIN AREA'),
+                'codigo_activo' => (string) ($item['codigo_activo'] ?? '-'),
+                'fecha_limite' => $this->formatearFechaTabla($item['fecha_limite'] ?? null),
+                'dias_atraso' => (string) ((int) ($item['dias_atraso'] ?? 0)),
+                'estado_actual' => (string) ($item['estado_actual'] ?? 'No programado'),
+                'estado_actual_clase' => (string) ($item['estado_actual_clase'] ?? 'estado-tabla-alerta'),
+            ];
+        }, $notificationService->obtenerVencidos($periodo));
+
+        return $this->vistaNotificaciones(
+            'panel.notificaciones.vencidos',
+            'Mantenimientos vencidos',
+            'Equipos con mantenimiento atrasado y sin ejecucion vigente.',
+            'Mantenimientos vencidos',
+            'Identifica los equipos que superaron su fecha limite.',
+            [
+                ['key' => 'usuario', 'label' => 'Usuario'],
+                ['key' => 'area', 'label' => 'Area'],
+                ['key' => 'codigo_activo', 'label' => 'Codigo activo'],
+                ['key' => 'fecha_limite', 'label' => 'Fecha limite'],
+                ['key' => 'dias_atraso', 'label' => 'Dias de atraso'],
+                ['key' => 'estado_actual', 'label' => 'Estado actual', 'badge' => 'estado_actual_clase'],
+            ],
+            $items,
+            $periodo,
+            'No hay mantenimientos vencidos para mostrar.'
+        );
+    }
+
+    public function notificacionesProximos(
+        Request $request,
+        NotificationSummaryService $notificationService,
+        SemestreService $semestreService
+    ): View {
+        $periodo = $semestreService->desdeRequest($request);
+        $items = array_map(function (array $item): array {
+            return [
+                'usuario' => (string) ($item['nombre'] ?? ''),
+                'area' => (string) ($item['area_nombre'] ?? 'SIN AREA'),
+                'equipo' => (string) ($item['tipo_equipo'] ?? '-'),
+                'fecha_programada' => $this->formatearFechaTabla($item['fecha_programada'] ?? null),
+                'dias_restantes' => (string) ((int) ($item['dias_restantes'] ?? 0)),
+            ];
+        }, $notificationService->obtenerProximos($periodo));
+
+        return $this->vistaNotificaciones(
+            'panel.notificaciones.proximos',
+            'Proximos mantenimientos',
+            'Mantenimientos que vencen dentro de los proximos 7 dias.',
+            'Proximos 7 dias',
+            'Anticipa los mantenimientos que requieren gestion cercana.',
+            [
+                ['key' => 'usuario', 'label' => 'Usuario'],
+                ['key' => 'area', 'label' => 'Area'],
+                ['key' => 'equipo', 'label' => 'Equipo'],
+                ['key' => 'fecha_programada', 'label' => 'Fecha programada'],
+                ['key' => 'dias_restantes', 'label' => 'Dias restantes'],
+            ],
+            $items,
+            $periodo,
+            'No hay mantenimientos proximos en los siguientes 7 dias.'
+        );
+    }
+
+    public function notificacionesHoy(
+        Request $request,
+        NotificationSummaryService $notificationService,
+        SemestreService $semestreService
+    ): View {
+        $periodo = $semestreService->desdeRequest($request);
+        $items = array_map(function (array $item): array {
+            return [
+                'usuario' => (string) ($item['nombre'] ?? ''),
+                'area' => (string) ($item['area_nombre'] ?? 'SIN AREA'),
+                'equipo' => (string) ($item['tipo_equipo'] ?? '-'),
+                'tecnico' => (string) ($item['tecnico_responsable'] ?? 'No registrado'),
+                'hora' => trim((string) ($item['hora_programada'] ?? '')) ?: '-',
+            ];
+        }, $notificationService->obtenerHoy($periodo));
+
+        return $this->vistaNotificaciones(
+            'panel.notificaciones.hoy',
+            'Mantenimientos de hoy',
+            'Mantenimientos programados para ejecutarse hoy.',
+            'Programados para hoy',
+            'Revisa las ejecuciones que requieren seguimiento durante la jornada.',
+            [
+                ['key' => 'usuario', 'label' => 'Usuario'],
+                ['key' => 'area', 'label' => 'Area'],
+                ['key' => 'equipo', 'label' => 'Equipo'],
+                ['key' => 'tecnico', 'label' => 'Tecnico asignado'],
+                ['key' => 'hora', 'label' => 'Hora'],
+            ],
+            $items,
+            $periodo,
+            'No hay mantenimientos programados para hoy.'
+        );
     }
 
     public function configuracion(
@@ -513,7 +668,6 @@ class PanelController extends Controller
             'fecha_ejecucion' => ['required', 'date_format:Y-m-d'],
             'tecnico_id' => ['required', 'integer', 'min:1'],
             'observaciones' => ['nullable', 'string'],
-            'confirmar_ejecucion_antes_programacion' => ['nullable', 'boolean'],
             'constancia_pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:5120'],
         ]);
 
@@ -530,11 +684,6 @@ class PanelController extends Controller
 
         $mantenimiento = $repo->obtenerMantenimientoPorId((int) $data['mantenimiento_id']);
         $fechaProgramada = trim((string) ($mantenimiento['fecha_programada'] ?? ''));
-        if ($fechaProgramada !== '' && $data['fecha_ejecucion'] < $fechaProgramada && !$request->boolean('confirmar_ejecucion_antes_programacion')) {
-            return $this->redirectConContexto($request, 'panel.programados', $contexto)
-                ->withInput($request->except(['constancia_pdf']))
-                ->with('panel_error', 'La fecha de ejecucion es anterior a la fecha programada. Confirma que la informacion sea correcta.');
-        }
 
         /** @var UploadedFile $pdf */
         $pdf = $request->file('constancia_pdf');
@@ -599,12 +748,13 @@ class PanelController extends Controller
             'tecnico_id' => ['nullable', 'integer', 'min:1'],
             'observaciones' => ['nullable', 'string'],
             'confirmar_ejecucion_antes_programacion' => ['nullable', 'boolean'],
+            'constancia_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'max:5120'],
         ]);
 
         $resolucion = $this->resolverCodigoActivoConfiguracion($usuarioRepo, $data);
 
         if (($resolucion['ok'] ?? false) !== true) {
-            return $this->redirectConContexto($request, 'panel.configuracion', [
+            return $this->redirectConContexto($request, 'panel.configuracion.estados', [
                 'busqueda_usuario' => $data['busqueda_usuario'],
                 'estado_destino' => (string) $data['estado_destino'],
             ])->with('panel_error', $resolucion['mensaje'] ?? 'No se pudo identificar el usuario.');
@@ -612,7 +762,7 @@ class PanelController extends Controller
 
         $codigoActivo = (int) ($resolucion['codigo_activo'] ?? 0);
         if ($codigoActivo <= 0) {
-            return $this->redirectConContexto($request, 'panel.configuracion', [
+            return $this->redirectConContexto($request, 'panel.configuracion.estados', [
                 'busqueda_usuario' => $data['busqueda_usuario'],
                 'estado_destino' => (string) $data['estado_destino'],
             ])->with('panel_error', 'No se encontró un código activo válido para el usuario.');
@@ -628,6 +778,72 @@ class PanelController extends Controller
                 'observaciones' => (string) ($data['observaciones'] ?? ''),
             ]
         );
+
+        if (!($resultado['ok'] ?? false)) {
+            return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+                'busqueda_usuario' => $data['busqueda_usuario'],
+                'codigo_activo' => $codigoActivo,
+                'estado_destino' => (string) $data['estado_destino'],
+            ])
+                ->withInput($request->except(['_token', 'constancia_pdf']))
+                ->with('panel_error', $resultado['mensaje'] ?? 'No fue posible aplicar el cambio de estado.');
+        }
+
+        $rutaRelativa = '';
+        if ((string) $data['estado_destino'] === \App\Services\Legacy\EstadoMantenimientoVigenteService::EJECUTADO) {
+            $request->validate([
+                'constancia_pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:5120'],
+            ]);
+
+            /** @var UploadedFile $pdf */
+            $pdf = $request->file('constancia_pdf');
+            $nombreArchivo = basename((string) $pdf->getClientOriginalName());
+            if ($nombreArchivo === '') {
+                $nombreArchivo = 'constancia.pdf';
+            }
+
+            $rutaRelativa = $pdf->storeAs(
+                'constancias/gestion/' . $codigoActivo,
+                $nombreArchivo,
+                'public'
+            );
+        }
+
+        $datosEjecucion = [
+            'fecha_programada' => (string) ($data['fecha_programada'] ?? ''),
+            'fecha_ejecucion' => (string) ($data['fecha_ejecucion'] ?? ''),
+            'tecnico_id' => (int) ($data['tecnico_id'] ?? 0),
+            'observaciones' => (string) ($data['observaciones'] ?? ''),
+            'confirmar_ejecucion_antes_programacion' => true,
+            'constancia_pdf_path' => $rutaRelativa,
+        ];
+
+        $ejecucion = $reversionService->ejecutarPorCodigoActivo(
+            $codigoActivo,
+            (string) $data['estado_destino'],
+            $datosEjecucion,
+            'Cambio de estado aplicado desde Configuracion.',
+            (string) ($resultado['preview']['hash'] ?? ''),
+            [
+                'id' => (int) (auth()->user()?->id ?? 0),
+                'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
+            ]
+        );
+
+        if (!($ejecucion['ok'] ?? false) && $rutaRelativa !== '') {
+            Storage::disk('public')->delete($rutaRelativa);
+        }
+
+        return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+            'busqueda_usuario' => $data['busqueda_usuario'],
+            'codigo_activo' => $codigoActivo,
+            'estado_destino' => (string) $data['estado_destino'],
+        ])
+            ->withInput($request->except(['_token', 'constancia_pdf']))
+            ->with(
+                ($ejecucion['ok'] ?? false) ? 'panel_message' : 'panel_error',
+                $ejecucion['mensaje'] ?? 'No fue posible aplicar el cambio de estado.'
+            );
 
         return $this->redirectConContexto($request, 'panel.configuracion', [
             'busqueda_usuario' => $data['busqueda_usuario'],
@@ -786,6 +1002,50 @@ class PanelController extends Controller
         return count($exactas) === 1
             ? (int) ($exactas[0]['codigo_activo'] ?? 0)
             : null;
+    }
+
+    /**
+     * @param  array<int, array<string, string>>  $columns
+     * @param  array<int, array<string, string>>  $items
+     */
+    private function vistaNotificaciones(
+        string $activeRoute,
+        string $titulo,
+        string $subtitulo,
+        string $tituloListado,
+        string $descripcionListado,
+        array $columns,
+        array $items,
+        array $periodo,
+        string $mensajeVacio
+    ): View {
+        return view('panel.notificaciones', [
+            'usuario' => session('usuario_autenticado'),
+            'periodoConsulta' => $periodo,
+            'activeRoute' => $activeRoute,
+            'titulo' => $titulo,
+            'subtitulo' => $subtitulo,
+            'tituloListado' => $tituloListado,
+            'descripcionListado' => $descripcionListado,
+            'columns' => $columns,
+            'items' => $items,
+            'total' => count($items),
+            'mensajeVacio' => $mensajeVacio,
+        ]);
+    }
+
+    private function formatearFechaTabla(mixed $valor): string
+    {
+        $valor = trim((string) $valor);
+        if ($valor === '') {
+            return '-';
+        }
+
+        try {
+            return Carbon::parse($valor)->format('d/m/Y');
+        } catch (\Throwable) {
+            return $valor;
+        }
     }
 
     private function redirectConContexto(Request $request, string $rutaFallback, array $parametrosFallback = []): RedirectResponse
