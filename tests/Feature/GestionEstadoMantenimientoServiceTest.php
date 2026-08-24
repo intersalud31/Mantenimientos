@@ -74,7 +74,7 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
     {
         $periodo = app(SemestreService::class)->actual();
         $usuarioId = $this->crearUsuario(996003, 'Usuario P a E', null);
-        $fechaProgramada = '2026-08-19';
+        $fechaProgramada = now()->addDay()->format('Y-m-d');
         $fechaEjecucion = '2026-08-17';
         $mantenimientoId = $this->crearMantenimiento($usuarioId, [
             'estado' => 'programado',
@@ -206,10 +206,10 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
 
     public function test_no_programado_a_ejecutado_realiza_la_operacion_compuesta(): void
     {
-        $fechaBase = '2026-08-18';
+        $fechaBase = now()->format('Y-m-d');
         $usuarioId = $this->crearUsuario(996006, 'Usuario NP a E', $fechaBase);
         $tecnicoId = $this->crearTecnico('Tecnico Doble');
-        $fechaProgramada = '2026-08-18';
+        $fechaProgramada = now()->format('Y-m-d');
         $fechaEjecucion = '2026-08-11';
 
         $service = app(GestionEstadoMantenimientoService::class);
@@ -323,13 +323,13 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
         $usuarioId = $this->crearUsuario(996011, 'Usuario Fecha Futura', null);
         $this->crearMantenimiento($usuarioId, [
             'estado' => 'programado',
-            'fecha_programada' => '2026-08-19',
+            'fecha_programada' => now()->addDay()->format('Y-m-d'),
             'observaciones' => 'Programado desde modulo Proximos.',
         ]);
 
         $service = app(GestionEstadoMantenimientoService::class);
         $preview = $service->previsualizarPorCodigoActivo(996011, EstadoMantenimientoVigenteService::EJECUTADO, [
-            'fecha_ejecucion' => '2026-08-19',
+            'fecha_ejecucion' => now()->addDay()->format('Y-m-d'),
             'tecnico_id' => $this->crearTecnico('Tecnico Futura'),
             'observaciones' => 'Debe bloquear futuro.',
         ]);
@@ -340,12 +340,12 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
 
     public function test_no_programado_a_ejecutado_requiere_confirmacion_si_ejecucion_es_anterior_a_programacion(): void
     {
-        $usuarioId = $this->crearUsuario(996012, 'Usuario Confirmacion Gestion', '2026-08-18');
+        $usuarioId = $this->crearUsuario(996012, 'Usuario Confirmacion Gestion', now()->format('Y-m-d'));
         $tecnicoId = $this->crearTecnico('Tecnico Confirmacion Gestion');
 
         $service = app(GestionEstadoMantenimientoService::class);
         $preview = $service->previsualizarPorCodigoActivo(996012, EstadoMantenimientoVigenteService::EJECUTADO, [
-            'fecha_programada' => '2026-08-18',
+            'fecha_programada' => now()->format('Y-m-d'),
             'fecha_ejecucion' => '2026-08-17',
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Con advertencia.',
@@ -359,7 +359,7 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
             996012,
             EstadoMantenimientoVigenteService::EJECUTADO,
             [
-                'fecha_programada' => '2026-08-18',
+                'fecha_programada' => now()->format('Y-m-d'),
                 'fecha_ejecucion' => '2026-08-17',
                 'tecnico_id' => $tecnicoId,
                 'observaciones' => 'Sin confirmacion.',
@@ -376,12 +376,12 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
 
     public function test_no_programado_a_ejecutado_con_fecha_del_mes_anterior_calcula_siguiente_desde_la_fecha_real_y_no_duplica_pendientes(): void
     {
-        $usuarioId = $this->crearUsuario(996013, 'Usuario Mes Anterior', '2026-08-18');
+        $usuarioId = $this->crearUsuario(996013, 'Usuario Mes Anterior', now()->format('Y-m-d'));
         $tecnicoId = $this->crearTecnico('Tecnico Mes Anterior');
         $service = app(GestionEstadoMantenimientoService::class);
 
         $preview = $service->previsualizarPorCodigoActivo(996013, EstadoMantenimientoVigenteService::EJECUTADO, [
-            'fecha_programada' => '2026-08-18',
+            'fecha_programada' => now()->format('Y-m-d'),
             'fecha_ejecucion' => '2026-07-18',
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Registro posterior con fecha real del mes anterior.',
@@ -393,7 +393,7 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
             996013,
             EstadoMantenimientoVigenteService::EJECUTADO,
             [
-                'fecha_programada' => '2026-08-18',
+                'fecha_programada' => now()->format('Y-m-d'),
                 'fecha_ejecucion' => '2026-07-18',
                 'tecnico_id' => $tecnicoId,
                 'observaciones' => 'Registro posterior con fecha real del mes anterior.',
@@ -415,12 +415,12 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
 
     public function test_no_programado_a_ejecutado_con_fecha_del_30_de_junio_permanece_en_s1_y_recalcula_el_estado_vigente_en_s2(): void
     {
-        $usuarioId = $this->crearUsuario(996014, 'Usuario Limite Junio', '2026-08-18');
+        $usuarioId = $this->crearUsuario(996014, 'Usuario Limite Junio', now()->format('Y-m-d'));
         $tecnicoId = $this->crearTecnico('Tecnico Junio');
         $service = app(GestionEstadoMantenimientoService::class);
 
         $preview = $service->previsualizarPorCodigoActivo(996014, EstadoMantenimientoVigenteService::EJECUTADO, [
-            'fecha_programada' => '2026-08-18',
+            'fecha_programada' => now()->format('Y-m-d'),
             'fecha_ejecucion' => '2026-06-30',
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Registro de S1 durante S2.',
@@ -432,7 +432,7 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
             996014,
             EstadoMantenimientoVigenteService::EJECUTADO,
             [
-                'fecha_programada' => '2026-08-18',
+                'fecha_programada' => now()->format('Y-m-d'),
                 'fecha_ejecucion' => '2026-06-30',
                 'tecnico_id' => $tecnicoId,
                 'observaciones' => 'Registro de S1 durante S2.',
@@ -452,12 +452,12 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
 
     public function test_no_programado_a_ejecutado_con_fecha_del_1_de_julio_se_clasifica_en_s2(): void
     {
-        $usuarioId = $this->crearUsuario(996015, 'Usuario Limite Julio', '2026-08-18');
+        $usuarioId = $this->crearUsuario(996015, 'Usuario Limite Julio', now()->format('Y-m-d'));
         $tecnicoId = $this->crearTecnico('Tecnico Julio');
         $service = app(GestionEstadoMantenimientoService::class);
 
         $preview = $service->previsualizarPorCodigoActivo(996015, EstadoMantenimientoVigenteService::EJECUTADO, [
-            'fecha_programada' => '2026-08-18',
+            'fecha_programada' => now()->format('Y-m-d'),
             'fecha_ejecucion' => '2026-07-01',
             'tecnico_id' => $tecnicoId,
             'observaciones' => 'Registro en limite de S2.',
@@ -469,7 +469,7 @@ class GestionEstadoMantenimientoServiceTest extends TestCase
             996015,
             EstadoMantenimientoVigenteService::EJECUTADO,
             [
-                'fecha_programada' => '2026-08-18',
+                'fecha_programada' => now()->format('Y-m-d'),
                 'fecha_ejecucion' => '2026-07-01',
                 'tecnico_id' => $tecnicoId,
                 'observaciones' => 'Registro en limite de S2.',

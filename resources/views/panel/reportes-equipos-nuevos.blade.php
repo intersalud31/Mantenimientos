@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Equipos nuevos sin mantenimiento</title>
+    <title>Equipos no exigibles</title>
     @include('panel.partials.dashboard-modern-styles')
     @include('panel.partials.hechos-saas-overrides')
 </head>
@@ -27,14 +27,15 @@
         ], static fn ($valor) => $valor !== null && $valor !== '');
 
         $busquedaActual = $busqueda ?? '';
+        $motivoActual = trim((string) ($motivoNoExigible ?? ''));
         $paginaActual = (int) ($pagina ?? 1);
         $totalPaginasReporte = (int) ($totalPaginas ?? 1);
-        $origenEquipoPresenter = $origenEquipoPresenter ?? app(\App\Services\Legacy\OrigenEquipoPresenter::class);
+        $motivoOptions = is_array($motivoOptions ?? null) ? $motivoOptions : [];
         $formatearFecha = static function (?string $valor): string {
             $valor = trim((string) $valor);
 
             if ($valor === '') {
-                return '&mdash;';
+                return '—';
             }
 
             try {
@@ -49,8 +50,8 @@
         <section class="module-header" aria-label="Reportes">
             <div class="module-header-copy">
                 <p class="module-header-kicker">Reportes</p>
-                <h1 class="module-header-title">Equipos nuevos sin mantenimiento</h1>
-                <p class="module-header-subtitle">Consulta los equipos nuevos activos cuya pr&oacute;xima fecha a&uacute;n queda fuera del semestre vigente.</p>
+                <h1 class="module-header-title">Equipos no exigibles</h1>
+                <p class="module-header-subtitle">Consulta los equipos activos cuya siguiente exigencia de mantenimiento queda fuera del semestre vigente.</p>
             </div>
         </section>
 
@@ -64,25 +65,48 @@
                     </div>
                 </div>
 
-                <x-panel.live-search
+                <x-panel.filter-bar
                     action="{{ route('panel.reportes.equipos-nuevos') }}"
-                    name="q_reportes_nuevos"
-                    label="Buscar equipos"
-                    placeholder="Usuario, área o código activo"
-                    value="{{ $busquedaActual }}"
-                    target="#reportes-equipos-nuevos-listado"
-                    debounce="500"
-                    loading-label="Buscando..."
-                    page-name="reportes_nuevos_pagina"
-                    page-value="1"
+                    title="Gestión"
+                    subtitle="Busca por usuario, área o código de activo y filtra por motivo."
+                    live="true"
+                    live-target="#reportes-equipos-nuevos-listado"
+                    submit-label="Aplicar filtros"
                 >
+                    <x-slot:fields>
+                        <label class="panel-filter-field" for="q_reportes_nuevos">
+                            <span>Buscar equipos</span>
+                            <input
+                                id="q_reportes_nuevos"
+                                type="search"
+                                name="q_reportes_nuevos"
+                                value="{{ $busquedaActual }}"
+                                placeholder="Usuario, área o código activo"
+                                autocomplete="off"
+                                data-panel-filter-search
+                            >
+                        </label>
+
+                        <label class="panel-filter-field panel-filter-field--narrow" for="motivo_no_exigible">
+                            <span>Motivo</span>
+                            <select id="motivo_no_exigible" name="motivo_no_exigible" data-panel-filter-live-field>
+                                @foreach ($motivoOptions as $option)
+                                    <option value="{{ $option['value'] }}" {{ $motivoActual === (string) $option['value'] ? 'selected' : '' }}>
+                                        {{ $option['label'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </x-slot:fields>
+
                     <x-slot:hidden>
                         @foreach ($periodoQuery as $clave => $valor)
                             <input type="hidden" name="{{ $clave }}" value="{{ $valor }}">
                         @endforeach
+                        <input type="hidden" name="reportes_nuevos_pagina" value="1">
                         <input type="hidden" name="reportes_nuevos_por_pagina" value="{{ $porPagina ?? 10 }}">
                     </x-slot:hidden>
-                </x-panel.live-search>
+                </x-panel.filter-bar>
             </div>
         </section>
 
@@ -90,34 +114,37 @@
             <div class="panel-card-header">
                 <div class="panel-title-block">
                     <p class="section-kicker">Listado</p>
-                    <h2 class="panel-section-title">Equipos nuevos fuera del semestre vigente</h2>
-                    <p class="muted panel-section-subtitle">Total: {{ $total ?? 0 }} | P&aacute;gina {{ (int) ($paginaActual ?? 1) }} de {{ (int) ($totalPaginasReporte ?? 1) }}</p>
+                    <h2 class="panel-section-title">Equipos no exigibles del semestre vigente</h2>
+                    <p class="muted panel-section-subtitle">Total: {{ $total ?? 0 }} | Página {{ (int) ($paginaActual ?? 1) }} de {{ (int) ($totalPaginasReporte ?? 1) }}</p>
                 </div>
             </div>
 
             <div id="reportes-equipos-nuevos-listado">
                 <div class="panel-table-shell">
-                    <table class="panel-table" aria-label="Equipos nuevos sin mantenimiento">
+                    <table class="panel-table" aria-label="Equipos no exigibles">
                         <thead>
                             <tr>
                                 <th>Usuario / Equipo</th>
-                                <th>C&oacute;digo activo</th>
-                                <th>&Aacute;rea</th>
-                                <th>Tipo de equipo</th>
-                                <th>Fecha base / compra</th>
-                                <th>Pr&oacute;ximo mantenimiento</th>
+                                <th>Código activo</th>
+                                <th>Área</th>
                                 <th>Motivo</th>
+                                <th>Fecha base / compra</th>
+                                <th>Próximo mantenimiento</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($items as $item)
                                 @php
-                                    $tipoEquipo = (string) ($item['tipo_equipo'] ?? 'nuevo');
                                     $nombreEquipo = trim((string) ($item['nombre'] ?? ''));
+                                    $motivoCodigo = trim((string) ($item['motivo_codigo'] ?? ''));
+                                    $motivoLabel = trim((string) ($item['motivo_label'] ?? 'No exigible'));
                                     $codigoActivo = (string) ($item['codigo_activo'] ?? '-');
                                     $areaNombre = trim((string) ($item['area_nombre'] ?? 'SIN AREA'));
                                     $fechaBase = $formatearFecha($item['fecha_ultimo_mantenimiento_base'] ?? null);
                                     $fechaProxima = $formatearFecha($item['proxima_fecha_mantenimiento'] ?? null);
+                                    $motivoClase = $motivoCodigo === \App\Services\Legacy\NoExigibleReasonService::EQUIPO_NUEVO
+                                        ? 'estado-tabla-info'
+                                        : 'estado-tabla-neutral';
                                 @endphp
                                 <tr>
                                     <td>
@@ -126,19 +153,16 @@
                                     <td>{{ $codigoActivo }}</td>
                                     <td><span class="user-badge-area">{{ $areaNombre !== '' ? $areaNombre : 'SIN AREA' }}</span></td>
                                     <td>
-                                        <span class="user-badge-type user-badge-type--{{ $origenEquipoPresenter->badgeVariant($tipoEquipo) }}">
-                                            {{ $origenEquipoPresenter->label($tipoEquipo) }}
+                                        <span class="estado-tabla {{ $motivoClase }}">
+                                            {{ $motivoLabel }}
                                         </span>
                                     </td>
                                     <td>{{ $fechaBase }}</td>
                                     <td>{{ $fechaProxima }}</td>
-                                    <td>
-                                        <span class="estado-tabla estado-tabla-info">Equipo nuevo, aún no requiere mantenimiento</span>
-                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="muted panel-table-empty">No hay equipos nuevos sin mantenimiento para mostrar.</td>
+                                    <td colspan="6" class="muted panel-table-empty">No hay equipos no exigibles para mostrar en este periodo.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -146,10 +170,11 @@
                 </div>
             </div>
 
-            <nav role="navigation" class="pager" aria-label="Paginación de equipos nuevos sin mantenimiento">
+            <nav role="navigation" class="pager" aria-label="Paginación de equipos no exigibles">
                 @if ((int) ($paginaActual ?? 1) > 1)
                     <a class="btn-link" href="{{ route('panel.reportes.equipos-nuevos', array_merge($periodoQuery, [
                         'q_reportes_nuevos' => $busquedaActual,
+                        'motivo_no_exigible' => $motivoActual,
                         'reportes_nuevos_pagina' => ((int) ($paginaActual ?? 1)) - 1,
                         'reportes_nuevos_por_pagina' => $porPagina ?? 10,
                     ])) . '#reportes-equipos-nuevos-listado' }}">Anterior</a>
@@ -157,6 +182,7 @@
                 @if ((int) ($paginaActual ?? 1) < (int) ($totalPaginasReporte ?? 1))
                     <a class="btn-link" href="{{ route('panel.reportes.equipos-nuevos', array_merge($periodoQuery, [
                         'q_reportes_nuevos' => $busquedaActual,
+                        'motivo_no_exigible' => $motivoActual,
                         'reportes_nuevos_pagina' => ((int) ($paginaActual ?? 1)) + 1,
                         'reportes_nuevos_por_pagina' => $porPagina ?? 10,
                     ])) . '#reportes-equipos-nuevos-listado' }}">Siguiente</a>

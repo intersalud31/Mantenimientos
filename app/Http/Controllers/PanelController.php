@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Legacy\MantenimientoRepository;
+use App\Services\Legacy\NoExigibleReasonService;
 use App\Services\Legacy\NotificationSummaryService;
 use App\Services\Legacy\OrigenEquipoPresenter;
 use App\Services\Legacy\PeriodicidadMantenimientoService;
@@ -64,21 +65,17 @@ class PanelController extends Controller
         ]);
     }
 
-    public function reportesEquiposNuevos(
-        Request $request,
-        MantenimientoRepository $repo,
-        SemestreService $semestreService,
-        OrigenEquipoPresenter $origenEquipoPresenter
-    ): View {
+    public function reportesPendientes(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
+    {
         $periodo = $semestreService->desdeRequest($request);
-        $busqueda = trim((string) $request->query('q_reportes_nuevos', ''));
-        $pagina = max(1, (int) $request->query('reportes_nuevos_pagina', 1));
-        $porPagina = (int) $request->query('reportes_nuevos_por_pagina', 10);
+        $busqueda = trim((string) $request->query('q_dashboard_pendientes', ''));
+        $pagina = max(1, (int) $request->query('dashboard_pendientes_pagina', 1));
+        $porPagina = (int) $request->query('dashboard_pendientes_por_pagina', 10);
         if (!in_array($porPagina, [10, 25, 50], true)) {
             $porPagina = 10;
         }
 
-        $total = $repo->contarEquiposNuevosSinMantenimiento($busqueda, $periodo);
+        $total = $repo->contarPendientesDashboardPorPeriodo($busqueda, $periodo);
         $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
         if ($pagina > $totalPaginas) {
             $pagina = $totalPaginas;
@@ -86,11 +83,136 @@ class PanelController extends Controller
 
         $offset = $this->navigation->offset($pagina, $porPagina);
 
+        return view('panel.reportes-detalle', [
+            'usuario' => session('usuario_autenticado'),
+            'activeRoute' => 'panel.reportes',
+            'periodoConsulta' => $periodo,
+            'periodoQuery' => array_filter([
+                'anio' => $periodo['anio'] ?? null,
+                'semestre' => $periodo['semestre'] ?? null,
+            ], static fn ($valor) => $valor !== null && $valor !== ''),
+            'pageTitle' => 'Pendientes',
+            'pageSubtitle' => 'Miembros reales de la base del semestre que aún no registran ejecución.',
+            'searchLabel' => 'Buscar pendientes',
+            'searchName' => 'q_dashboard_pendientes',
+            'searchValue' => $busqueda,
+            'searchPlaceholder' => 'Usuario, área o código activo',
+            'routeName' => 'panel.reportes.pendientes',
+            'pageName' => 'dashboard_pendientes_pagina',
+            'perPageName' => 'dashboard_pendientes_por_pagina',
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'total' => $total,
+            'totalPaginas' => $totalPaginas,
+            'items' => $repo->listarPendientesDashboardPorPeriodo($porPagina, $offset, $busqueda, $periodo),
+            'emptyMessage' => 'No hay pendientes auditables para este periodo.',
+            'sectionKicker' => 'Detalle',
+            'sectionTitle' => 'Pendientes del Dashboard',
+            'sectionSubtitle' => 'Total: ' . $total . ' | Página ' . $pagina . ' de ' . $totalPaginas,
+            'columns' => [
+                ['key' => 'nombre', 'label' => 'Usuario / Equipo', 'type' => 'text-primary'],
+                ['key' => 'codigo_activo', 'label' => 'Código activo'],
+                ['key' => 'area_nombre', 'label' => 'Área', 'type' => 'badge-area'],
+                ['key' => 'estado_vigente_etiqueta', 'label' => 'Estado actual', 'type' => 'badge', 'badge_key' => 'estado_vigente_badge_clase'],
+                ['key' => 'proxima_fecha_mantenimiento', 'label' => 'Próximo mantenimiento', 'type' => 'date'],
+                ['key' => 'motivo_pendiente', 'label' => 'Motivo'],
+            ],
+        ]);
+    }
+
+    public function reportesBaseFase(Request $request, MantenimientoRepository $repo, SemestreService $semestreService): View
+    {
+        $periodo = $semestreService->desdeRequest($request);
+        $busqueda = trim((string) $request->query('q_dashboard_base_fase', ''));
+        $pagina = max(1, (int) $request->query('dashboard_base_fase_pagina', 1));
+        $porPagina = (int) $request->query('dashboard_base_fase_por_pagina', 10);
+        if (!in_array($porPagina, [10, 25, 50], true)) {
+            $porPagina = 10;
+        }
+
+        $total = $repo->contarBaseFasePorPeriodo($busqueda, $periodo);
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
+        if ($pagina > $totalPaginas) {
+            $pagina = $totalPaginas;
+        }
+
+        $offset = $this->navigation->offset($pagina, $porPagina);
+        $periodoVisible = $this->descripcionPeriodoGestion($periodo);
+
+        return view('panel.reportes-detalle', [
+            'usuario' => session('usuario_autenticado'),
+            'activeRoute' => 'panel.reportes',
+            'periodoConsulta' => $periodo,
+            'periodoQuery' => array_filter([
+                'anio' => $periodo['anio'] ?? null,
+                'semestre' => $periodo['semestre'] ?? null,
+            ], static fn ($valor) => $valor !== null && $valor !== ''),
+            'pageTitle' => 'Equipos a gestionar',
+            'pageSubtitle' => 'Equipos activos que requieren seguimiento de mantenimiento durante el semestre seleccionado.',
+            'searchLabel' => 'Buscar equipos a gestionar',
+            'searchName' => 'q_dashboard_base_fase',
+            'searchValue' => $busqueda,
+            'searchPlaceholder' => 'Usuario, área o código activo',
+            'routeName' => 'panel.reportes.base-fase',
+            'pageName' => 'dashboard_base_fase_pagina',
+            'perPageName' => 'dashboard_base_fase_por_pagina',
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'total' => $total,
+            'totalPaginas' => $totalPaginas,
+            'items' => $repo->listarBaseFasePorPeriodo($porPagina, $offset, $busqueda, $periodo),
+            'emptyMessage' => 'No hay equipos a gestionar para este periodo.',
+            'sectionKicker' => 'Listado',
+            'sectionTitle' => 'Equipos incluidos en el periodo',
+            'sectionSubtitle' => $total . ' equipos requieren gestión durante el ' . $periodoVisible . '.',
+            'sectionMeta' => 'Total: ' . $total . ' | Página ' . $pagina . ' de ' . $totalPaginas,
+            'columns' => [
+                ['key' => 'nombre', 'label' => 'Usuario / Equipo', 'type' => 'text-primary'],
+                ['key' => 'codigo_activo', 'label' => 'Código activo'],
+                ['key' => 'area_nombre', 'label' => 'Área', 'type' => 'badge-area'],
+                ['key' => 'estado_vigente_etiqueta', 'label' => 'Estado', 'type' => 'badge', 'badge_key' => 'estado_vigente_badge_clase'],
+                ['key' => 'proxima_fecha_mantenimiento', 'label' => 'Próximo mantenimiento', 'type' => 'date'],
+                ['key' => 'situacion_etiqueta', 'label' => 'Situación', 'type' => 'badge', 'badge_key' => 'situacion_badge_clase'],
+            ],
+        ]);
+    }
+
+    public function reportesEquiposNuevos(
+        Request $request,
+        MantenimientoRepository $repo,
+        SemestreService $semestreService,
+        OrigenEquipoPresenter $origenEquipoPresenter,
+        NoExigibleReasonService $noExigibleReasonService
+    ): View {
+        $periodo = $semestreService->desdeRequest($request);
+        $busqueda = trim((string) $request->query('q_reportes_nuevos', ''));
+        $motivo = trim((string) $request->query('motivo_no_exigible', ''));
+        $pagina = max(1, (int) $request->query('reportes_nuevos_pagina', 1));
+        $porPagina = (int) $request->query('reportes_nuevos_por_pagina', 10);
+        if (!in_array($porPagina, [10, 25, 50], true)) {
+            $porPagina = 10;
+        }
+
+        $total = $repo->contarNoExigiblesPorPeriodo($busqueda, $periodo, $motivo);
+        $totalPaginas = $this->navigation->totalPaginas($total, $porPagina);
+        if ($pagina > $totalPaginas) {
+            $pagina = $totalPaginas;
+        }
+
+        $offset = $this->navigation->offset($pagina, $porPagina);
+        $items = array_map(function (array $item) use ($noExigibleReasonService): array {
+            $item['motivo_label'] = $noExigibleReasonService->label((string) ($item['motivo_codigo'] ?? ''));
+
+            return $item;
+        }, $repo->listarNoExigiblesPorPeriodo($porPagina, $offset, $busqueda, $periodo, $motivo));
+
         return view('panel.reportes-equipos-nuevos', [
             'usuario' => session('usuario_autenticado'),
             'periodoConsulta' => $periodo,
-            'items' => $repo->listarEquiposNuevosSinMantenimiento($porPagina, $offset, $busqueda, $periodo),
+            'items' => $items,
             'busqueda' => $busqueda,
+            'motivoNoExigible' => $motivo,
+            'motivoOptions' => $noExigibleReasonService->options(),
             'pagina' => $pagina,
             'porPagina' => $porPagina,
             'total' => $total,
@@ -463,14 +585,19 @@ class PanelController extends Controller
     public function usuarios(Request $request, UsuarioRepository $repo, OrigenEquipoPresenter $origenEquipoPresenter): View
     {
         $busqueda = trim((string) $request->query('q_usuarios', ''));
+        $estadoUsuarioFiltro = $request->query('estado_usuario');
+        $estadoUsuario = in_array((string) $estadoUsuarioFiltro, ['0', '1'], true)
+            ? (int) $estadoUsuarioFiltro
+            : null;
         $editarUsuarioId = (int) $request->query('editar_usuario_id', 0);
         $usuarioEdicion = $editarUsuarioId > 0 ? $repo->obtenerPorId($editarUsuarioId) : null;
 
         return view('panel.usuarios', [
             'usuario' => session('usuario_autenticado'),
-            'usuarios' => $repo->listarTodos($busqueda),
+            'usuarios' => $repo->listarTodos($busqueda, $estadoUsuario),
             'areas' => $repo->listarAreasActivas(),
             'busqueda' => $busqueda,
+            'estadoUsuarioFiltro' => $estadoUsuario,
             'nuevoUsuario' => (int) $request->query('nuevo_usuario', 0) === 1,
             'usuarioEdicion' => $usuarioEdicion,
             'editarUsuarioId' => $editarUsuarioId,
@@ -1046,6 +1173,14 @@ class PanelController extends Controller
         } catch (\Throwable) {
             return $valor;
         }
+    }
+
+    private function descripcionPeriodoGestion(array $periodo): string
+    {
+        $semestre = (int) ($periodo['semestre'] ?? 1);
+        $anio = (int) ($periodo['anio'] ?? now()->year);
+
+        return ($semestre === 1 ? 'primer semestre de ' : 'segundo semestre de ') . $anio;
     }
 
     private function redirectConContexto(Request $request, string $rutaFallback, array $parametrosFallback = []): RedirectResponse

@@ -24,6 +24,8 @@ Route::middleware(['legacy.auth', 'can:access-panel'])->group(function () {
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
     Route::get('/panel/reportes', [PanelController::class, 'reportes'])->name('panel.reportes');
     Route::get('/panel/reportes/equipos-nuevos', [PanelController::class, 'reportesEquiposNuevos'])->name('panel.reportes.equipos-nuevos');
+    Route::get('/panel/reportes/pendientes', [PanelController::class, 'reportesPendientes'])->name('panel.reportes.pendientes');
+    Route::get('/panel/reportes/base-fase', [PanelController::class, 'reportesBaseFase'])->name('panel.reportes.base-fase');
     Route::get('/panel/usuarios', [PanelController::class, 'usuarios'])->name('panel.usuarios');
     Route::get('/panel/configuracion', [PanelController::class, 'configuracion'])->name('panel.configuracion');
     Route::get('/panel/configuracion/tecnicos', [PanelController::class, 'configuracion'])->name('panel.configuracion.tecnicos');

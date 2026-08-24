@@ -5,6 +5,7 @@ namespace App\Services\Legacy;
 use App\Services\SemestreService;
 use DateInterval;
 use DateTimeImmutable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -93,17 +94,7 @@ class MantenimientoRepository
         $fin = (string) ($periodo['fin'] ?? sprintf('%04d-06-30', $anio));
 
         $totalUsuarios = (int) DB::table('usuarios')->where('estado_usuario', 1)->count();
-
-        $totalBaseFase = (int) DB::table('usuarios as u')
-            ->where('u.estado_usuario', 1)
-            ->whereExists(function ($query) use ($inicio, $fin): void {
-                $query->select(DB::raw(1))
-                    ->from('mantenimientos as m')
-                    ->whereColumn('m.usuario_id', 'u.id')
-                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) IS NOT NULL')
-                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) BETWEEN ? AND ?', [$inicio . ' 00:00:00', $fin . ' 23:59:59']);
-            })
-            ->count();
+        $totalBaseFase = $this->contarBaseFasePorPeriodo('', $periodo);
 
         $totalRealizados = (int) DB::table('usuarios as u')
             ->join('mantenimientos as m', 'm.usuario_id', '=', 'u.id')
@@ -144,6 +135,7 @@ class MantenimientoRepository
             ->distinct('u.id')
             ->count('u.id');
 
+        $totalNoExigibles = $this->contarNoExigiblesPorPeriodo('', $periodo);
         $totalPendientes = max(0, $totalBaseFase - $totalRealizados);
         $indiceCumplimiento = $totalBaseFase > 0 ? (int) round(($totalRealizados / $totalBaseFase) * 100) : 0;
 
@@ -156,12 +148,282 @@ class MantenimientoRepository
             'fin' => $fin,
             'total_usuarios' => $totalUsuarios,
             'total_base_fase' => $totalBaseFase,
-            'total_no_exigibles' => max(0, $totalUsuarios - $totalBaseFase),
+            'total_no_exigibles' => $totalNoExigibles,
             'total_realizados' => $totalRealizados,
             'total_programados' => $totalProgramados,
             'total_pendientes' => $totalPendientes,
             'indice_cumplimiento' => $indiceCumplimiento,
         ];
+    }
+
+    /**
+     * @return array{0:\Illuminate\Database\Query\Builder,1:string,2:string}
+     */
+    private function consultaBaseFasePorPeriodo(?array $periodo = null): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereExists(function ($subquery) use ($inicio, $fin): void {
+                $subquery->select(DB::raw(1))
+                    ->from('mantenimientos as m')
+                    ->whereColumn('m.usuario_id', 'u.id')
+                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) IS NOT NULL')
+                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) BETWEEN ? AND ?', [$inicio . ' 00:00:00', $fin . ' 23:59:59']);
+            });
+
+        return [$query, $inicio, $fin];
+    }
+
+    private function aplicarBusquedaDashboardUsuarios($query, string $busqueda): void
+    {
+        $busqueda = trim($busqueda);
+        if ($busqueda === '') {
+            return;
+        }
+
+        $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+        $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+            $subquery
+                ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                ->orWhereRaw('LOWER(COALESCE(u.serial_equipo, \'\')) LIKE ?', ['%' . $busquedaNormalizada . '%']);
+
+            if (ctype_digit($busqueda)) {
+                $subquery->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+            }
+        });
+    }
+
+    public function contarBaseFasePorPeriodo(string $busqueda = '', ?array $periodo = null): int
+    {
+        [$query] = $this->consultaBaseFasePorPeriodo($periodo);
+        $this->aplicarBusquedaDashboardUsuarios($query, $busqueda);
+
+        return (int) $query->distinct('u.id')->count('u.id');
+    }
+
+    public function listarBaseFasePorPeriodo(int $limite, int $desplazamiento, string $busqueda = '', ?array $periodo = null): array
+    {
+        [$query, $inicio, $fin] = $this->consultaBaseFasePorPeriodo($periodo);
+
+        $query->select([
+            'u.id as usuario_id',
+            'u.nombre',
+            'u.codigo_activo',
+            'u.serial_equipo',
+            'u.tipo_equipo',
+            'u.proxima_fecha_mantenimiento',
+            DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+            DB::raw("(
+                SELECT MAX(COALESCE(m.fecha_ejecucion, m.fecha_programada))
+                FROM mantenimientos as m
+                WHERE m.usuario_id = u.id
+                  AND COALESCE(m.fecha_ejecucion, m.fecha_programada) BETWEEN '{$inicio} 00:00:00' AND '{$fin} 23:59:59'
+            ) AS fecha_actividad_periodo"),
+            DB::raw($this->sqlPendienteAnteriorAbierto('u', $inicio) . ' AS es_pendiente_anterior'),
+        ]);
+
+        $this->aplicarBusquedaDashboardUsuarios($query, $busqueda);
+
+        $filas = $query
+            ->orderBy('u.nombre')
+            ->skip($desplazamiento)
+            ->take($limite)
+            ->get()
+            ->map(static fn ($row) => (array) $row)
+            ->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
+
+        foreach ($filas as &$fila) {
+            $situacion = $this->resolverSituacionBaseFase($fila);
+            $fila['situacion_etiqueta'] = $situacion['etiqueta'];
+            $fila['situacion_badge_clase'] = $situacion['clase'];
+        }
+        unset($fila);
+
+        return $filas;
+    }
+
+    public function contarPendientesDashboardPorPeriodo(string $busqueda = '', ?array $periodo = null): int
+    {
+        [$query, $inicio, $fin] = $this->consultaBaseFasePorPeriodo($periodo);
+
+        $query->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+            $subquery->select(DB::raw(1))
+                ->from('mantenimientos as m')
+                ->whereColumn('m.usuario_id', 'u.id')
+                ->whereIn('m.estado', MantenimientoEstados::estadosVisiblesEnHechos())
+                ->whereNotNull('m.fecha_ejecucion')
+                ->whereBetween('m.fecha_ejecucion', [$inicio, $fin]);
+        });
+
+        $this->aplicarBusquedaDashboardUsuarios($query, $busqueda);
+
+        return (int) $query->distinct('u.id')->count('u.id');
+    }
+
+    public function listarPendientesDashboardPorPeriodo(int $limite, int $desplazamiento, string $busqueda = '', ?array $periodo = null): array
+    {
+        [$query, $inicio, $fin] = $this->consultaBaseFasePorPeriodo($periodo);
+
+        $query->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+            $subquery->select(DB::raw(1))
+                ->from('mantenimientos as m')
+                ->whereColumn('m.usuario_id', 'u.id')
+                ->whereIn('m.estado', MantenimientoEstados::estadosVisiblesEnHechos())
+                ->whereNotNull('m.fecha_ejecucion')
+                ->whereBetween('m.fecha_ejecucion', [$inicio, $fin]);
+        });
+
+        $query->select([
+            'u.id as usuario_id',
+            'u.nombre',
+            'u.codigo_activo',
+            'u.serial_equipo',
+            'u.tipo_equipo',
+            'u.proxima_fecha_mantenimiento',
+            DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+            DB::raw($this->sqlPendienteAnteriorAbierto('u', $inicio) . ' AS es_pendiente_anterior'),
+        ]);
+
+        $this->aplicarBusquedaDashboardUsuarios($query, $busqueda);
+
+        $filas = $query
+            ->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->skip($desplazamiento)
+            ->take($limite)
+            ->get()
+            ->map(static fn ($row) => (array) $row)
+            ->all();
+
+        $filas = $this->estadoVigenteService->anexarEstadoVigente($filas, $periodo, 'usuario_id');
+
+        foreach ($filas as &$fila) {
+            $estadoVigente = (string) ($fila['estado_vigente'] ?? '');
+            $esPendienteAnterior = (int) ($fila['es_pendiente_anterior'] ?? 0) === 1;
+
+            if ($esPendienteAnterior) {
+                $fila['motivo_pendiente'] = 'Pendiente anterior sin cierre posterior.';
+            } elseif ($estadoVigente === EstadoMantenimientoVigenteService::PROGRAMADO) {
+                $fila['motivo_pendiente'] = 'Programado vigente sin ejecución en el semestre.';
+            } else {
+                $fila['motivo_pendiente'] = 'Pendiente del semestre sin ejecución registrada.';
+            }
+        }
+        unset($fila);
+
+        return $filas;
+    }
+
+    private function sqlPendienteAnteriorAbierto(string $aliasUsuario, string $inicio): string
+    {
+        return "CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM mantenimientos as pendiente_anterior
+                WHERE pendiente_anterior.usuario_id = {$aliasUsuario}.id
+                  AND pendiente_anterior.estado = '" . MantenimientoEstados::PENDIENTE . "'
+                  AND pendiente_anterior.fecha_programada < '{$inicio}'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM mantenimientos as cierre_ciclo
+                    WHERE cierre_ciclo.usuario_id = {$aliasUsuario}.id
+                      AND cierre_ciclo.estado IN ('" . implode("','", MantenimientoEstados::estadosVisiblesEnHechos()) . "')
+                      AND cierre_ciclo.fecha_ejecucion IS NOT NULL
+                      AND cierre_ciclo.fecha_ejecucion >= pendiente_anterior.fecha_programada
+                  )
+            ) THEN 1 ELSE 0 END";
+    }
+
+    /**
+     * @param  array<string, mixed>  $fila
+     * @return array{etiqueta:string,clase:string}
+     */
+    private function resolverSituacionBaseFase(array $fila): array
+    {
+        $estadoVigente = trim((string) ($fila['estado_vigente'] ?? ''));
+        $proximaFecha = trim((string) ($fila['proxima_fecha_mantenimiento'] ?? ''));
+        $esPendienteAnterior = (int) ($fila['es_pendiente_anterior'] ?? 0) === 1;
+
+        if ($estadoVigente === EstadoMantenimientoVigenteService::EJECUTADO) {
+            return [
+                'etiqueta' => 'Mantenimiento realizado',
+                'clase' => 'estado-tabla-exito',
+            ];
+        }
+
+        if ($estadoVigente === EstadoMantenimientoVigenteService::PROGRAMADO) {
+            return [
+                'etiqueta' => 'Programado para el ' . $this->formatearFechaSituacion($proximaFecha),
+                'clase' => 'estado-tabla-info',
+            ];
+        }
+
+        if ($esPendienteAnterior) {
+            return [
+                'etiqueta' => 'Pendiente de periodo anterior',
+                'clase' => 'estado-tabla-alerta',
+            ];
+        }
+
+        if ($proximaFecha === '') {
+            return [
+                'etiqueta' => 'Requiere programación',
+                'clase' => 'estado-tabla-neutral',
+            ];
+        }
+
+        try {
+            $fechaMantenimiento = Carbon::parse($proximaFecha)->startOfDay();
+        } catch (\Throwable) {
+            return [
+                'etiqueta' => 'Requiere programación',
+                'clase' => 'estado-tabla-neutral',
+            ];
+        }
+
+        $hoy = today()->startOfDay();
+
+        if ($fechaMantenimiento->equalTo($hoy)) {
+            return [
+                'etiqueta' => 'Requiere atención hoy',
+                'clase' => 'estado-tabla-alerta',
+            ];
+        }
+
+        if ($fechaMantenimiento->lessThan($hoy)) {
+            $diasVencido = $fechaMantenimiento->diffInDays($hoy);
+
+            return [
+                'etiqueta' => 'Vencido hace ' . $diasVencido . ' día' . ($diasVencido === 1 ? '' : 's'),
+                'clase' => 'estado-tabla-alerta',
+            ];
+        }
+
+        return [
+            'etiqueta' => 'Requiere programación',
+            'clase' => 'estado-tabla-neutral',
+        ];
+    }
+
+    private function formatearFechaSituacion(string $valor): string
+    {
+        $valor = trim($valor);
+        if ($valor === '') {
+            return 'sin fecha';
+        }
+
+        try {
+            return Carbon::parse($valor)->format('d/m/Y');
+        } catch (\Throwable) {
+            return $valor;
+        }
     }
 
     public function listarActividadReciente(int $limite = 5, ?array $periodo = null): array
@@ -196,6 +458,78 @@ class MantenimientoRepository
     /**
      * @return array{0:\Illuminate\Database\Query\Builder,1:string,2:string}
      */
+    private function consultaActividadSemestralPorUsuario(string $aliasUsuario, string $inicio, string $fin): \Closure
+    {
+        return static function ($query) use ($aliasUsuario, $inicio, $fin): void {
+            $query->select(DB::raw(1))
+                ->from('mantenimientos as m')
+                ->whereColumn('m.usuario_id', $aliasUsuario . '.id')
+                ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) IS NOT NULL')
+                ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) BETWEEN ? AND ?', [$inicio . ' 00:00:00', $fin . ' 23:59:59']);
+        };
+    }
+
+    /**
+     * @return array{0:\Illuminate\Database\Query\Builder,1:string,2:string}
+     */
+    private function consultaNoExigiblesPorPeriodo(?array $periodo = null): array
+    {
+        $periodo = $periodo ?? $this->semestreService->actual();
+        [$inicio, $fin] = $this->rangoPeriodo($periodo);
+
+        $query = DB::table('usuarios as u')
+            ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
+            ->where('u.estado_usuario', 1)
+            ->whereNotNull('u.proxima_fecha_mantenimiento')
+            ->where('u.proxima_fecha_mantenimiento', '>', $fin)
+            ->whereNotExists($this->consultaActividadSemestralPorUsuario('u', $inicio, $fin));
+
+        return [$query, $inicio, $fin];
+    }
+
+    private function aplicarBusquedaNoExigibles($query, string $busqueda): void
+    {
+        $busqueda = trim($busqueda);
+        if ($busqueda === '') {
+            return;
+        }
+
+        $busquedaNormalizada = mb_strtolower($busqueda, 'UTF-8');
+        $query->where(function ($subquery) use ($busqueda, $busquedaNormalizada): void {
+            $subquery
+                ->whereRaw('LOWER(u.nombre) LIKE ?', ['%' . $busquedaNormalizada . '%'])
+                ->orWhereRaw("LOWER(COALESCE(a.nombre, 'SIN AREA')) LIKE ?", ['%' . $busquedaNormalizada . '%'])
+                ->orWhereRaw('CAST(u.codigo_activo AS CHAR) LIKE ?', ['%' . $busqueda . '%']);
+        });
+    }
+
+    private function aplicarFiltroMotivoNoExigible($query, string $motivo): void
+    {
+        $motivo = trim($motivo);
+
+        if ($motivo === NoExigibleReasonService::EQUIPO_NUEVO) {
+            $query->where('u.tipo_equipo', 'nuevo');
+            return;
+        }
+
+        if ($motivo === NoExigibleReasonService::FUERA_PERIODO) {
+            $query->where(function ($subquery): void {
+                $subquery->where('u.tipo_equipo', '<>', 'nuevo')
+                    ->orWhereNull('u.tipo_equipo');
+            });
+        }
+    }
+
+    private function resolverMotivoNoExigible(array $fila): string
+    {
+        return trim((string) ($fila['tipo_equipo'] ?? '')) === 'nuevo'
+            ? NoExigibleReasonService::EQUIPO_NUEVO
+            : NoExigibleReasonService::FUERA_PERIODO;
+    }
+
+    /**
+     * @return array{0:\Illuminate\Database\Query\Builder,1:string,2:string}
+     */
     private function consultaEquiposNuevosSinMantenimiento(?array $periodo = null): array
     {
         $periodo = $periodo ?? $this->semestreService->actual();
@@ -215,6 +549,51 @@ class MantenimientoRepository
         }
 
         return [$query, $inicio, $fin];
+    }
+
+    public function contarNoExigiblesPorPeriodo(string $busqueda = '', ?array $periodo = null, string $motivo = ''): int
+    {
+        [$query] = $this->consultaNoExigiblesPorPeriodo($periodo);
+        $this->aplicarBusquedaNoExigibles($query, $busqueda);
+        $this->aplicarFiltroMotivoNoExigible($query, $motivo);
+
+        return (int) $query->count('u.id');
+    }
+
+    public function listarNoExigiblesPorPeriodo(
+        int $limite,
+        int $desplazamiento,
+        string $busqueda = '',
+        ?array $periodo = null,
+        string $motivo = ''
+    ): array {
+        [$query] = $this->consultaNoExigiblesPorPeriodo($periodo);
+
+        $query->select([
+            'u.id as usuario_id',
+            'u.nombre',
+            'u.codigo_activo',
+            'u.tipo_equipo',
+            'u.estado_usuario',
+            DB::raw("COALESCE(a.nombre, 'SIN AREA') AS area_nombre"),
+            'u.fecha_ultimo_mantenimiento_base',
+            'u.proxima_fecha_mantenimiento',
+        ]);
+
+        $this->aplicarBusquedaNoExigibles($query, $busqueda);
+        $this->aplicarFiltroMotivoNoExigible($query, $motivo);
+
+        $query->orderBy('u.proxima_fecha_mantenimiento')
+            ->orderBy('u.nombre')
+            ->skip($desplazamiento)
+            ->take($limite);
+
+        return $query->get()->map(function ($row): array {
+            $fila = (array) $row;
+            $fila['motivo_codigo'] = $this->resolverMotivoNoExigible($fila);
+
+            return $fila;
+        })->all();
     }
 
     public function contarEquiposNuevosSinMantenimiento(string $busqueda = '', ?array $periodo = null): int
@@ -268,6 +647,32 @@ class MantenimientoRepository
         return $query->get()->map(static fn ($row) => (array) $row)->all();
     }
 
+
+
+    private function consultaPendienteAnteriorAbierto(string $aliasUsuario, string $inicio): \Closure
+    {
+        return static function ($query) use ($aliasUsuario, $inicio): void {
+            $query->select(DB::raw(1))
+                ->from('mantenimientos as pendiente_anterior')
+                ->whereColumn('pendiente_anterior.usuario_id', $aliasUsuario . '.id')
+                ->where('pendiente_anterior.estado', MantenimientoEstados::PENDIENTE)
+                ->where('pendiente_anterior.fecha_programada', '<', $inicio)
+                ->whereNotExists(function ($cierre) use ($aliasUsuario): void {
+                    $cierre->select(DB::raw(1))
+                        ->from('mantenimientos as cierre_ciclo')
+                        ->whereColumn('cierre_ciclo.usuario_id', $aliasUsuario . '.id')
+                        ->whereIn('cierre_ciclo.estado', MantenimientoEstados::estadosVisiblesEnHechos())
+                        ->whereNotNull('cierre_ciclo.fecha_ejecucion')
+                        ->whereColumn('cierre_ciclo.fecha_ejecucion', '>=', 'pendiente_anterior.fecha_programada');
+                });
+        };
+    }
+
+    private function aplicarCondicionExigibleEnProximos($query, string $inicio, string $fin): void
+    {
+        $query->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin]);
+    }
+
     public function contarProximosPorPeriodo(string $busqueda = '', ?array $periodo = null): int
     {
         $this->sincronizarPendientesProximosPorPeriodo($periodo);
@@ -278,18 +683,20 @@ class MantenimientoRepository
         $query = DB::table('usuarios as u')
             ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
             ->where('u.estado_usuario', 1)
-            ->whereNotNull('u.proxima_fecha_mantenimiento')
-            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
-            ->whereNotExists(function ($subquery) use ($inicio, $fin): void {
-                $subquery->select(DB::raw(1))
-                    ->from('mantenimientos as bloqueador')
-                    ->whereColumn('bloqueador.usuario_id', 'u.id')
-                    ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
-                    ->where(function ($query) use ($inicio, $fin): void {
-                        $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
-                            ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
-                    });
-            });
+            ->whereNotNull('u.proxima_fecha_mantenimiento');
+
+        $this->aplicarCondicionExigibleEnProximos($query, $inicio, $fin);
+
+        $query->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+            $subquery->select(DB::raw(1))
+                ->from('mantenimientos as bloqueador')
+                ->whereColumn('bloqueador.usuario_id', 'u.id')
+                ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                ->where(function ($query) use ($inicio, $fin): void {
+                    $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
+                        ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
+                });
+        });
 
         $busqueda = trim($busqueda);
         if ($busqueda !== '') {
@@ -339,24 +746,26 @@ class MantenimientoRepository
 
         $query = DB::table('usuarios as u')
             ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
-            ->leftJoin('mantenimientos as m', function ($join) use ($inicio, $fin): void {
+            ->leftJoin('mantenimientos as m', function ($join): void {
                 $join->on('m.usuario_id', '=', 'u.id')
                     ->where('m.estado', MantenimientoEstados::PENDIENTE)
-                    ->whereBetween('m.fecha_programada', [$inicio, $fin]);
+                    ->whereColumn('m.fecha_programada', 'u.proxima_fecha_mantenimiento');
             })
             ->where('u.estado_usuario', 1)
-            ->whereNotNull('u.proxima_fecha_mantenimiento')
-            ->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin])
-            ->whereNotExists(function ($subquery) use ($inicio, $fin): void {
-                $subquery->select(DB::raw(1))
-                    ->from('mantenimientos as bloqueador')
-                    ->whereColumn('bloqueador.usuario_id', 'u.id')
-                    ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
-                    ->where(function ($query) use ($inicio, $fin): void {
-                        $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
-                            ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
-                    });
-            })
+            ->whereNotNull('u.proxima_fecha_mantenimiento');
+
+        $this->aplicarCondicionExigibleEnProximos($query, $inicio, $fin);
+
+        $query->whereNotExists(function ($subquery) use ($inicio, $fin): void {
+            $subquery->select(DB::raw(1))
+                ->from('mantenimientos as bloqueador')
+                ->whereColumn('bloqueador.usuario_id', 'u.id')
+                ->whereIn('bloqueador.estado', MantenimientoEstados::estadosVisiblesEnProgramados())
+                ->where(function ($query) use ($inicio, $fin): void {
+                    $query->whereBetween('bloqueador.fecha_programada', [$inicio, $fin])
+                        ->orWhereBetween('bloqueador.fecha_ejecucion', [$inicio, $fin]);
+                });
+        })
             ->select([
                 'm.id as mantenimiento_id',
                 'u.id as usuario_id',
@@ -371,6 +780,7 @@ class MantenimientoRepository
                 'm.observaciones',
                 'm.tecnico_responsable',
                 'm.evidencia_pdf',
+                DB::raw("CASE WHEN EXISTS (SELECT 1 FROM mantenimientos as pendiente_anterior WHERE pendiente_anterior.usuario_id = u.id AND pendiente_anterior.estado = 'pendiente' AND pendiente_anterior.fecha_programada < '" . $inicio . "' AND NOT EXISTS (SELECT 1 FROM mantenimientos as cierre_ciclo WHERE cierre_ciclo.usuario_id = u.id AND cierre_ciclo.estado IN ('realizado', 'hecho') AND cierre_ciclo.fecha_ejecucion IS NOT NULL AND cierre_ciclo.fecha_ejecucion >= pendiente_anterior.fecha_programada)) THEN 1 ELSE 0 END AS es_vencido_anterior"),
             ]);
 
         $busqueda = trim($busqueda);
@@ -405,6 +815,11 @@ class MantenimientoRepository
                 $fila['ultimo_mantenimiento_texto'] = $tipoEquipo === 'nuevo' ? 'Equipo nuevo' : 'Sin historial';
             } else {
                 $fila['ultimo_mantenimiento_texto'] = '';
+            }
+
+            if ((int) ($fila['es_vencido_anterior'] ?? 0) == 1) {
+                $fila['pendiente_anterior_etiqueta'] = 'Pendiente anterior';
+                $fila['pendiente_anterior_clase'] = 'estado-tabla-alerta';
             }
         }
         unset($fila);
@@ -491,7 +906,13 @@ class MantenimientoRepository
                     continue;
                 }
 
-                $principal = $pendientes->shift();
+                $principal = $pendientes->firstWhere('fecha_programada', $proximaFecha);
+                if ($principal) {
+                    $pendientes = $pendientes->reject(static fn ($pendiente) => (int) $pendiente->id === (int) $principal->id)->values();
+                } else {
+                    $principal = $pendientes->shift();
+                }
+
                 if ($principal && trim((string) ($principal->fecha_programada ?? '')) !== $proximaFecha) {
                     DB::table('mantenimientos')
                         ->where('id', (int) $principal->id)

@@ -14,7 +14,7 @@ class UsuarioRepository
     ) {
     }
 
-    public function listarTodos(?string $busqueda = ''): array
+    public function listarTodos(?string $busqueda = '', ?int $estadoUsuario = null): array
     {
         $query = DB::table('usuarios as u')
             ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
@@ -31,6 +31,10 @@ class UsuarioRepository
             ])
             ->orderBy('area_nombre')
             ->orderBy('u.nombre');
+
+        if ($estadoUsuario === 0 || $estadoUsuario === 1) {
+            $query->where('u.estado_usuario', $estadoUsuario);
+        }
 
         $busqueda = trim((string) $busqueda);
         if ($busqueda !== '') {

@@ -34,6 +34,9 @@
 
     $editarId = (int) ($usuarioEdicion['id'] ?? 0);
     $busquedaActual = $busqueda ?? '';
+    $estadoUsuarioFiltro = isset($estadoUsuarioFiltro) && ($estadoUsuarioFiltro === 0 || $estadoUsuarioFiltro === 1)
+        ? (int) $estadoUsuarioFiltro
+        : null;
 @endphp
 
 <section class="card users-module-shell users-module-shell--table" id="usuarios-listado" data-panel-filter-live-target>
@@ -89,7 +92,11 @@
                                 [
                                     'type' => 'link',
                                     'label' => 'Editar usuario',
-                                    'href' => route('panel.usuarios', ['q_usuarios' => $busquedaActual, 'editar_usuario_id' => $fila['id']]),
+                                    'href' => route('panel.usuarios', array_filter([
+                                        'q_usuarios' => $busquedaActual,
+                                        'editar_usuario_id' => $fila['id'],
+                                        'estado_usuario' => $estadoUsuarioFiltro,
+                                    ], static fn ($valor) => $valor !== null && $valor !== '')),
                                 ],
                                 [
                                     'type' => 'form',
@@ -99,6 +106,7 @@
                                         'usuario_id' => $fila['id'],
                                         'nuevo_estado' => $estadoActivo ? 0 : 1,
                                         'filtro_q_usuarios' => $busquedaActual,
+                                        'estado_usuario' => $estadoUsuarioFiltro,
                                         'return_url' => request()->fullUrl(),
                                     ],
                                 ],
@@ -111,6 +119,7 @@
                                     'fields' => [
                                         'usuario_id' => $fila['id'],
                                         'filtro_q_usuarios' => $busquedaActual,
+                                        'estado_usuario' => $estadoUsuarioFiltro,
                                         'return_url' => request()->fullUrl(),
                                     ],
                                 ],
@@ -148,7 +157,11 @@
 
     @if (is_object($usuariosObjeto) && method_exists($usuariosObjeto, 'links'))
         <div class="pager panel-spaced">
-            {{ $usuariosObjeto->appends(['q_usuarios' => $busquedaActual, 'editar_usuario_id' => $editarId ?: null])->links() }}
+            {{ $usuariosObjeto->appends(array_filter([
+                'q_usuarios' => $busquedaActual,
+                'editar_usuario_id' => $editarId ?: null,
+                'estado_usuario' => $estadoUsuarioFiltro,
+            ], static fn ($valor) => $valor !== null && $valor !== ''))->links() }}
         </div>
     @endif
 </section>

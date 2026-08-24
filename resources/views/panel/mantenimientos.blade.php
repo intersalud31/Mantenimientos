@@ -140,6 +140,11 @@
                             @else
                                 <div>—</div>
                             @endif
+                            @if ((int) ($item['es_vencido_anterior'] ?? 0) === 1)
+                                <div>
+                                    <span class="estado-tabla {{ $item['pendiente_anterior_clase'] ?? 'estado-tabla-alerta' }}">{{ $item['pendiente_anterior_etiqueta'] ?? 'Pendiente anterior' }}</span>
+                                </div>
+                            @endif
                         </td>
                         <td>
                             <div class="maintenance-action-summary">

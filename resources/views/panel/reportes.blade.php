@@ -54,6 +54,20 @@
             flex-wrap: wrap;
         }
 
+        body.dashboard-modern .reportes-metric-link {
+            text-decoration: none;
+            color: inherit;
+            transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease;
+        }
+
+        body.dashboard-modern .reportes-metric-link:hover,
+        body.dashboard-modern .reportes-metric-link:focus-visible {
+            background: #f8fbff;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .14);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
         body.dashboard-modern .reportes-compliance {
             padding: 18px 20px;
             border-radius: 20px;
@@ -283,11 +297,6 @@
                 <h1 class="module-header-title">Dashboard</h1>
                 <p class="module-header-subtitle">Consulta el cumplimiento del periodo y la actividad operativa registrada para cada semestre.</p>
             </div>
-            <div class="reportes-module-actions">
-                <a class="chip chip--neutral" href="{{ route('panel.reportes.equipos-nuevos') }}">
-                    Equipos nuevos sin mantenimiento
-                </a>
-            </div>
         </section>
 
         <div class="reportes-filter-wrap">
@@ -339,7 +348,7 @@
                 <div class="reportes-compliance-ratio">{{ $resumenSemestral['total_realizados'] ?? 0 }} de {{ $resumenSemestral['total_base_fase'] ?? 0 }}</div>
 
                 <p class="muted reportes-compliance-note">
-                    Relación entre mantenimientos ejecutados y la base de fase considerada para el periodo.
+                    Relación entre mantenimientos ejecutados y los equipos a gestionar considerados para el periodo.
                 </p>
 
                 <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $cumplimientoVisual }}" aria-valuetext="{{ $cumplimiento }} por ciento de cumplimiento">
@@ -348,36 +357,60 @@
             </div>
 
             <div class="reportes-metrics" aria-label="Indicadores del periodo">
-                <article class="reportes-metric reportes-metric--primary">
+                <a
+                    class="reportes-metric reportes-metric--primary reportes-metric-link"
+                    href="{{ route('panel.usuarios', array_merge($periodoQuery, ['estado_usuario' => 1])) }}"
+                    aria-label="Ver detalle de usuarios activos del periodo"
+                >
                     <span>Usuarios activos</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_usuarios'] ?? 0) }}</strong>
                     <p>Usuarios habilitados dentro del periodo consultado.</p>
-                </article>
-                <article class="reportes-metric">
-                    <span>Base de fase</span>
+                </a>
+                <a
+                    class="reportes-metric reportes-metric-link"
+                    href="{{ route('panel.reportes.base-fase', $periodoQuery) }}"
+                    aria-label="Ver detalle de equipos a gestionar del periodo"
+                >
+                    <span>Equipos a gestionar</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_base_fase'] ?? 0) }}</strong>
-                    <p>Usuarios considerados para el cálculo del semestre.</p>
-                </article>
-                <article class="reportes-metric reportes-metric--warning">
+                    <p>Equipos activos que requieren seguimiento de mantenimiento durante el periodo.</p>
+                </a>
+                <a
+                    class="reportes-metric reportes-metric--warning reportes-metric-link"
+                    href="{{ route('panel.reportes.equipos-nuevos', $periodoQuery) }}"
+                    aria-label="Ver detalle de usuarios no exigibles del periodo"
+                >
                     <span>No exigibles</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_no_exigibles'] ?? 0) }}</strong>
-                    <p>Usuarios fuera de la base evaluada para este periodo.</p>
-                </article>
-                <article class="reportes-metric reportes-metric--success">
+                    <p>Usuarios activos cuya exigencia de mantenimiento queda fuera del periodo consultado.</p>
+                </a>
+                <a
+                    class="reportes-metric reportes-metric--success reportes-metric-link"
+                    href="{{ route('panel.hechos', $periodoQuery) }}"
+                    aria-label="Ver detalle de mantenimientos ejecutados del periodo"
+                >
                     <span>Ejecutados</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_realizados'] ?? 0) }}</strong>
                     <p>Mantenimientos ejecutados durante el periodo.</p>
-                </article>
-                <article class="reportes-metric reportes-metric--primary">
+                </a>
+                <a
+                    class="reportes-metric reportes-metric--primary reportes-metric-link"
+                    href="{{ route('panel.programados', $periodoQuery) }}"
+                    aria-label="Ver detalle de mantenimientos programados del periodo"
+                >
                     <span>Programados</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_programados'] ?? 0) }}</strong>
                     <p>Mantenimientos programados que siguen vigentes.</p>
-                </article>
-                <article class="reportes-metric reportes-metric--warning">
+                </a>
+                <a
+                    class="reportes-metric reportes-metric--warning reportes-metric-link"
+                    href="{{ route('panel.reportes.pendientes', $periodoQuery) }}"
+                    aria-label="Ver detalle de mantenimientos pendientes del periodo"
+                >
                     <span>Pendientes</span>
                     <strong>{{ $formatearNumero($resumenSemestral['total_pendientes'] ?? 0) }}</strong>
                     <p>Mantenimientos aún sin ejecutar en el periodo.</p>
-                </article>
+                </a>
             </div>
         </section>
 

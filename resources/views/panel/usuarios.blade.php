@@ -62,6 +62,9 @@
 
             $editarId = (int) ($usuarioEdicion['id'] ?? 0);
             $busquedaActual = $busqueda ?? '';
+            $estadoUsuarioFiltro = isset($estadoUsuarioFiltro) && ($estadoUsuarioFiltro === 0 || $estadoUsuarioFiltro === 1)
+                ? (int) $estadoUsuarioFiltro
+                : null;
             $placeholderUsuarios = html_entity_decode('Nombre, c&oacute;digo de activo, serial o &aacute;rea', ENT_QUOTES, 'UTF-8');
             $abrirCrearUsuario = old('form_context') === 'crear_usuario';
             $fechaBaseCrear = old('fecha_ultimo_mantenimiento_base', '');
@@ -127,7 +130,13 @@
                 target="#usuarios-listado"
                 debounce="500"
                 loading-label="Buscando..."
-            />
+            >
+                <x-slot:hidden>
+                    @if ($estadoUsuarioFiltro !== null)
+                        <input type="hidden" name="estado_usuario" value="{{ $estadoUsuarioFiltro }}">
+                    @endif
+                </x-slot:hidden>
+            </x-panel.live-search>
         </section>
 
         <div class="user-modal-shell" data-user-create-modal @if($abrirCrearUsuario) aria-hidden="false" @else hidden aria-hidden="true" @endif>
