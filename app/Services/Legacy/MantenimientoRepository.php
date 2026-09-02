@@ -17,7 +17,8 @@ class MantenimientoRepository
         private readonly TextoLegacyNormalizer $textoNormalizer,
         private readonly SemestreService $semestreService,
         private readonly PeriodicidadMantenimientoService $periodicidadService,
-        private readonly EstadoMantenimientoVigenteService $estadoVigenteService
+        private readonly EstadoMantenimientoVigenteService $estadoVigenteService,
+        private readonly MantenimientoEventoRepository $eventoRepository
     ) {
     }
 
@@ -167,12 +168,10 @@ class MantenimientoRepository
         $query = DB::table('usuarios as u')
             ->leftJoin('areas as a', 'a.id', '=', 'u.area_id')
             ->where('u.estado_usuario', 1)
-            ->whereExists(function ($subquery) use ($inicio, $fin): void {
-                $subquery->select(DB::raw(1))
-                    ->from('mantenimientos as m')
-                    ->whereColumn('m.usuario_id', 'u.id')
-                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) IS NOT NULL')
-                    ->whereRaw('COALESCE(m.fecha_ejecucion, m.fecha_programada) BETWEEN ? AND ?', [$inicio . ' 00:00:00', $fin . ' 23:59:59']);
+            ->where(function ($subquery) use ($inicio, $fin): void {
+                $subquery
+                    ->whereExists($this->consultaActividadSemestralPorUsuario('u', $inicio, $fin))
+                    ->orWhereExists($this->consultaPendienteAnteriorAbierto('u', $inicio));
             });
 
         return [$query, $inicio, $fin];
@@ -323,12 +322,14 @@ class MantenimientoRepository
 
     private function sqlPendienteAnteriorAbierto(string $aliasUsuario, string $inicio): string
     {
+        $estadosAbiertos = implode("','", $this->estadosAbiertosPendienteAnterior());
+
         return "CASE
             WHEN EXISTS (
                 SELECT 1
                 FROM mantenimientos as pendiente_anterior
                 WHERE pendiente_anterior.usuario_id = {$aliasUsuario}.id
-                  AND pendiente_anterior.estado = '" . MantenimientoEstados::PENDIENTE . "'
+                  AND pendiente_anterior.estado IN ('{$estadosAbiertos}')
                   AND pendiente_anterior.fecha_programada < '{$inicio}'
                   AND NOT EXISTS (
                     SELECT 1
@@ -358,17 +359,17 @@ class MantenimientoRepository
             ];
         }
 
-        if ($estadoVigente === EstadoMantenimientoVigenteService::PROGRAMADO) {
-            return [
-                'etiqueta' => 'Programado para el ' . $this->formatearFechaSituacion($proximaFecha),
-                'clase' => 'estado-tabla-info',
-            ];
-        }
-
         if ($esPendienteAnterior) {
             return [
                 'etiqueta' => 'Pendiente de periodo anterior',
                 'clase' => 'estado-tabla-alerta',
+            ];
+        }
+
+        if ($estadoVigente === EstadoMantenimientoVigenteService::PROGRAMADO) {
+            return [
+                'etiqueta' => 'Programado para el ' . $this->formatearFechaSituacion($proximaFecha),
+                'clase' => 'estado-tabla-info',
             ];
         }
 
@@ -482,7 +483,8 @@ class MantenimientoRepository
             ->where('u.estado_usuario', 1)
             ->whereNotNull('u.proxima_fecha_mantenimiento')
             ->where('u.proxima_fecha_mantenimiento', '>', $fin)
-            ->whereNotExists($this->consultaActividadSemestralPorUsuario('u', $inicio, $fin));
+            ->whereNotExists($this->consultaActividadSemestralPorUsuario('u', $inicio, $fin))
+            ->whereNotExists($this->consultaPendienteAnteriorAbierto('u', $inicio));
 
         return [$query, $inicio, $fin];
     }
@@ -651,11 +653,13 @@ class MantenimientoRepository
 
     private function consultaPendienteAnteriorAbierto(string $aliasUsuario, string $inicio): \Closure
     {
-        return static function ($query) use ($aliasUsuario, $inicio): void {
+        $estadosAbiertos = $this->estadosAbiertosPendienteAnterior();
+
+        return static function ($query) use ($aliasUsuario, $inicio, $estadosAbiertos): void {
             $query->select(DB::raw(1))
                 ->from('mantenimientos as pendiente_anterior')
                 ->whereColumn('pendiente_anterior.usuario_id', $aliasUsuario . '.id')
-                ->where('pendiente_anterior.estado', MantenimientoEstados::PENDIENTE)
+                ->whereIn('pendiente_anterior.estado', $estadosAbiertos)
                 ->where('pendiente_anterior.fecha_programada', '<', $inicio)
                 ->whereNotExists(function ($cierre) use ($aliasUsuario): void {
                     $cierre->select(DB::raw(1))
@@ -671,6 +675,17 @@ class MantenimientoRepository
     private function aplicarCondicionExigibleEnProximos($query, string $inicio, string $fin): void
     {
         $query->whereBetween('u.proxima_fecha_mantenimiento', [$inicio, $fin]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function estadosAbiertosPendienteAnterior(): array
+    {
+        return array_values(array_unique(array_merge(
+            MantenimientoEstados::estadosVisiblesEnProximos(),
+            MantenimientoEstados::estadosVisiblesEnProgramados()
+        )));
     }
 
     public function contarProximosPorPeriodo(string $busqueda = '', ?array $periodo = null): int
@@ -780,7 +795,7 @@ class MantenimientoRepository
                 'm.observaciones',
                 'm.tecnico_responsable',
                 'm.evidencia_pdf',
-                DB::raw("CASE WHEN EXISTS (SELECT 1 FROM mantenimientos as pendiente_anterior WHERE pendiente_anterior.usuario_id = u.id AND pendiente_anterior.estado = 'pendiente' AND pendiente_anterior.fecha_programada < '" . $inicio . "' AND NOT EXISTS (SELECT 1 FROM mantenimientos as cierre_ciclo WHERE cierre_ciclo.usuario_id = u.id AND cierre_ciclo.estado IN ('realizado', 'hecho') AND cierre_ciclo.fecha_ejecucion IS NOT NULL AND cierre_ciclo.fecha_ejecucion >= pendiente_anterior.fecha_programada)) THEN 1 ELSE 0 END AS es_vencido_anterior"),
+                DB::raw($this->sqlPendienteAnteriorAbierto('u', $inicio) . ' AS es_vencido_anterior'),
             ]);
 
         $busqueda = trim($busqueda);
@@ -1487,6 +1502,80 @@ class MantenimientoRepository
         });
     }
 
+    public function programarDesdeProximos(
+        int $mantenimientoId,
+        string $fechaProgramada,
+        ?int $usuarioSistemaId = null,
+        ?string $ip = null
+    ): array {
+        if ($mantenimientoId <= 0) {
+            return ['ok' => false, 'mensaje' => 'Identificador de mantenimiento invalido.'];
+        }
+
+        try {
+            return DB::transaction(function () use ($mantenimientoId, $fechaProgramada, $usuarioSistemaId, $ip) {
+                $registro = DB::table('mantenimientos as m')
+                    ->join('usuarios as u', 'u.id', '=', 'm.usuario_id')
+                    ->where('m.id', $mantenimientoId)
+                    ->whereIn('m.estado', MantenimientoEstados::estadosProgramables())
+                    ->where('u.estado_usuario', 1)
+                    ->select(
+                        'm.id',
+                        'm.usuario_id',
+                        'm.estado',
+                        'm.fecha_programada',
+                        'm.fecha_ejecucion',
+                        'm.tecnico_responsable',
+                        'm.observaciones'
+                    )
+                    ->first();
+
+                if (!$registro) {
+                    return ['ok' => false, 'mensaje' => 'No fue posible programar el mantenimiento.'];
+                }
+
+                $datosAntes = $this->capturarDatosEventoProgramacion($registro);
+
+                DB::table('mantenimientos')
+                    ->where('id', $mantenimientoId)
+                    ->update([
+                        'estado' => MantenimientoEstados::PROGRAMADO,
+                        'fecha_programada' => $fechaProgramada,
+                        'updated_at' => now(),
+                    ]);
+
+                $datosDespues = [
+                    'estado' => MantenimientoEstados::PROGRAMADO,
+                    'fecha_programada' => $fechaProgramada,
+                    'fecha_ejecucion' => null,
+                    'tecnico_responsable' => trim((string) ($registro->tecnico_responsable ?? '')) ?: null,
+                    'observaciones' => is_string($registro->observaciones) && trim($registro->observaciones) !== ''
+                        ? $registro->observaciones
+                        : null,
+                ];
+
+                $this->eventoRepository->registrarEvento(
+                    (int) $registro->id,
+                    MantenimientoEstados::PROGRAMADO,
+                    'Se programo el mantenimiento desde Proximos sin modificar las observaciones manuales.',
+                    $datosAntes,
+                    $datosDespues,
+                    $usuarioSistemaId,
+                    $ip
+                );
+
+                $this->resumenService->sincronizarResumenUsuario(
+                    (int) $registro->usuario_id,
+                    $this->semestreService->semestreDeFecha($fechaProgramada)
+                );
+
+                return ['ok' => true, 'mensaje' => 'Mantenimiento programado correctamente.'];
+            });
+        } catch (\Throwable) {
+            return ['ok' => false, 'mensaje' => 'No fue posible programar el mantenimiento.'];
+        }
+    }
+
     private function calcularProximaSemestralDesde(string $fechaBase): string
     {
         $fecha = DateTimeImmutable::createFromFormat('Y-m-d', $fechaBase);
@@ -1650,41 +1739,152 @@ class MantenimientoRepository
         });
     }
 
-    public function revertirAccionesPorCodigoActivo(int $codigoActivo, int $cantidad): array
+    public function marcarProgramadoComoHechoDesdeProgramados(
+        int $mantenimientoId,
+        string $fechaEjecucion,
+        string $tecnicoResponsable,
+        string $observaciones,
+        string $evidenciaPdf,
+        ?int $usuarioSistemaId = null,
+        ?string $ip = null
+    ): array {
+        try {
+            return DB::transaction(function () use (
+                $mantenimientoId,
+                $fechaEjecucion,
+                $tecnicoResponsable,
+                $observaciones,
+                $evidenciaPdf,
+                $usuarioSistemaId,
+                $ip
+            ) {
+                $registro = DB::table('mantenimientos as m')
+                    ->join('usuarios as u', 'u.id', '=', 'm.usuario_id')
+                    ->where('m.id', $mantenimientoId)
+                    ->where('u.estado_usuario', 1)
+                    ->select(
+                        'm.id',
+                        'm.usuario_id',
+                        'm.estado',
+                        'm.fecha_programada',
+                        'm.fecha_ejecucion',
+                        'm.tecnico_responsable',
+                        'm.observaciones',
+                        'm.evidencia_pdf'
+                    )
+                    ->first();
+
+                $estadoRegistro = $registro ? MantenimientoEstados::normalizar((string) $registro->estado) : '';
+                if (!$registro || !in_array($estadoRegistro, MantenimientoEstados::estadosVisiblesEnProgramados(), true)) {
+                    return ['ok' => false, 'mensaje' => 'No fue posible marcar como hecho.'];
+                }
+
+                $observacionHumana = $this->normalizarObservacionHumana($observaciones);
+                $datosAntes = $this->capturarDatosEventoHecho($registro);
+
+                DB::table('mantenimientos')
+                    ->where('id', $mantenimientoId)
+                    ->update([
+                        'estado' => MantenimientoEstados::REALIZADO,
+                        'fecha_ejecucion' => $fechaEjecucion,
+                        'tecnico_responsable' => trim($tecnicoResponsable),
+                        'observaciones' => $observacionHumana,
+                        'evidencia_pdf' => trim($evidenciaPdf),
+                        'updated_at' => now(),
+                    ]);
+
+                $datosDespues = [
+                    'estado' => MantenimientoEstados::REALIZADO,
+                    'fecha_programada' => trim((string) ($registro->fecha_programada ?? '')) ?: null,
+                    'fecha_ejecucion' => $fechaEjecucion,
+                    'tecnico_responsable' => trim($tecnicoResponsable) !== '' ? trim($tecnicoResponsable) : null,
+                    'observaciones' => $observacionHumana,
+                    'evidencia_pdf' => trim($evidenciaPdf) !== '' ? trim($evidenciaPdf) : null,
+                ];
+
+                $this->eventoRepository->registrarEvento(
+                    (int) $registro->id,
+                    'realizado',
+                    'Se marco el mantenimiento como ejecutado desde Programados sin modificar las observaciones manuales.',
+                    $datosAntes,
+                    $datosDespues,
+                    $usuarioSistemaId,
+                    $ip
+                );
+
+                $siguiente = $this->periodicidadService->fechaProximaDesde(
+                    $fechaEjecucion,
+                    $this->periodicidadService->cicloMantenimientoMeses()
+                );
+                if ($siguiente === null) {
+                    return ['ok' => false, 'mensaje' => 'No fue posible calcular la siguiente fecha de mantenimiento.'];
+                }
+
+                $this->asegurarPendienteSemestral(
+                    (int) $registro->usuario_id,
+                    $siguiente,
+                    'Generado automatico despues de marcar Hecho.'
+                );
+
+                $this->resumenService->sincronizarResumenUsuario(
+                    (int) $registro->usuario_id,
+                    $this->semestreService->semestreDeFecha($fechaEjecucion)
+                );
+
+                return [
+                    'ok' => true,
+                    'mensaje' => 'Mantenimiento marcado como hecho. Se registro la ejecucion y se genero el siguiente mantenimiento a ' . $this->periodicidadService->etiquetaMeses($this->periodicidadService->cicloMantenimientoMeses()) . '.',
+                ];
+            });
+        } catch (\Throwable) {
+            return ['ok' => false, 'mensaje' => 'No fue posible marcar como hecho.'];
+        }
+    }
+
+    public function revertirAccionesPorCodigoActivo(
+        int $codigoActivo,
+        int $cantidad,
+        ?int $usuarioSistemaId = null,
+        ?string $ip = null
+    ): array
     {
         $cantidad = max(1, min(10, $cantidad));
 
-        return DB::transaction(function () use ($codigoActivo, $cantidad) {
-            $usuarioId = $this->obtenerUsuarioIdPorCodigoActivo($codigoActivo);
-            if ($usuarioId === null) {
-                return ['ok' => false, 'mensaje' => 'No existe un usuario con ese codigo activo.'];
-            }
-
-            $reversionesAplicadas = 0;
-            for ($i = 0; $i < $cantidad; $i++) {
-                $accionRevertida = $this->revertirUnaAccionInterna($usuarioId);
-                if ($accionRevertida === null) {
-                    break;
+        try {
+            return DB::transaction(function () use ($codigoActivo, $cantidad, $usuarioSistemaId, $ip) {
+                $usuarioId = $this->obtenerUsuarioIdPorCodigoActivo($codigoActivo);
+                if ($usuarioId === null) {
+                    return ['ok' => false, 'mensaje' => 'No existe un usuario con ese codigo activo.'];
                 }
-                $reversionesAplicadas++;
 
-                $periodo = is_array($accionRevertida['periodo'] ?? null) ? $accionRevertida['periodo'] : null;
-                $this->resumenService->sincronizarResumenUsuario($usuarioId, $periodo);
-            }
+                $reversionesAplicadas = 0;
+                for ($i = 0; $i < $cantidad; $i++) {
+                    $accionRevertida = $this->revertirUnaAccionInterna($usuarioId, $usuarioSistemaId, $ip, $codigoActivo);
+                    if ($accionRevertida === null) {
+                        break;
+                    }
+                    $reversionesAplicadas++;
 
-            if ($reversionesAplicadas === 0) {
-                return ['ok' => false, 'mensaje' => 'No hay acciones reversibles para este usuario.'];
-            }
+                    $periodo = is_array($accionRevertida['periodo'] ?? null) ? $accionRevertida['periodo'] : null;
+                    $this->resumenService->sincronizarResumenUsuario($usuarioId, $periodo);
+                }
 
-            if ($reversionesAplicadas < $cantidad) {
-                return [
-                    'ok' => true,
-                    'mensaje' => 'Se revirtieron ' . $reversionesAplicadas . ' accion(es). No habia mas acciones reversibles.',
-                ];
-            }
+                if ($reversionesAplicadas === 0) {
+                    return ['ok' => false, 'mensaje' => 'No hay acciones reversibles para este usuario.'];
+                }
 
-            return ['ok' => true, 'mensaje' => 'Se revirtieron ' . $reversionesAplicadas . ' accion(es) correctamente.'];
-        });
+                if ($reversionesAplicadas < $cantidad) {
+                    return [
+                        'ok' => true,
+                        'mensaje' => 'Se revirtieron ' . $reversionesAplicadas . ' accion(es). No habia mas acciones reversibles.',
+                    ];
+                }
+
+                return ['ok' => true, 'mensaje' => 'Se revirtieron ' . $reversionesAplicadas . ' accion(es) correctamente.'];
+            });
+        } catch (\Throwable) {
+            return ['ok' => false, 'mensaje' => 'No fue posible revertir la accion.'];
+        }
     }
 
     private function obtenerUsuarioIdPorCodigoActivo(int $codigoActivo): ?int
@@ -1697,7 +1897,12 @@ class MantenimientoRepository
         return $fila ? (int) $fila->id : null;
     }
 
-    private function revertirUnaAccionInterna(int $usuarioId): ?array
+    private function revertirUnaAccionInterna(
+        int $usuarioId,
+        ?int $usuarioSistemaId = null,
+        ?string $ip = null,
+        ?int $codigoActivo = null
+    ): ?array
     {
         $ultimoProgramado = $this->buscarUltimoProgramadoReversible($usuarioId);
         $ultimoRealizado = $this->buscarUltimoRealizadoReversible($usuarioId);
@@ -1710,10 +1915,26 @@ class MantenimientoRepository
         }
 
         if ($tsRealizado !== false && ($tsProgramado === false || $tsRealizado >= $tsProgramado)) {
-            $pendienteAuto = $this->buscarPendienteAutomatico($usuarioId);
+            $fechaReferencia = trim((string) ($ultimoRealizado['fecha_ejecucion'] ?? $ultimoRealizado['fecha_programada'] ?? ''));
+            $fechaSiguiente = $fechaReferencia !== ''
+                ? $this->periodicidadService->fechaProximaDesde($fechaReferencia, $this->periodicidadService->cicloMantenimientoMeses())
+                : null;
+
+            if ($fechaSiguiente === null) {
+                return null;
+            }
+
+            $pendienteAuto = $this->buscarPendienteAutomatico($usuarioId, $fechaSiguiente);
             if (!is_array($pendienteAuto)) {
                 return null;
             }
+
+            $datosAntes = $this->capturarDatosEventoHecho($ultimoRealizado);
+            $datosAntes['pendiente_automatico'] = $this->capturarDatosEventoPendienteAutomatico($pendienteAuto);
+            $datosAntes['reversion'] = $this->datosContextoReversion(
+                'HECHO', $usuarioId, $codigoActivo,
+                $this->origenReversibilidad((int) $ultimoRealizado['id'], ['realizado'])
+            );
 
             DB::table('mantenimientos')
                 ->where('id', (int) $pendienteAuto['id'])
@@ -1724,7 +1945,6 @@ class MantenimientoRepository
                 ->update([
                     'estado' => MantenimientoEstados::PROGRAMADO,
                     'fecha_ejecucion' => null,
-                    'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' | Revertido desde modulo Reversiones (HECHO).')"),
                     'updated_at' => now(),
                 ]);
 
@@ -1732,7 +1952,27 @@ class MantenimientoRepository
                 return null;
             }
 
-            $fechaReferencia = trim((string) ($ultimoRealizado['fecha_ejecucion'] ?? $ultimoRealizado['fecha_programada'] ?? ''));
+            $registroActualizado = DB::table('mantenimientos')
+                ->select('id', 'estado', 'fecha_programada', 'fecha_ejecucion', 'tecnico_responsable', 'observaciones', 'evidencia_pdf')
+                ->where('id', (int) $ultimoRealizado['id'])
+                ->first();
+
+            $datosDespues = $registroActualizado ? $this->capturarDatosEventoHecho($registroActualizado) : [];
+            $datosDespues['pendiente_automatico'] = $this->capturarDatosEventoPendienteAutomatico($pendienteAuto);
+            $datosDespues['reversion'] = $this->datosContextoReversion(
+                'HECHO', $usuarioId, $codigoActivo,
+                $this->origenReversibilidad((int) $ultimoRealizado['id'], ['realizado']), 'programado'
+            );
+
+            $this->eventoRepository->registrarEvento(
+                (int) $ultimoRealizado['id'],
+                'revertido',
+                'Se revirtio la ejecucion del mantenimiento y se restauro el estado Programado sin modificar las observaciones manuales.',
+                $datosAntes,
+                $datosDespues,
+                $usuarioSistemaId,
+                $ip
+            );
 
             return [
                 'tipo' => 'HECHO',
@@ -1740,17 +1980,43 @@ class MantenimientoRepository
             ];
         }
 
+        $datosAntes = $this->capturarDatosEventoHecho($ultimoProgramado);
+        $datosAntes['reversion'] = $this->datosContextoReversion(
+            'PROGRAMAR', $usuarioId, $codigoActivo,
+            $this->origenReversibilidad((int) $ultimoProgramado['id'], ['programado', 'revertido'])
+        );
+
         $actualizado = DB::table('mantenimientos')
             ->where('id', (int) $ultimoProgramado['id'])
             ->update([
                 'estado' => MantenimientoEstados::PENDIENTE,
-                'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' | Revertido desde modulo Reversiones (PROGRAMAR).')"),
                 'updated_at' => now(),
             ]);
 
         if ($actualizado <= 0) {
             return null;
         }
+
+        $registroActualizado = DB::table('mantenimientos')
+            ->select('id', 'estado', 'fecha_programada', 'fecha_ejecucion', 'tecnico_responsable', 'observaciones', 'evidencia_pdf')
+            ->where('id', (int) $ultimoProgramado['id'])
+            ->first();
+
+        $datosDespues = $registroActualizado ? $this->capturarDatosEventoHecho($registroActualizado) : [];
+        $datosDespues['reversion'] = $this->datosContextoReversion(
+            'PROGRAMAR', $usuarioId, $codigoActivo,
+            $this->origenReversibilidad((int) $ultimoProgramado['id'], ['programado', 'revertido']), 'pendiente'
+        );
+
+        $this->eventoRepository->registrarEvento(
+            (int) $ultimoProgramado['id'],
+            'revertido',
+            'Se revirtio la programacion del mantenimiento y se restauro el estado Pendiente sin modificar las observaciones manuales.',
+            $datosAntes,
+            $datosDespues,
+            $usuarioSistemaId,
+            $ip
+        );
 
         $fechaReferencia = trim((string) ($ultimoProgramado['fecha_programada'] ?? ''));
 
@@ -1760,48 +2026,95 @@ class MantenimientoRepository
         ];
     }
 
+    private function datosContextoReversion(
+        string $tipoReversion,
+        int $usuarioId,
+        ?int $codigoActivo,
+        string $origenReversibilidad,
+        ?string $estadoNuevo = null
+    ): array {
+        return array_filter([
+            'tipo_reversion' => $tipoReversion,
+            'codigo_activo' => $codigoActivo,
+            'usuario_id' => $usuarioId,
+            'origen_reversibilidad' => $origenReversibilidad,
+            'estado_nuevo' => $estadoNuevo,
+        ], static fn ($valor) => $valor !== null);
+    }
+
+    private function origenReversibilidad(int $mantenimientoId, array $tiposEvento): string
+    {
+        return $this->reversiblePorEvento($mantenimientoId, $tiposEvento)
+            ? 'evento'
+            : 'observaciones_legacy';
+    }
+
     private function buscarUltimoProgramadoReversible(int $usuarioId): ?array
     {
-        $fila = DB::table('mantenimientos')
-            ->select('id', 'updated_at', 'fecha_programada')
+        $filas = DB::table('mantenimientos')
+            ->select('id', 'updated_at', 'fecha_programada', 'observaciones', 'estado', 'fecha_ejecucion', 'tecnico_responsable', 'evidencia_pdf')
             ->where('usuario_id', $usuarioId)
             ->whereIn('estado', MantenimientoEstados::estadosReversiblesComoProgramado())
-            ->where(function ($query): void {
-                    $query->where('observaciones', 'like', '%Programado desde modulo Proximos.%')
-                    ->orWhere('observaciones', 'like', '%Hecho desde modulo Programados.%')
-                    ->orWhere('observaciones', 'like', '%Revertido desde modulo Reversiones (HECHO).%');
-            })
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first();
+            ->get();
 
-        return $fila ? (array) $fila : null;
+        foreach ($filas as $fila) {
+            $registro = (array) $fila;
+            if ($this->esProgramadoReversible($registro)) {
+                return $registro;
+            }
+        }
+
+        return null;
     }
 
     private function buscarUltimoRealizadoReversible(int $usuarioId): ?array
     {
-        $fila = DB::table('mantenimientos')
-            ->select('id', 'updated_at', 'fecha_programada', 'fecha_ejecucion')
+        $filas = DB::table('mantenimientos')
+            ->select('id', 'updated_at', 'fecha_programada', 'fecha_ejecucion', 'observaciones', 'estado', 'tecnico_responsable', 'evidencia_pdf')
             ->where('usuario_id', $usuarioId)
             ->whereIn('estado', MantenimientoEstados::estadosReversiblesComoHecho())
-            ->where('observaciones', 'like', '%Hecho desde modulo Programados.%')
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first();
+            ->get();
 
-        return $fila ? (array) $fila : null;
+        foreach ($filas as $fila) {
+            $registro = (array) $fila;
+            if ($this->esRealizadoReversible($registro)) {
+                return $registro;
+            }
+        }
+
+        return null;
     }
 
-    private function buscarPendienteAutomatico(int $usuarioId): ?array
+    private function buscarPendienteAutomatico(int $usuarioId, ?string $fechaProgramada = null): ?array
     {
-        $fila = DB::table('mantenimientos')
-            ->select('id')
+        $query = DB::table('mantenimientos')
+            ->select('id', 'usuario_id', 'fecha_programada', 'estado', 'fecha_ejecucion', 'tecnico_responsable', 'observaciones', 'evidencia_pdf', 'created_at', 'updated_at')
             ->where('usuario_id', $usuarioId)
             ->whereIn('estado', MantenimientoEstados::estadosVisiblesEnProximos())
-            ->where('observaciones', 'like', 'Generado automatico despues de marcar Hecho.%')
+            ->whereNull('fecha_ejecucion')
+            ->where(function ($subquery): void {
+                $subquery
+                    ->whereNull('tecnico_responsable')
+                    ->orWhereRaw("TRIM(COALESCE(tecnico_responsable, '')) = ''");
+            })
+            ->where(function ($subquery): void {
+                $subquery
+                    ->whereNull('evidencia_pdf')
+                    ->orWhereRaw("TRIM(COALESCE(evidencia_pdf, '')) = ''");
+            })
             ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+
+        $fechaProgramada = trim((string) $fechaProgramada);
+        if ($fechaProgramada !== '') {
+            $query->whereDate('fecha_programada', $fechaProgramada);
+        }
+
+        $fila = $query->first();
 
         return $fila ? (array) $fila : null;
     }
@@ -1809,6 +2122,205 @@ class MantenimientoRepository
     private function construirObservacionRealizado(string $observaciones): ?string
     {
         return $this->textoNormalizer->anadirMarcaSistema($observaciones, 'Hecho desde modulo Programados.');
+    }
+
+    private function normalizarObservacionHumana(?string $observaciones): ?string
+    {
+        if ($observaciones === null) {
+            return null;
+        }
+
+        return trim($observaciones) !== '' ? $observaciones : null;
+    }
+
+    /**
+     * @param array<string, mixed> $registro
+     */
+    private function esProgramadoReversible(array $registro): bool
+    {
+        if ($this->reversiblePorEvento((int) ($registro['id'] ?? 0), ['programado', 'revertido'])) {
+            return true;
+        }
+
+        $observaciones = (string) ($registro['observaciones'] ?? '');
+        $marcasLegacy = [
+            'Programado desde modulo Proximos.',
+            'Hecho desde modulo Programados.',
+            'Revertido desde modulo Reversiones (HECHO).',
+        ];
+
+        foreach ($marcasLegacy as $marca) {
+            if ($observaciones !== '' && str_contains($observaciones, $marca)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $registro
+     */
+    private function esRealizadoReversible(array $registro): bool
+    {
+        if ($this->reversiblePorEvento((int) ($registro['id'] ?? 0), ['realizado'])) {
+            return true;
+        }
+
+        $observaciones = (string) ($registro['observaciones'] ?? '');
+
+        return $observaciones !== '' && str_contains($observaciones, 'Hecho desde modulo Programados.');
+    }
+
+    /**
+     * @param array<int, string> $tiposEventoValidos
+     */
+    private function reversiblePorEvento(int $mantenimientoId, array $tiposEventoValidos): bool
+    {
+        $evento = $this->eventoRepository->obtenerUltimoEventoPorMantenimiento($mantenimientoId);
+        if (!is_array($evento)) {
+            return false;
+        }
+
+        $tipoEvento = trim((string) ($evento['tipo_evento'] ?? ''));
+        return $tipoEvento !== '' && in_array($tipoEvento, $tiposEventoValidos, true);
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $registro
+     * @return array<string, mixed>
+     */
+    private function capturarDatosEventoProgramacion(object|array $registro): array
+    {
+        $estado = '';
+        $fechaProgramada = null;
+        $fechaEjecucion = null;
+        $tecnicoResponsable = null;
+        $observaciones = null;
+
+        if (is_object($registro)) {
+            $estado = (string) ($registro->estado ?? '');
+            $fechaProgramada = $registro->fecha_programada ?? null;
+            $fechaEjecucion = $registro->fecha_ejecucion ?? null;
+            $tecnicoResponsable = $registro->tecnico_responsable ?? null;
+            $observaciones = $registro->observaciones ?? null;
+        } else {
+            $estado = (string) ($registro['estado'] ?? '');
+            $fechaProgramada = $registro['fecha_programada'] ?? null;
+            $fechaEjecucion = $registro['fecha_ejecucion'] ?? null;
+            $tecnicoResponsable = $registro['tecnico_responsable'] ?? null;
+            $observaciones = $registro['observaciones'] ?? null;
+        }
+
+        $observaciones = is_string($observaciones) && trim($observaciones) !== '' ? $observaciones : null;
+
+        return [
+            'estado' => $estado,
+            'fecha_programada' => $this->normalizarValorEvento($fechaProgramada),
+            'fecha_ejecucion' => $this->normalizarValorEvento($fechaEjecucion),
+            'tecnico_responsable' => $this->normalizarValorEvento($tecnicoResponsable),
+            'observaciones' => $observaciones,
+            'evidencia_pdf' => is_object($registro)
+                ? ($registro->evidencia_pdf ?? null)
+                : ($registro['evidencia_pdf'] ?? null),
+        ];
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $registro
+     * @return array<string, mixed>
+     */
+    private function capturarDatosEventoHecho(object|array $registro): array
+    {
+        $estado = '';
+        $fechaProgramada = null;
+        $fechaEjecucion = null;
+        $tecnicoResponsable = null;
+        $observaciones = null;
+        $evidenciaPdf = null;
+
+        if (is_object($registro)) {
+            $estado = (string) ($registro->estado ?? '');
+            $fechaProgramada = $registro->fecha_programada ?? null;
+            $fechaEjecucion = $registro->fecha_ejecucion ?? null;
+            $tecnicoResponsable = $registro->tecnico_responsable ?? null;
+            $observaciones = $registro->observaciones ?? null;
+            $evidenciaPdf = $registro->evidencia_pdf ?? null;
+        } else {
+            $estado = (string) ($registro['estado'] ?? '');
+            $fechaProgramada = $registro['fecha_programada'] ?? null;
+            $fechaEjecucion = $registro['fecha_ejecucion'] ?? null;
+            $tecnicoResponsable = $registro['tecnico_responsable'] ?? null;
+            $observaciones = $registro['observaciones'] ?? null;
+            $evidenciaPdf = $registro['evidencia_pdf'] ?? null;
+        }
+
+        $observaciones = is_string($observaciones) && trim($observaciones) !== '' ? $observaciones : null;
+        $tecnicoResponsable = is_string($tecnicoResponsable) && trim($tecnicoResponsable) !== '' ? $tecnicoResponsable : null;
+        $evidenciaPdf = is_string($evidenciaPdf) && trim($evidenciaPdf) !== '' ? $evidenciaPdf : null;
+
+        return [
+            'estado' => $estado,
+            'fecha_programada' => $fechaProgramada,
+            'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_responsable' => $tecnicoResponsable,
+            'observaciones' => $observaciones,
+            'evidencia_pdf' => $evidenciaPdf,
+        ];
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $registro
+     * @return array<string, mixed>
+     */
+    private function capturarDatosEventoPendienteAutomatico(object|array $registro): array
+    {
+        $id = 0;
+        $estado = '';
+        $fechaProgramada = null;
+        $fechaEjecucion = null;
+        $tecnicoResponsable = null;
+        $observaciones = null;
+        $evidenciaPdf = null;
+
+        if (is_object($registro)) {
+            $id = (int) ($registro->id ?? 0);
+            $estado = (string) ($registro->estado ?? '');
+            $fechaProgramada = $registro->fecha_programada ?? null;
+            $fechaEjecucion = $registro->fecha_ejecucion ?? null;
+            $tecnicoResponsable = $registro->tecnico_responsable ?? null;
+            $observaciones = $registro->observaciones ?? null;
+            $evidenciaPdf = $registro->evidencia_pdf ?? null;
+        } else {
+            $id = (int) ($registro['id'] ?? 0);
+            $estado = (string) ($registro['estado'] ?? '');
+            $fechaProgramada = $registro['fecha_programada'] ?? null;
+            $fechaEjecucion = $registro['fecha_ejecucion'] ?? null;
+            $tecnicoResponsable = $registro['tecnico_responsable'] ?? null;
+            $observaciones = $registro['observaciones'] ?? null;
+            $evidenciaPdf = $registro['evidencia_pdf'] ?? null;
+        }
+
+        $observaciones = is_string($observaciones) && trim($observaciones) !== '' ? $observaciones : null;
+        $tecnicoResponsable = is_string($tecnicoResponsable) && trim($tecnicoResponsable) !== '' ? $tecnicoResponsable : null;
+        $evidenciaPdf = is_string($evidenciaPdf) && trim($evidenciaPdf) !== '' ? $evidenciaPdf : null;
+
+        return [
+            'id' => $id,
+            'estado' => $estado,
+            'fecha_programada' => $fechaProgramada,
+            'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_responsable' => $tecnicoResponsable,
+            'observaciones' => $observaciones,
+            'evidencia_pdf' => $evidenciaPdf,
+        ];
+    }
+
+    private function normalizarValorEvento(mixed $valor): ?string
+    {
+        $valor = trim((string) $valor);
+
+        return $valor === '' ? null : $valor;
     }
 
 }

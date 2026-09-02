@@ -1,70 +1,56 @@
 # AGENTS.md
 
-## Proyecto
-Aplicación web en Laravel 11 para gestión de mantenimientos con integración legacy. La autenticación real usa la tabla `usuarios_sistema` y el panel vive detrás de `legacy.auth` y `can:access-panel`.
+## Contexto
 
-## Estructura clave
-- `app/Http/Controllers`: `AuthController` y `PanelController`.
-- `app/Services/Legacy`: repositorios, normalización y lógica de negocio sobre la base legacy.
-- `app/Services/Diagnostics`: comandos y auditorías de solo lectura.
-- `app/Models/User.php`: modelo autenticable ligado a `usuarios_sistema`.
-- `routes/web.php`: rutas públicas, panel y acciones sensibles.
-- `resources/views/panel`: vistas del panel y parciales asociados.
-- `database/migrations`: ajustes de compatibilidad sobre el esquema existente.
-- `tests/Feature` y `tests/Unit`: pruebas de autorización, flujos del panel, comandos y servicios.
+Proyecto Laravel 11 con integracion a un esquema legacy. La autenticacion usa `usuarios_sistema` y el panel esta protegido por `legacy.auth` y `can:access-panel`.
 
-## Reglas de trabajo
-- Haz cambios mínimos y localizados; evita refactors amplios si no son necesarios.
-- Respeta la arquitectura legacy: usuarios, mantenimientos, áreas y técnicos ya existen en la base.
-- En autenticación, conserva `usuarios_sistema`, `password_hash`, `estado`, `rol` y la sesión `usuario_autenticado`.
-- En vistas del panel, actualiza también los parciales relacionados y las pruebas que validan texto renderizado.
-- Para archivos PDF de evidencia, usa `Storage::disk('public')` y conserva la expectativa de `storage:link`.
-- No cambies migraciones, seeders o esquema salvo que la tarea lo requiera y esté claramente justificada.
+La arquitectura detallada, la compatibilidad legacy, la seguridad y las decisiones tecnicas estan documentadas en `docs/`.
 
-## Protección de trabajo existente
-- No sobrescribas cambios del usuario.
-- No elimines ni descartes archivos, dumps, backups ni carpetas de rescate.
-- No abras ni reproduzcas secretos de `.env`, `.env.testing` o copias `.bak`.
-- No hagas `git add`, commit ni push sin autorización expresa.
-- No uses comandos destructivos como `git reset --hard`, `git checkout --`, `rm -rf` o equivalentes.
+## Reglas obligatorias
 
-## Comandos confirmados
-- Instalar PHP: `composer install`
-- Instalar frontend: `npm install`
-- Ejecutar tests: `php artisan test`
-- Ver rutas: `php artisan route:list`
-- Limpiar cachés: `php artisan config:clear`, `php artisan cache:clear`, `php artisan view:clear`
-- Enlazar storage: `php artisan storage:link`
-- Frontend: `npm run dev`, `npm run watch`, `npm run prod`
-- Levantar local: `php artisan serve`
-- Comandos del proyecto:
-  - `php artisan mantenimientos:resumenes [--usuario=] [--all] [--chunk=] [--apply]`
-  - `php artisan mantenimientos:auditoria --database=<nombre>`
-  - `php artisan bd3:snapshot [--output=] [--force]`
-  - `php artisan usuarios:corregir-nombres [--dry-run]`
+- Lee este archivo y la documentacion aplicable antes de modificar codigo.
+- Audita rutas, controlador, servicio, repositorio, vista y pruebas relacionadas antes de editar.
+- Haz cambios minimos y localizados; no refactorices fuera del alcance.
+- Conserva los cambios existentes del usuario y revisa `git status --short` antes de trabajar.
+- No borres ni sobrescribas codigo, datos, dumps, backups o carpetas de rescate sin autorizacion.
+- No abras ni reproduzcas secretos de `.env`, `.env.testing` o copias de respaldo.
+- No modifiques datos reales, migraciones, seeders o rollbacks sin autorizacion expresa cuando la tarea los requiera.
+- No hagas `git add`, commit ni push sin autorizacion.
+- Si el alcance entra en conflicto con cambios pendientes, deten el trabajo y consulta.
 
-## Validación mínima
-- Después de cambiar código, ejecuta la prueba más cercana al área tocada.
-- Si cambias autenticación, rutas, panel o servicios compartidos, corre la suite relevante de `tests/Feature`.
-- Si el cambio afecta lógica compartida, modelos o servicios, añade o ejecuta pruebas de `tests/Unit`.
-- Corre `php artisan test` completo cuando el cambio toque auth, panel, migraciones, comandos compartidos o varias capas a la vez.
-- Confirma siempre que no queden fallos en la salida de tests antes de cerrar la tarea.
+## Convenciones de implementacion
 
-## Cuándo detenerse
-- Si la tarea implica borrar datos, tocar producción o modificar la base real, detente y consulta.
-- Si necesitas una migración, seeder o rollback, pide autorización antes de ejecutarlo.
-- Si una validación depende de credenciales, secretos o datos reales, no los expongas y detente si faltan.
-- Si aparece un cambio no relacionado en el árbol, no lo toques sin indicación explícita.
+- Controllers coordinan solicitudes; la logica de negocio pertenece a Services.
+- Las consultas y escrituras sobre el esquema legacy pertenecen a `app/Services/Legacy`.
+- Blade no debe contener consultas ni calculos de negocio.
+- Mantiene `usuarios_sistema`, `password_hash`, `estado`, `rol` y la sesion `usuario_autenticado` en cambios de autenticacion.
+- Conserva `legacy.auth`, `can:access-panel` y la proteccion CSRF.
+- Usa transacciones cuando una operacion cambie varias tablas o requiera auditoria atomica.
+- Conserva comentarios humanos en `mantenimientos.observaciones`; registra trazabilidad tecnica mediante `mantenimiento_eventos`.
+- Para evidencias PDF usa `Storage::disk('public')` y conserva la expectativa de `storage:link`.
+- Mantiene colores, tipografia, componentes y patrones visuales existentes en cambios de UI.
 
-## Criterio de terminado
-- Solo quedan cambios intencionales en el alcance pedido.
-- Las pruebas relevantes pasan.
-- No se modificaron datos reales ni archivos sensibles fuera del alcance.
-- El informe final es breve e incluye qué se cambió, qué se validó y qué quedó pendiente, si aplica.
+## Validacion
 
-## Diseño UI
-- Mantener consistencia visual entre todos los módulos.
-- Antes de crear nuevos componentes visuales, buscar patrones existentes.
-- No crear estilos aislados para un único modal si existe un componente equivalente.
-- Respetar tipografía, colores, botones, tarjetas y espaciados definidos en la aplicación.
-- Los modales nuevos deben seguir el patrón visual del modal de referencia del sistema.
+- Ejecuta primero la prueba mas cercana al cambio.
+- Si cambias auth, rutas, panel, servicios compartidos o migraciones, ejecuta los Feature tests relacionados.
+- Si cambias logica reusable, ejecuta tambien los Unit tests correspondientes.
+- Ejecuta `php artisan test` completo cuando el cambio atraviese varias capas.
+- Revisa sintaxis, diff y estado del repositorio antes de entregar.
+- No cierres una tarea con fallos provocados por la intervencion.
+
+## Documentacion
+
+Consulta segun el alcance:
+
+- Arquitectura: `docs/architecture/overview.md`
+- Compatibilidad legacy: `docs/legacy/legacy-compatibility.md`
+- Reversiones: `docs/legacy/reversions.md`
+- Autenticacion: `docs/security/authentication.md`
+- Autorizacion: `docs/security/authorization.md`
+- Datos sensibles: `docs/security/sensitive-data.md`
+- Esquema e integridad: `docs/database/`
+- Pruebas: `docs/testing/`
+- Decisiones: `docs/adr/`
+
+Actualiza o crea un ADR cuando una tarea cambie autenticacion, estados, bitacora, esquema, compatibilidad legacy o una transaccion critica.

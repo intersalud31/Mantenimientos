@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\Legacy\MantenimientoEventoRepository;
 use App\Services\Legacy\MantenimientoRepository;
 use App\Services\Legacy\UsuarioRepository;
 use App\Services\SemestreService;
@@ -60,7 +61,7 @@ class PanelActionFlowTest extends TestCase
         $repo->shouldReceive('obtenerNombreTecnicoPorId')
             ->with(7)
             ->andReturn('Tecnico Uno');
-        $repo->shouldReceive('marcarProgramadoComoHechoYGenerarSiguiente')
+        $repo->shouldReceive('marcarProgramadoComoHechoDesdeProgramados')
             ->once()
             ->andReturn([
                 'ok' => true,
@@ -253,7 +254,7 @@ class PanelActionFlowTest extends TestCase
     {
         $this->actingAs($this->makeLegacyUser(1003, 'Admin Reversion', 'reversion@example.com', 'admin'));
 
-        $fechaProgramada = now()->addDays(3)->format('Y-m-d');
+        $fechaProgramada = now()->addWeekdays(3)->format('Y-m-d');
         $usuarioId = DB::table('usuarios')->insertGetId([
             'area_id' => null,
             'nombre' => 'Activo 123',
@@ -309,7 +310,7 @@ class PanelActionFlowTest extends TestCase
     {
         $this->actingAs($this->makeLegacyUser(10031, 'Admin Reversion Codigo', 'reversion-codigo@example.com', 'admin'));
 
-        $fechaProgramada = now()->addDays(4)->format('Y-m-d');
+        $fechaProgramada = '2026-09-08';
         $usuarioObjetivoId = DB::table('usuarios')->insertGetId([
             'area_id' => null,
             'nombre' => 'Activo 123',
@@ -341,6 +342,18 @@ class PanelActionFlowTest extends TestCase
             'ultimo_mantenimiento_estado' => 'pendiente',
             'mantenimiento_resumen_actualizado_at' => now(),
             'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioObjetivoId,
+            'fecha_programada' => $fechaProgramada,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Pendiente disponible para validar prioridad por codigo activo.',
+            'evidencia_pdf' => null,
+            'created_at' => now(),
             'updated_at' => now(),
         ]);
 
@@ -380,10 +393,25 @@ class PanelActionFlowTest extends TestCase
         $vista->assertDontSee('991124');
     }
 
-    public function test_reversion_real_deshace_una_ejecucion_y_elimina_el_pendiente_automatico(): void
+    public function test_reversion_legacy_desde_programados_registra_evento_y_elimina_pendiente_automatico(): void
     {
         $this->actingAs($this->makeLegacyUser(10032, 'Admin Reversion Real', 'reversion-real@example.com', 'admin'));
-        Storage::fake('public');
+
+        DB::table('usuarios_sistema')->insert([
+            'id' => 10032,
+            'nombre' => 'Admin Reversion Real',
+            'correo' => 'reversion-real@example.com',
+            'password_hash' => 'hashed-password',
+            'rol' => 'admin',
+            'estado' => 1,
+            'ultimo_acceso' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaEjecucion = now()->toDateString();
 
         $usuarioId = DB::table('usuarios')->insertGetId([
             'nombre' => 'Usuario Reversion Real',
@@ -393,7 +421,7 @@ class PanelActionFlowTest extends TestCase
             'estado_usuario' => 1,
             'ultima_fecha_ejecucion' => null,
             'ultima_fecha_mantenimiento' => null,
-            'proxima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
             'ultimo_mantenimiento_id' => null,
             'ultimo_mantenimiento_estado' => null,
             'mantenimiento_resumen_actualizado_at' => now(),
@@ -401,33 +429,47 @@ class PanelActionFlowTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('tecnicos')->insertGetId([
-            'nombre' => 'Tecnico Reversion Real',
-            'estado' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $fechaProgramada = '2026-08-03';
         $mantenimientoId = DB::table('mantenimientos')->insertGetId([
             'usuario_id' => $usuarioId,
             'fecha_programada' => $fechaProgramada,
             'hora_programada' => null,
-            'estado' => 'programado',
+            'estado' => 'pendiente',
             'fecha_ejecucion' => null,
             'tecnico_responsable' => null,
-            'observaciones' => 'Programado desde modulo Proximos.',
+            'observaciones' => 'Cliente solicito programacion para el siguiente ciclo.',
             'evidencia_pdf' => null,
             'created_at' => now()->subDays(2),
             'updated_at' => now()->subDays(2),
         ]);
 
         $repo = app(MantenimientoRepository::class);
-        $resultadoHecho = $repo->marcarProgramadoComoHechoYGenerarSiguiente(
+        $resultadoProgramado = $repo->programarDesdeProximos($mantenimientoId, $fechaProgramada);
+
+        $this->assertTrue($resultadoProgramado['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'programado',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => 'Cliente solicito programacion para el siguiente ciclo.',
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'programado',
+        ]);
+
+        $tecnicoId = DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Reversion Real',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resultadoHecho = $repo->marcarProgramadoComoHechoDesdeProgramados(
             $mantenimientoId,
-            '2026-08-03',
+            $fechaEjecucion,
             'Tecnico Reversion Real',
-            'Ejecucion real de prueba.',
+            'Cliente confirmó disponibilidad.',
             'constancias/prueba-reversion.pdf'
         );
 
@@ -436,20 +478,24 @@ class PanelActionFlowTest extends TestCase
             'id' => $mantenimientoId,
             'usuario_id' => $usuarioId,
             'estado' => 'realizado',
-            'fecha_ejecucion' => '2026-08-03',
+            'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_responsable' => 'Tecnico Reversion Real',
+            'observaciones' => 'Cliente confirmó disponibilidad.',
         ]);
 
         $pendienteAutomatico = DB::table('mantenimientos')
             ->where('usuario_id', $usuarioId)
             ->where('estado', 'pendiente')
-            ->where('observaciones', 'like', 'Generado automatico despues de marcar Hecho.%')
+            ->whereDate('fecha_programada', app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->fechaProximaDesde(
+                $fechaEjecucion,
+                app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->cicloMantenimientoMeses()
+            ))
             ->orderByDesc('id')
             ->first();
 
         $this->assertNotNull($pendienteAutomatico);
 
-        $resultadoReversion = $repo->revertirAccionesPorCodigoActivo(991500, 1);
+        $resultadoReversion = $repo->revertirAccionesPorCodigoActivo(991500, 1, 10032, '10.20.30.43');
 
         $this->assertTrue($resultadoReversion['ok'] ?? false);
         $this->assertDatabaseHas('mantenimientos', [
@@ -457,20 +503,276 @@ class PanelActionFlowTest extends TestCase
             'usuario_id' => $usuarioId,
             'estado' => 'programado',
             'fecha_ejecucion' => null,
+            'observaciones' => 'Cliente confirmó disponibilidad.',
         ]);
         $this->assertDatabaseMissing('mantenimientos', [
             'id' => $pendienteAutomatico->id,
         ]);
 
-        $usuarioActualizado = DB::table('usuarios')
-            ->select('ultima_fecha_ejecucion', 'ultima_fecha_mantenimiento', 'proxima_fecha_mantenimiento', 'ultimo_mantenimiento_estado')
-            ->where('id', $usuarioId)
+        $evento = DB::table('mantenimiento_eventos')
+            ->where('mantenimiento_id', $mantenimientoId)
+            ->where('tipo_evento', 'revertido')
+            ->orderByDesc('id')
             ->first();
 
-        $this->assertSame(null, $usuarioActualizado?->ultima_fecha_ejecucion);
-        $this->assertSame(null, $usuarioActualizado?->ultima_fecha_mantenimiento);
-        $this->assertSame($fechaProgramada, (string) ($usuarioActualizado?->proxima_fecha_mantenimiento ?? ''));
-        $this->assertSame('programado', (string) ($usuarioActualizado?->ultimo_mantenimiento_estado ?? ''));
+        $this->assertNotNull($evento);
+        $this->assertSame('revertido', (string) ($evento->tipo_evento ?? ''));
+        $this->assertSame(10032, (int) ($evento->usuario_sistema_id ?? 0));
+        $this->assertSame('10.20.30.43', (string) ($evento->ip ?? ''));
+
+        $datosAntes = json_decode((string) ($evento->datos_antes ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $datosDespues = json_decode((string) ($evento->datos_despues ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('realizado', (string) ($datosAntes['estado'] ?? ''));
+        $this->assertSame('programado', (string) ($datosDespues['estado'] ?? ''));
+        $this->assertSame('Cliente confirmó disponibilidad.', (string) ($datosAntes['observaciones'] ?? ''));
+        $this->assertSame('Cliente confirmó disponibilidad.', (string) ($datosDespues['observaciones'] ?? ''));
+        $this->assertSame('HECHO', (string) ($datosAntes['reversion']['tipo_reversion'] ?? ''));
+        $this->assertSame(991500, (int) ($datosAntes['reversion']['codigo_activo'] ?? 0));
+        $this->assertSame($usuarioId, (int) ($datosAntes['reversion']['usuario_id'] ?? 0));
+        $this->assertSame('evento', (string) ($datosAntes['reversion']['origen_reversibilidad'] ?? ''));
+        $this->assertSame('programado', (string) ($datosDespues['reversion']['estado_nuevo'] ?? ''));
+    }
+
+    public function test_reversion_legacy_desde_proximos_registra_evento_y_conserva_observacion_humana(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10033, 'Admin Reversion Programado', 'reversion-programado@example.com', 'admin'));
+
+        $fechaProgramada = now()->addWeekdays(3)->format('Y-m-d');
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Activo Reversion Programado',
+            'codigo_activo' => 991510,
+            'serial_equipo' => 'SER-REV-PROG-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'pendiente',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Observacion humana de programacion.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $repo = app(MantenimientoRepository::class);
+        $resultadoProgramado = $repo->programarDesdeProximos($mantenimientoId, $fechaProgramada);
+
+        $this->assertTrue($resultadoProgramado['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'programado',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => 'Observacion humana de programacion.',
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'programado',
+        ]);
+
+        $resultadoReversion = $repo->revertirAccionesPorCodigoActivo(991510, 1);
+
+        $this->assertTrue($resultadoReversion['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'pendiente',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => 'Observacion humana de programacion.',
+        ]);
+        $this->assertDatabaseMissing('mantenimientos', [
+            'id' => $mantenimientoId,
+            'observaciones' => 'Observacion humana de programacion. | Revertido desde modulo Reversiones (PROGRAMAR).',
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'revertido',
+        ]);
+        $evento = DB::table('mantenimiento_eventos')
+            ->where('mantenimiento_id', $mantenimientoId)
+            ->where('tipo_evento', 'revertido')
+            ->orderByDesc('id')
+            ->first();
+        $datosDespues = json_decode((string) ($evento->datos_despues ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('PROGRAMAR', (string) ($datosDespues['reversion']['tipo_reversion'] ?? ''));
+        $this->assertSame(991510, (int) ($datosDespues['reversion']['codigo_activo'] ?? 0));
+        $this->assertSame('evento', (string) ($datosDespues['reversion']['origen_reversibilidad'] ?? ''));
+    }
+
+    public function test_reversion_legacy_mantiene_fallback_para_programados_historicos_sin_evento(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10035, 'Admin Reversion Legacy', 'reversion-legacy@example.com', 'admin'));
+
+        $fechaProgramada = now()->addWeekdays(4)->format('Y-m-d');
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Activo Reversion Historica',
+            'codigo_activo' => 991530,
+            'serial_equipo' => 'SER-REV-LEGACY-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $observacionHistorica = 'Nota humana previa. | Programado desde modulo Proximos.';
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => $observacionHistorica,
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDays(3),
+            'updated_at' => now()->subDays(3),
+        ]);
+
+        $this->assertDatabaseMissing('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+        ]);
+
+        $resultadoReversion = app(MantenimientoRepository::class)->revertirAccionesPorCodigoActivo(991530, 1);
+
+        $this->assertTrue($resultadoReversion['ok'] ?? false);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'pendiente',
+            'observaciones' => $observacionHistorica,
+        ]);
+        $this->assertDatabaseMissing('mantenimientos', [
+            'id' => $mantenimientoId,
+            'observaciones' => $observacionHistorica . ' | Revertido desde modulo Reversiones (PROGRAMAR).',
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'revertido',
+        ]);
+        $evento = DB::table('mantenimiento_eventos')
+            ->where('mantenimiento_id', $mantenimientoId)
+            ->where('tipo_evento', 'revertido')
+            ->orderByDesc('id')
+            ->first();
+        $datosDespues = json_decode((string) ($evento->datos_despues ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('PROGRAMAR', (string) ($datosDespues['reversion']['tipo_reversion'] ?? ''));
+        $this->assertSame(991530, (int) ($datosDespues['reversion']['codigo_activo'] ?? 0));
+        $this->assertSame('observaciones_legacy', (string) ($datosDespues['reversion']['origen_reversibilidad'] ?? ''));
+    }
+
+    public function test_reversion_legacy_revierte_todo_si_falla_el_registro_del_evento(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10034, 'Admin Reversion Rollback', 'reversion-rollback@example.com', 'admin'));
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaEjecucion = now()->toDateString();
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Reversion Rollback',
+            'codigo_activo' => 991520,
+            'serial_equipo' => 'SER-REV-ROLL-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => null,
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Observacion rollback de reversion.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $repo = app(MantenimientoRepository::class);
+        $resultadoProgramado = $repo->programarDesdeProximos($mantenimientoId, $fechaProgramada);
+        $this->assertTrue($resultadoProgramado['ok'] ?? false);
+
+        DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Reversion Rollback',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resultadoHecho = $repo->marcarProgramadoComoHechoDesdeProgramados(
+            $mantenimientoId,
+            $fechaEjecucion,
+            'Tecnico Reversion Rollback',
+            'Observacion rollback de reversion.',
+            'constancias/prueba-reversion-rollback.pdf'
+        );
+        $this->assertTrue($resultadoHecho['ok'] ?? false);
+
+        $pendienteAutomatico = DB::table('mantenimientos')
+            ->where('usuario_id', $usuarioId)
+            ->where('estado', 'pendiente')
+            ->whereDate('fecha_programada', app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->fechaProximaDesde(
+                $fechaEjecucion,
+                app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)->cicloMantenimientoMeses()
+            ))
+            ->first();
+
+        $this->assertNotNull($pendienteAutomatico);
+
+        $eventoRepo = Mockery::mock(MantenimientoEventoRepository::class)->makePartial();
+        $eventoRepo->shouldReceive('registrarEvento')
+            ->once()
+            ->andThrow(new \RuntimeException('Fallo intencional del evento revertido.'));
+        $this->instance(MantenimientoEventoRepository::class, $eventoRepo);
+        app()->forgetInstance(MantenimientoRepository::class);
+        $repo = app(MantenimientoRepository::class);
+
+        $resultadoReversion = $repo->revertirAccionesPorCodigoActivo(991520, 1);
+
+        $this->assertFalse($resultadoReversion['ok'] ?? true);
+        $this->assertSame('No fue posible revertir la accion.', (string) ($resultadoReversion['mensaje'] ?? ''));
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaEjecucion,
+            'observaciones' => 'Observacion rollback de reversion.',
+        ]);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $pendienteAutomatico->id,
+        ]);
+        $this->assertDatabaseMissing('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'revertido',
+        ]);
     }
 
     public function test_crud_de_usuarios_cubre_crear_actualizar_estado_y_eliminar(): void
@@ -1182,7 +1484,7 @@ class PanelActionFlowTest extends TestCase
         $this->actingAs($this->makeLegacyUser(1005, 'Admin Fecha', 'fecha@example.com', 'admin'));
 
         $repo = Mockery::mock(MantenimientoRepository::class);
-        $repo->shouldNotReceive('marcarComoProgramado');
+        $repo->shouldNotReceive('programarDesdeProximos');
         $this->instance(MantenimientoRepository::class, $repo);
 
         $response = $this->post(route('panel.proximos.programar'), [
@@ -1208,7 +1510,7 @@ class PanelActionFlowTest extends TestCase
         $fechaFutura = \Illuminate\Support\Carbon::today()->next('Saturday')->format('Y-m-d');
 
         $repo = Mockery::mock(MantenimientoRepository::class);
-        $repo->shouldNotReceive('marcarComoProgramado');
+        $repo->shouldNotReceive('programarDesdeProximos');
 
         $this->instance(MantenimientoRepository::class, $repo);
 
@@ -1235,7 +1537,7 @@ class PanelActionFlowTest extends TestCase
         $fechaFestiva = now()->next(\Illuminate\Support\Carbon::SATURDAY)->format('Y-m-d');
 
         $repo = Mockery::mock(MantenimientoRepository::class);
-        $repo->shouldNotReceive('marcarComoProgramado');
+        $repo->shouldNotReceive('programarDesdeProximos');
         $this->instance(MantenimientoRepository::class, $repo);
 
         $response = $this->post(route('panel.proximos.programar'), [
@@ -1458,7 +1760,7 @@ class PanelActionFlowTest extends TestCase
             'estado' => 'realizado',
             'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_responsable' => 'Tecnico Confirmacion',
-            'observaciones' => 'La fecha real es anterior y debe procesarse sin confirmacion extra. | Hecho desde modulo Programados.',
+            'observaciones' => 'La fecha real es anterior y debe procesarse sin confirmacion extra.',
             'evidencia_pdf' => 'constancias/' . $mantenimientoId . '/constancia-confirmacion.pdf',
         ]);
 
@@ -1530,10 +1832,282 @@ class PanelActionFlowTest extends TestCase
         }));
     }
 
-    public function test_marcar_como_hecho_con_fecha_anterior_no_requiere_confirmacion_extra(): void
+    public function test_programar_desde_proximos_registra_evento_y_conserva_observacion_humana(): void
+    {
+        $this->actingAs($this->makeLegacyUser(2001, 'Admin Proximos Evento', 'proximos-evento@example.com', 'admin'));
+        $fechaProgramada = app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)
+            ->siguienteDiaHabil(now()->addDay()->format('Y-m-d'))
+            ?? now()->addWeekdays(2)->format('Y-m-d');
+
+        DB::table('usuarios_sistema')->insert([
+            'id' => 2001,
+            'nombre' => 'Admin Proximos Evento',
+            'correo' => 'proximos-evento@example.com',
+            'password_hash' => 'hashed-password',
+            'rol' => 'admin',
+            'estado' => 1,
+            'ultimo_acceso' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Programar Desde Proximos',
+            'codigo_activo' => 881001,
+            'serial_equipo' => 'SER-PROX-001',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'pendiente',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $observacionHumana = 'Cliente solicito programacion para el siguiente ciclo.';
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => $observacionHumana,
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $response = $this->withServerVariables([
+            'REMOTE_ADDR' => '10.20.30.40',
+        ])->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_programada' => $fechaProgramada,
+            'q_proximos' => 'Usuario Programar Desde Proximos',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => 'Usuario Programar Desde Proximos',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_message', 'Mantenimiento programado correctamente.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'usuario_id' => $usuarioId,
+            'estado' => 'programado',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => $observacionHumana,
+        ]);
+
+        $evento = DB::table('mantenimiento_eventos')
+            ->where('mantenimiento_id', $mantenimientoId)
+            ->where('tipo_evento', 'programado')
+            ->first();
+
+        $this->assertNotNull($evento);
+        $this->assertSame('programado', (string) ($evento->tipo_evento ?? ''));
+        $this->assertSame('10.20.30.40', (string) ($evento->ip ?? ''));
+        $this->assertSame(2001, (int) ($evento->usuario_sistema_id ?? 0));
+
+        $datosAntes = json_decode((string) ($evento->datos_antes ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $datosDespues = json_decode((string) ($evento->datos_despues ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame('pendiente', (string) ($datosAntes['estado'] ?? ''));
+        $this->assertSame($fechaProgramada, (string) ($datosDespues['fecha_programada'] ?? ''));
+        $this->assertSame($observacionHumana, (string) ($datosAntes['observaciones'] ?? ''));
+        $this->assertSame($observacionHumana, (string) ($datosDespues['observaciones'] ?? ''));
+    }
+
+    public function test_programar_desde_proximos_con_observacion_cerca_del_limite_no_la_altera(): void
+    {
+        $this->actingAs($this->makeLegacyUser(2002, 'Admin Proximos Limite', 'proximos-limite@example.com', 'admin'));
+        $fechaProgramada = app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)
+            ->siguienteDiaHabil(now()->addDay()->format('Y-m-d'))
+            ?? now()->addWeekdays(2)->format('Y-m-d');
+
+        DB::table('usuarios_sistema')->insert([
+            'id' => 2002,
+            'nombre' => 'Admin Proximos Limite',
+            'correo' => 'proximos-limite@example.com',
+            'password_hash' => 'hashed-password',
+            'rol' => 'admin',
+            'estado' => 1,
+            'ultimo_acceso' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Programar Limite',
+            'codigo_activo' => 881002,
+            'serial_equipo' => 'SER-PROX-002',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'pendiente',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $observacionHumana = 'Cliente solicito programacion. ' . str_repeat('A', 460);
+        $this->assertLessThanOrEqual(500, strlen($observacionHumana));
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => $observacionHumana,
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $response = $this->withServerVariables([
+            'REMOTE_ADDR' => '10.20.30.41',
+        ])->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_programada' => $fechaProgramada,
+            'q_proximos' => 'Usuario Programar Limite',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => 'Usuario Programar Limite',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_message', 'Mantenimiento programado correctamente.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'programado',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => $observacionHumana,
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'programado',
+            'ip' => '10.20.30.41',
+            'usuario_sistema_id' => 2002,
+        ]);
+    }
+
+    public function test_programar_desde_proximos_revierte_todo_si_falla_el_evento(): void
+    {
+        $this->actingAs($this->makeLegacyUser(2003, 'Admin Proximos Rollback', 'proximos-rollback@example.com', 'admin'));
+        $fechaProgramada = app(\App\Services\Legacy\PeriodicidadMantenimientoService::class)
+            ->siguienteDiaHabil(now()->addDay()->format('Y-m-d'))
+            ?? now()->addWeekdays(2)->format('Y-m-d');
+
+        DB::table('usuarios_sistema')->insert([
+            'id' => 2003,
+            'nombre' => 'Admin Proximos Rollback',
+            'correo' => 'proximos-rollback@example.com',
+            'password_hash' => 'hashed-password',
+            'rol' => 'admin',
+            'estado' => 1,
+            'ultimo_acceso' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Programar Rollback',
+            'codigo_activo' => 881003,
+            'serial_equipo' => 'SER-PROX-003',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => null,
+            'ultima_fecha_mantenimiento' => null,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'pendiente',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subMonth(),
+            'updated_at' => now(),
+        ]);
+
+        $observacionHumana = 'Cliente solicito programacion con posible fallo.';
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'pendiente',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => $observacionHumana,
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $eventoRepo = Mockery::mock(MantenimientoEventoRepository::class);
+        $eventoRepo->shouldReceive('registrarEvento')
+            ->once()
+            ->andThrow(new \RuntimeException('Fallo intencional del evento.'));
+        $this->instance(MantenimientoEventoRepository::class, $eventoRepo);
+
+        $response = $this->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_programada' => $fechaProgramada,
+            'q_proximos' => 'Usuario Programar Rollback',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => 'Usuario Programar Rollback',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'No fue posible programar el mantenimiento.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'pendiente',
+            'fecha_programada' => $fechaProgramada,
+            'observaciones' => $observacionHumana,
+        ]);
+        $this->assertDatabaseMissing('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'programado',
+        ]);
+    }
+
+    public function test_marcar_como_hecho_desde_programados_registra_evento_y_conserva_observacion_humana(): void
     {
         $this->actingAs($this->makeLegacyUser(1006, 'Admin Hechos', 'hechos@example.com', 'admin'));
         Storage::fake('public');
+
+        DB::table('usuarios_sistema')->insert([
+            'id' => 1006,
+            'nombre' => 'Admin Hechos',
+            'correo' => 'hechos@example.com',
+            'password_hash' => 'hashed-password',
+            'rol' => 'admin',
+            'estado' => 1,
+            'ultimo_acceso' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $periodo = app(SemestreService::class)->actual();
         $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
@@ -1575,13 +2149,14 @@ class PanelActionFlowTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $fechaEjecucion = '2026-08-04';
 
-        $response = $this->post(route('panel.programados.hecho'), [
+        $response = $this->withServerVariables([
+            'REMOTE_ADDR' => '10.20.30.42',
+        ])->post(route('panel.programados.hecho'), [
             'mantenimiento_id' => $mantenimientoId,
             'fecha_ejecucion' => $fechaEjecucion,
             'tecnico_id' => $tecnicoId,
-            'observaciones' => 'Ejecucion realizada hoy.',
+            'observaciones' => 'Cliente confirmó disponibilidad.',
             'constancia_pdf' => UploadedFile::fake()->create('constancia.pdf', 120, 'application/pdf'),
             'q_programados' => 'Maria Paula',
             'programados_pagina' => 1,
@@ -1604,7 +2179,42 @@ class PanelActionFlowTest extends TestCase
             'id' => $mantenimientoId,
             'estado' => 'realizado',
             'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_responsable' => 'Tecnico Hechos',
+            'observaciones' => 'Cliente confirmó disponibilidad.',
+            'evidencia_pdf' => 'constancias/' . $mantenimientoId . '/constancia.pdf',
         ]);
+
+        $evento = DB::table('mantenimiento_eventos')
+            ->where('mantenimiento_id', $mantenimientoId)
+            ->where('tipo_evento', 'realizado')
+            ->first();
+
+        $this->assertNotNull($evento);
+        $this->assertSame(1006, (int) ($evento->usuario_sistema_id ?? 0));
+        $this->assertSame('10.20.30.42', (string) ($evento->ip ?? ''));
+        $this->assertSame('realizado', (string) ($evento->tipo_evento ?? ''));
+        $this->assertSame('Se marco el mantenimiento como ejecutado desde Programados sin modificar las observaciones manuales.', (string) ($evento->descripcion ?? ''));
+
+        $datosAntes = json_decode((string) ($evento->datos_antes ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $datosDespues = json_decode((string) ($evento->datos_despues ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame('programado', (string) ($datosAntes['estado'] ?? ''));
+        $this->assertSame($fechaProgramada, (string) ($datosAntes['fecha_programada'] ?? ''));
+        $this->assertSame('Programado de prueba para hechos.', (string) ($datosAntes['observaciones'] ?? ''));
+        $this->assertSame('realizado', (string) ($datosDespues['estado'] ?? ''));
+        $this->assertSame($fechaEjecucion, (string) ($datosDespues['fecha_ejecucion'] ?? ''));
+        $this->assertSame('Tecnico Hechos', (string) ($datosDespues['tecnico_responsable'] ?? ''));
+        $this->assertSame('Cliente confirmó disponibilidad.', (string) ($datosDespues['observaciones'] ?? ''));
+        $this->assertSame('constancias/' . $mantenimientoId . '/constancia.pdf', (string) ($datosDespues['evidencia_pdf'] ?? ''));
+
+        $pendienteAutomatico = DB::table('mantenimientos')
+            ->where('usuario_id', $usuarioId)
+            ->where('estado', 'pendiente')
+            ->where('observaciones', 'Generado automatico despues de marcar Hecho.')
+            ->first();
+
+        $this->assertNotNull($pendienteAutomatico);
+        Storage::disk('public')->assertExists('constancias/' . $mantenimientoId . '/constancia.pdf');
 
         $hechos = $this->get(route('panel.hechos', [
             'anio' => (int) $periodo['anio'],
@@ -1614,6 +2224,173 @@ class PanelActionFlowTest extends TestCase
 
         $hechos->assertOk();
         $hechos->assertSee('Maria Paula Montano Hechos');
+    }
+
+    public function test_marcar_como_hecho_desde_programados_con_observacion_cerca_del_limite_no_la_altera(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10061, 'Admin Hechos Limite', 'hechos-limite@example.com', 'admin'));
+        Storage::fake('public');
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaEjecucion = now()->toDateString();
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Hechos Limite',
+            'codigo_activo' => 729061,
+            'serial_equipo' => 'SER-HECHO-LIMITE',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => $fechaEjecucion,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $observacionesHumana = 'Observacion humana de prueba: ' . str_repeat('B', 470);
+        $this->assertLessThanOrEqual(500, strlen($observacionesHumana));
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => $observacionesHumana,
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $tecnicoId = DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Hechos Limite',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_id' => $tecnicoId,
+            'observaciones' => $observacionesHumana,
+            'constancia_pdf' => UploadedFile::fake()->create('constancia-limite.pdf', 120, 'application/pdf'),
+            'q_programados' => 'Usuario Hechos Limite',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Hechos Limite',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_message');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaEjecucion,
+            'observaciones' => $observacionesHumana,
+        ]);
+        $this->assertDatabaseMissing('mantenimientos', [
+            'id' => $mantenimientoId,
+            'observaciones' => $observacionesHumana . ' | Hecho desde modulo Programados.',
+        ]);
+        $this->assertDatabaseHas('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'realizado',
+        ]);
+        Storage::disk('public')->assertExists('constancias/' . $mantenimientoId . '/constancia-limite.pdf');
+    }
+
+    public function test_marcar_como_hecho_desde_programados_revierte_todo_si_falla_el_evento(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10062, 'Admin Hechos Rollback', 'hechos-rollback@example.com', 'admin'));
+        Storage::fake('public');
+
+        $periodo = app(SemestreService::class)->actual();
+        $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
+        $fechaEjecucion = now()->toDateString();
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'area_id' => null,
+            'nombre' => 'Usuario Hechos Rollback',
+            'codigo_activo' => 729062,
+            'serial_equipo' => 'SER-HECHO-ROLLBACK',
+            'tipo_equipo' => 'normal',
+            'estado_usuario' => 1,
+            'ultima_fecha_ejecucion' => $fechaEjecucion,
+            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'proxima_fecha_mantenimiento' => $fechaProgramada,
+            'ultimo_mantenimiento_id' => null,
+            'ultimo_mantenimiento_estado' => 'programado',
+            'mantenimiento_resumen_actualizado_at' => now(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $mantenimientoId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaProgramada,
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'tecnico_responsable' => null,
+            'observaciones' => 'Observacion rollback de prueba.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $tecnicoId = DB::table('tecnicos')->insertGetId([
+            'nombre' => 'Tecnico Hechos Rollback',
+            'estado' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $eventoRepo = Mockery::mock(MantenimientoEventoRepository::class);
+        $eventoRepo->shouldReceive('registrarEvento')
+            ->once()
+            ->andThrow(new \RuntimeException('Fallo intencional del evento realizado.'));
+        $this->instance(MantenimientoEventoRepository::class, $eventoRepo);
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => $mantenimientoId,
+            'fecha_ejecucion' => $fechaEjecucion,
+            'tecnico_id' => $tecnicoId,
+            'observaciones' => 'Observacion rollback de prueba.',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia-rollback.pdf', 120, 'application/pdf'),
+            'q_programados' => 'Usuario Hechos Rollback',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]);
+
+        $response->assertRedirect(route('panel.programados', [
+            'q_programados' => 'Usuario Hechos Rollback',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_error', 'No fue posible marcar como hecho.');
+
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoId,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'observaciones' => 'Observacion rollback de prueba.',
+        ]);
+        $this->assertDatabaseMissing('mantenimiento_eventos', [
+            'mantenimiento_id' => $mantenimientoId,
+            'tipo_evento' => 'realizado',
+        ]);
+        Storage::disk('public')->assertMissing('constancias/' . $mantenimientoId . '/constancia-rollback.pdf');
     }
 
     private function makeLegacyUser(int $id, string $nombre, string $correo, string $rol): User

@@ -1,0 +1,1 @@
+use mantenimientos; select count(*) as codigos_duplicados from (select codigo_activo from usuarios group by codigo_activo having count(*)  t; select count(*) as seriales_duplicados from (select serial_equipo from usuarios group by serial_equipo having count(*)  t; 

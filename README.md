@@ -2,6 +2,8 @@
 
 Aplicacion web en Laravel para gestionar mantenimientos de equipos con enfoque legacy. El sistema autentica usuarios desde la tabla `usuarios_sistema` y administra el ciclo de mantenimiento desde un panel privado con secciones de reportes, proximos, programados, hechos, usuarios y configuracion.
 
+La documentacion tecnica ampliada esta organizada en `docs/`, incluyendo arquitectura, compatibilidad legacy, seguridad, base de datos, pruebas y decisiones arquitectonicas.
+
 ## Resumen del proyecto
 
 Este proyecto no usa el modelo `users` de Laravel para iniciar sesion en produccion. La autenticacion real se hace contra una base legacy y el panel opera sobre tablas ya existentes del sistema:

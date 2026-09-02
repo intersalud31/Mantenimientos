@@ -171,6 +171,133 @@
             color: #d97706;
         }
 
+        body.dashboard-modern .reportes-distribution-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+            gap: 24px;
+            align-items: center;
+        }
+
+        body.dashboard-modern .reportes-distribution-chart-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 0;
+        }
+
+        body.dashboard-modern .reportes-distribution-chart {
+            width: min(100%, 320px);
+            height: auto;
+            overflow: visible;
+        }
+
+        body.dashboard-modern .reportes-distribution-track {
+            fill: none;
+            stroke: #e2e8f0;
+            stroke-width: 24;
+        }
+
+        body.dashboard-modern .reportes-distribution-segment {
+            fill: none;
+            stroke-width: 24;
+            stroke-linecap: butt;
+            transition: opacity .18s ease, filter .18s ease;
+        }
+
+        body.dashboard-modern .reportes-distribution-segment:hover,
+        body.dashboard-modern .reportes-distribution-segment:focus-visible {
+            opacity: .92;
+            filter: brightness(.98);
+            outline: none;
+        }
+
+        body.dashboard-modern .reportes-distribution-hole {
+            fill: #fff;
+        }
+
+        body.dashboard-modern .reportes-distribution-total {
+            fill: #0f172a;
+            font-size: 1.95rem;
+            font-weight: 800;
+            letter-spacing: -.04em;
+            text-anchor: middle;
+        }
+
+        body.dashboard-modern .reportes-distribution-caption {
+            fill: #64748b;
+            font-size: .82rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            text-anchor: middle;
+        }
+
+        body.dashboard-modern .reportes-distribution-legend {
+            display: grid;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        body.dashboard-modern .reportes-distribution-link {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: #fff;
+            color: inherit;
+            text-decoration: none;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
+        }
+
+        body.dashboard-modern .reportes-distribution-link:hover,
+        body.dashboard-modern .reportes-distribution-link:focus-visible {
+            transform: translateY(-1px);
+            border-color: rgba(37, 99, 235, .22);
+            background: #f8fbff;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .10);
+            outline: none;
+        }
+
+        body.dashboard-modern .reportes-distribution-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            background: var(--swatch-color, #cbd5e1);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--swatch-color, #cbd5e1) 18%, #ffffff);
+            flex-shrink: 0;
+        }
+
+        body.dashboard-modern .reportes-distribution-copy {
+            min-width: 0;
+        }
+
+        body.dashboard-modern .reportes-distribution-copy strong,
+        body.dashboard-modern .reportes-distribution-copy small {
+            display: block;
+        }
+
+        body.dashboard-modern .reportes-distribution-copy strong {
+            color: #0f172a;
+            font-size: .98rem;
+            font-weight: 700;
+        }
+
+        body.dashboard-modern .reportes-distribution-copy small {
+            margin-top: 4px;
+            color: #64748b;
+            line-height: 1.45;
+        }
+
+        body.dashboard-modern .reportes-distribution-value {
+            color: #0f172a;
+            font-size: 1.15rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
         body.dashboard-modern .reportes-activity-table td {
             vertical-align: middle;
         }
@@ -200,6 +327,10 @@
         @media (max-width: 1200px) {
             body.dashboard-modern .reportes-metrics {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            body.dashboard-modern .reportes-distribution-layout {
+                grid-template-columns: minmax(0, 1fr);
             }
 
             body.dashboard-modern .reportes-metric:nth-child(3n) {
@@ -235,6 +366,15 @@
 
             body.dashboard-modern .reportes-metric:not(:last-child) {
                 border-bottom: 1px solid #e2e8f0;
+            }
+
+            body.dashboard-modern .reportes-distribution-link {
+                grid-template-columns: auto minmax(0, 1fr);
+            }
+
+            body.dashboard-modern .reportes-distribution-value {
+                grid-column: 2;
+                justify-self: start;
             }
         }
     </style>
@@ -288,6 +428,53 @@
                 default => ['label' => $valor !== '' ? mb_convert_case($valor, MB_CASE_TITLE, 'UTF-8') : 'Actividad', 'class' => 'estado-tabla-neutral'],
             };
         };
+        $graficoDistribucion = [
+            [
+                'label' => 'Ejecutados',
+                'value' => (int) ($resumenSemestral['total_realizados'] ?? 0),
+                'href' => route('panel.hechos', $periodoQuery),
+                'color' => '#059669',
+                'description' => 'Mantenimientos completados dentro del semestre consultado.',
+            ],
+            [
+                'label' => 'Programados',
+                'value' => (int) ($resumenSemestral['total_programados'] ?? 0),
+                'href' => route('panel.programados', $periodoQuery),
+                'color' => '#2563eb',
+                'description' => 'Mantenimientos ya agendados y aún vigentes.',
+            ],
+            [
+                'label' => 'Pendientes',
+                'value' => (int) ($resumenSemestral['total_pendientes'] ?? 0),
+                'href' => route('panel.reportes.pendientes', $periodoQuery),
+                'color' => '#d97706',
+                'description' => 'Mantenimientos aún sin ejecutar durante el periodo.',
+            ],
+            [
+                'label' => 'No exigibles',
+                'value' => (int) ($resumenSemestral['total_no_exigibles'] ?? 0),
+                'href' => route('panel.reportes.equipos-nuevos', $periodoQuery),
+                'color' => '#64748b',
+                'description' => 'Usuarios activos cuya exigencia queda fuera del semestre consultado.',
+            ],
+        ];
+        $totalDistribucion = array_sum(array_map(static fn (array $item): int => $item['value'], $graficoDistribucion));
+        $radioDistribucion = 84;
+        $circunferenciaDistribucion = 2 * pi() * $radioDistribucion;
+        $desplazamientoDistribucion = 0.0;
+        $resumenDistribucion = [];
+
+        foreach ($graficoDistribucion as $indice => $item) {
+            $valor = (int) $item['value'];
+            $fraccion = $totalDistribucion > 0 ? $valor / $totalDistribucion : 0;
+            $trazo = $circunferenciaDistribucion * $fraccion;
+            $graficoDistribucion[$indice]['stroke'] = $trazo;
+            $graficoDistribucion[$indice]['offset'] = $desplazamientoDistribucion;
+            $desplazamientoDistribucion += $trazo;
+            $resumenDistribucion[] = $item['label'] . ' ' . $formatearNumero($valor);
+        }
+
+        $descripcionDistribucion = implode(', ', $resumenDistribucion);
     @endphp
 
     <main class="wrap reportes-stack">
@@ -411,6 +598,75 @@
                     <strong>{{ $formatearNumero($resumenSemestral['total_pendientes'] ?? 0) }}</strong>
                     <p>Mantenimientos aún sin ejecutar en el periodo.</p>
                 </a>
+            </div>
+        </section>
+
+        <section class="card panel-card">
+            <div class="panel-card-header">
+                <div class="panel-title-block">
+                    <p class="section-kicker">Distribución del periodo</p>
+                    <h2 class="panel-section-title">Distribución operativa del semestre</h2>
+                    <p class="muted panel-section-subtitle">Resumen de los mantenimientos según su situación durante el semestre seleccionado.</p>
+                </div>
+            </div>
+
+            <div class="reportes-distribution-layout">
+                <div class="reportes-distribution-chart-wrap">
+                    <svg
+                        class="reportes-distribution-chart"
+                        viewBox="0 0 220 220"
+                        role="img"
+                        aria-labelledby="reportes-distribution-title reportes-distribution-desc"
+                    >
+                        <title id="reportes-distribution-title">Distribución del periodo</title>
+                        <desc id="reportes-distribution-desc">{{ $descripcionDistribucion !== '' ? $descripcionDistribucion : 'Sin datos para el periodo consultado.' }}</desc>
+
+                        <circle class="reportes-distribution-track" cx="110" cy="110" r="{{ $radioDistribucion }}"></circle>
+
+                        @if ($totalDistribucion > 0)
+                            @foreach ($graficoDistribucion as $segmento)
+                                @if (($segmento['value'] ?? 0) > 0)
+                                    <a
+                                        href="{{ $segmento['href'] }}"
+                                        aria-label="Ver {{ mb_strtolower($segmento['label'], 'UTF-8') }} del periodo: {{ $formatearNumero($segmento['value']) }}"
+                                    >
+                                        <circle
+                                            class="reportes-distribution-segment"
+                                            cx="110"
+                                            cy="110"
+                                            r="{{ $radioDistribucion }}"
+                                            stroke="{{ $segmento['color'] }}"
+                                            stroke-dasharray="{{ $segmento['stroke'] }} {{ $circunferenciaDistribucion }}"
+                                            stroke-dashoffset="-{{ $segmento['offset'] }}"
+                                            transform="rotate(-90 110 110)"
+                                        ></circle>
+                                    </a>
+                                @endif
+                            @endforeach
+                        @endif
+
+                        <circle class="reportes-distribution-hole" cx="110" cy="110" r="58"></circle>
+                        <text class="reportes-distribution-total" x="110" y="108">{{ $formatearNumero($totalDistribucion) }}</text>
+                        <text class="reportes-distribution-caption" x="110" y="132">registros</text>
+                    </svg>
+                </div>
+
+                <div class="reportes-distribution-legend" aria-label="Leyenda del gráfico de distribución">
+                    @foreach ($graficoDistribucion as $segmento)
+                        <a
+                            class="reportes-distribution-link"
+                            href="{{ $segmento['href'] }}"
+                            aria-label="Ir al detalle de {{ mb_strtolower($segmento['label'], 'UTF-8') }} con {{ $formatearNumero($segmento['value']) }} registros"
+                        >
+                            <span class="reportes-distribution-swatch" style="--swatch-color: {{ $segmento['color'] }}"></span>
+                            <span class="reportes-distribution-copy">
+                                <strong>{{ $segmento['label'] }}</strong>
+                                <small>{{ $segmento['description'] }}</small>
+                            </span>
+                            <span class="reportes-distribution-value">{{ $formatearNumero($segmento['value']) }}</span>
+                        </a>
+                    @endforeach
+                </div>
             </div>
         </section>
 

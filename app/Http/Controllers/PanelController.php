@@ -772,7 +772,12 @@ class PanelController extends Controller
             return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada debe ser un dia habil.');
         }
 
-        $resultado = $repo->marcarComoProgramado((int) $data['mantenimiento_id'], $data['fecha_programada']);
+        $resultado = $repo->programarDesdeProximos(
+            (int) $data['mantenimiento_id'],
+            $data['fecha_programada'],
+            (int) (auth()->user()?->id ?? 0) ?: null,
+            $request->ip()
+        );
 
         return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with(
             $resultado['ok'] ? 'panel_message' : 'panel_error',
@@ -825,12 +830,14 @@ class PanelController extends Controller
             'public'
         );
 
-        $resultado = $repo->marcarProgramadoComoHechoYGenerarSiguiente(
+        $resultado = $repo->marcarProgramadoComoHechoDesdeProgramados(
             (int) $data['mantenimiento_id'],
             $data['fecha_ejecucion'],
             $tecnico,
             (string) ($data['observaciones'] ?? ''),
-            $rutaRelativa
+            $rutaRelativa,
+            (int) (auth()->user()?->id ?? 0) ?: null,
+            $request->ip()
         );
 
         if (!($resultado['ok'] ?? false)) {

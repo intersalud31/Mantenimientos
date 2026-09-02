@@ -97,6 +97,47 @@ class EstadoMantenimientoVigenteService
                 $inicio,
                 $fin,
             ])
+            ->selectRaw("CASE WHEN EXISTS (
+                SELECT 1
+                FROM mantenimientos as programado_anterior
+                WHERE programado_anterior.usuario_id = u.id
+                  AND programado_anterior.estado IN (?, ?)
+                  AND programado_anterior.fecha_programada < ?
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM mantenimientos as cierre_ciclo
+                    WHERE cierre_ciclo.usuario_id = u.id
+                      AND cierre_ciclo.estado IN (?, ?)
+                      AND cierre_ciclo.fecha_ejecucion IS NOT NULL
+                      AND cierre_ciclo.fecha_ejecucion >= programado_anterior.fecha_programada
+                  )
+            ) THEN 2 ELSE 0 END as prioridad_programado_anterior", [
+                MantenimientoEstados::PROGRAMADO,
+                MantenimientoEstados::REPROGRAMADO,
+                $inicio,
+                MantenimientoEstados::REALIZADO,
+                MantenimientoEstados::HECHO,
+            ])
+            ->selectRaw("CASE WHEN EXISTS (
+                SELECT 1
+                FROM mantenimientos as pendiente_anterior
+                WHERE pendiente_anterior.usuario_id = u.id
+                  AND pendiente_anterior.estado = ?
+                  AND pendiente_anterior.fecha_programada < ?
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM mantenimientos as cierre_ciclo
+                    WHERE cierre_ciclo.usuario_id = u.id
+                      AND cierre_ciclo.estado IN (?, ?)
+                      AND cierre_ciclo.fecha_ejecucion IS NOT NULL
+                      AND cierre_ciclo.fecha_ejecucion >= pendiente_anterior.fecha_programada
+                  )
+            ) THEN 1 ELSE 0 END as prioridad_pendiente_anterior", [
+                MantenimientoEstados::PENDIENTE,
+                $inicio,
+                MantenimientoEstados::REALIZADO,
+                MantenimientoEstados::HECHO,
+            ])
             ->get();
 
         $resultado = [];
@@ -105,7 +146,9 @@ class EstadoMantenimientoVigenteService
             $prioridad = max(
                 (int) ($fila->prioridad_ejecutado ?? 0),
                 (int) ($fila->prioridad_programado ?? 0),
-                (int) ($fila->prioridad_pendiente ?? 0)
+                (int) ($fila->prioridad_pendiente ?? 0),
+                (int) ($fila->prioridad_programado_anterior ?? 0),
+                (int) ($fila->prioridad_pendiente_anterior ?? 0)
             );
 
             $proximaFecha = trim((string) ($fila->proxima_fecha_mantenimiento ?? ''));

@@ -101,6 +101,33 @@ class EstadoMantenimientoVigenteServiceTest extends TestCase
         $this->assertSame('programado', $estados[$reprogramadoId]['estado'] ?? null);
     }
 
+    public function test_programado_anterior_abierto_se_mantiene_como_programado_en_el_estado_vigente(): void
+    {
+        $usuarioId = $this->crearUsuarioActivo('Usuario Programado Anterior Abierto', 997017, 1, '2026-04-27');
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => '2026-04-27',
+            'hora_programada' => null,
+            'estado' => 'programado',
+            'fecha_ejecucion' => null,
+            'observaciones' => 'Programado del semestre anterior sin cierre.',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $estado = app(EstadoMantenimientoVigenteService::class)->resolverParaUsuario($usuarioId, [
+            'anio' => 2026,
+            'semestre' => 2,
+            'inicio' => '2026-07-01',
+            'fin' => '2026-12-31',
+        ]);
+
+        $this->assertSame('programado', $estado['estado'] ?? null);
+        $this->assertSame('Programado', $estado['etiqueta'] ?? null);
+        $this->assertSame(2, $estado['prioridad'] ?? 0);
+    }
+
     public function test_prioriza_ejecutado_sobre_programado_y_pendiente(): void
     {
         $usuarioId = $this->crearUsuarioActivo('Usuario Prioridad', 997004);
