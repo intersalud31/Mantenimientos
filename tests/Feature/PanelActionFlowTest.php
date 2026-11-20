@@ -1680,7 +1680,79 @@ class PanelActionFlowTest extends TestCase
             'proximos_pagina' => 1,
             'proximos_por_pagina' => 10,
         ]));
-        $response->assertSessionHas('panel_error', 'La fecha programada no puede ser anterior a hoy.');
+        $response->assertSessionHas('panel_message', 'Mantenimiento programado correctamente.');
+    }
+
+    public function test_permite_programar_mantenimiento_en_fecha_actual_habil(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10050, 'Admin Fecha Actual', 'fecha-actual@example.com', 'admin'));
+
+        $fechaActual = now()->format('Y-m-d');
+
+        $periodicidadService = Mockery::mock(\App\Services\Legacy\PeriodicidadMantenimientoService::class);
+        $periodicidadService->shouldReceive('esDiaHabil')
+            ->once()
+            ->with($fechaActual)
+            ->andReturnTrue();
+        $this->instance(\App\Services\Legacy\PeriodicidadMantenimientoService::class, $periodicidadService);
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldReceive('programarDesdeProximos')
+            ->once()
+            ->withArgs(static fn (int $mantenimientoId, string $fechaProgramada, ?int $usuarioSistemaId, ?string $ip): bool => $mantenimientoId === 124
+                && $fechaProgramada === $fechaActual
+                && $usuarioSistemaId === 10050
+                && $ip !== null)
+            ->andReturn(['ok' => true, 'mensaje' => 'Mantenimiento programado correctamente.']);
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => 124,
+            'fecha_programada' => $fechaActual,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => '',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_message', 'Mantenimiento programado correctamente.');
+    }
+
+    public function test_permite_programar_mantenimiento_en_fecha_futura_habil(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10053, 'Admin Fecha Futura', 'fecha-futura-valida@example.com', 'admin'));
+
+        $fechaFutura = now()->addWeekday()->format('Y-m-d');
+
+        $periodicidadService = Mockery::mock(\App\Services\Legacy\PeriodicidadMantenimientoService::class);
+        $periodicidadService->shouldReceive('esDiaHabil')
+            ->once()
+            ->with($fechaFutura)
+            ->andReturnTrue();
+        $this->instance(\App\Services\Legacy\PeriodicidadMantenimientoService::class, $periodicidadService);
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldReceive('programarDesdeProximos')
+            ->once()
+            ->withArgs(static fn (int $mantenimientoId, string $fechaProgramada, ?int $usuarioSistemaId, ?string $ip): bool => $mantenimientoId === 125
+                && $fechaProgramada === $fechaFutura
+                && $usuarioSistemaId === 10053
+                && $ip !== null)
+            ->andReturn(['ok' => true, 'mensaje' => 'Mantenimiento programado correctamente.']);
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.proximos.programar'), [
+            'mantenimiento_id' => 125,
+            'fecha_programada' => $fechaFutura,
+        ]);
+
+        $response->assertRedirect(route('panel.proximos', [
+            'q_proximos' => '',
+            'proximos_pagina' => 1,
+            'proximos_por_pagina' => 10,
+        ]));
+        $response->assertSessionHas('panel_message', 'Mantenimiento programado correctamente.');
     }
 
     public function test_no_permite_programar_mantenimiento_en_fin_de_semana(): void
@@ -2292,6 +2364,7 @@ class PanelActionFlowTest extends TestCase
         $periodo = app(SemestreService::class)->actual();
         $fechaProgramada = \Illuminate\Support\Carbon::parse((string) $periodo['inicio'])->addDays(40)->format('Y-m-d');
         $fechaEjecucion = now()->toDateString();
+        $fechaEjecucionAnterior = \Illuminate\Support\Carbon::parse($fechaEjecucion)->subMonthsNoOverflow(6)->format('Y-m-d');
 
         $usuarioId = DB::table('usuarios')->insertGetId([
             'area_id' => null,
@@ -2300,14 +2373,27 @@ class PanelActionFlowTest extends TestCase
             'serial_equipo' => 'SER-HECHO-001',
             'tipo_equipo' => 'normal',
             'estado_usuario' => 1,
-            'ultima_fecha_ejecucion' => $fechaEjecucion,
-            'ultima_fecha_mantenimiento' => $fechaProgramada,
+            'ultima_fecha_ejecucion' => $fechaEjecucionAnterior,
+            'ultima_fecha_mantenimiento' => $fechaEjecucionAnterior,
             'proxima_fecha_mantenimiento' => $fechaProgramada,
             'ultimo_mantenimiento_id' => null,
             'ultimo_mantenimiento_estado' => 'programado',
             'mantenimiento_resumen_actualizado_at' => now(),
             'created_at' => now()->subYear(),
             'updated_at' => now(),
+        ]);
+
+        $mantenimientoAnteriorId = DB::table('mantenimientos')->insertGetId([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => $fechaEjecucionAnterior,
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaEjecucionAnterior,
+            'tecnico_responsable' => 'Tecnico Anterior',
+            'observaciones' => 'Mantenimiento historico anterior.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonths(6),
+            'updated_at' => now()->subMonths(6),
         ]);
 
         $mantenimientoId = DB::table('mantenimientos')->insertGetId([
@@ -2362,6 +2448,16 @@ class PanelActionFlowTest extends TestCase
             'tecnico_responsable' => 'Tecnico Hechos',
             'observaciones' => 'Cliente confirmó disponibilidad.',
             'evidencia_pdf' => 'constancias/' . $mantenimientoId . '/constancia.pdf',
+        ]);
+        $this->assertDatabaseHas('mantenimientos', [
+            'id' => $mantenimientoAnteriorId,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => $fechaEjecucionAnterior,
+        ]);
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'ultima_fecha_ejecucion' => $fechaEjecucion,
+            'ultima_fecha_mantenimiento' => $fechaEjecucion,
         ]);
 
         $evento = DB::table('mantenimiento_eventos')
