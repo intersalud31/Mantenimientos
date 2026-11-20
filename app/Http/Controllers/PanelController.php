@@ -818,24 +818,37 @@ class PanelController extends Controller
             $nombreArchivo = 'constancia.pdf';
         }
 
-        $rutaRelativa = $pdf->storeAs(
-            'constancias/' . (int) $data['mantenimiento_id'],
-            $nombreArchivo,
-            'public'
-        );
+        $rutaDestino = 'constancias/' . (int) $data['mantenimiento_id'] . '/' . $nombreArchivo;
+        $disco = Storage::disk('public');
+        $rutaPreexistente = $disco->exists($rutaDestino);
+        $rutaRelativa = '';
 
-        $resultado = $repo->marcarProgramadoComoHechoDesdeProgramados(
-            (int) $data['mantenimiento_id'],
-            $data['fecha_ejecucion'],
-            $tecnico,
-            (string) ($data['observaciones'] ?? ''),
-            $rutaRelativa,
-            (int) (auth()->user()?->id ?? 0) ?: null,
-            $request->ip()
-        );
+        try {
+            $rutaRelativa = $pdf->storeAs(
+                'constancias/' . (int) $data['mantenimiento_id'],
+                $nombreArchivo,
+                'public'
+            );
+
+            $resultado = $repo->marcarProgramadoComoHechoDesdeProgramados(
+                (int) $data['mantenimiento_id'],
+                $data['fecha_ejecucion'],
+                $tecnico,
+                (string) ($data['observaciones'] ?? ''),
+                $rutaRelativa,
+                (int) (auth()->user()?->id ?? 0) ?: null,
+                $request->ip()
+            );
+        } catch (\Throwable $e) {
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente);
+            report($e);
+
+            return $this->redirectConContexto($request, 'panel.programados', $contexto)
+                ->with('panel_error', 'No fue posible marcar como hecho.');
+        }
 
         if (!($resultado['ok'] ?? false)) {
-            Storage::disk('public')->delete($rutaRelativa);
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente);
 
             return $this->redirectConContexto($request, 'panel.programados', $contexto)->with('panel_error', $resultado['mensaje'] ?? 'No fue posible marcar como hecho.');
         }
@@ -930,11 +943,25 @@ class PanelController extends Controller
                 $nombreArchivo = 'constancia.pdf';
             }
 
-            $rutaRelativa = $pdf->storeAs(
-                'constancias/gestion/' . $codigoActivo,
-                $nombreArchivo,
-                'public'
-            );
+            $rutaDestino = 'constancias/gestion/' . $codigoActivo . '/' . $nombreArchivo;
+            $disco = Storage::disk('public');
+            $rutaPreexistente = $disco->exists($rutaDestino);
+
+            try {
+                $rutaRelativa = $pdf->storeAs(
+                    'constancias/gestion/' . $codigoActivo,
+                    $nombreArchivo,
+                    'public'
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+                    'busqueda_usuario' => $data['busqueda_usuario'],
+                    'codigo_activo' => $codigoActivo,
+                    'estado_destino' => (string) $data['estado_destino'],
+                ])->with('panel_error', 'No fue posible guardar la evidencia PDF.');
+            }
         }
 
         $datosEjecucion = [
@@ -946,20 +973,33 @@ class PanelController extends Controller
             'constancia_pdf_path' => $rutaRelativa,
         ];
 
-        $ejecucion = $reversionService->ejecutarPorCodigoActivo(
-            $codigoActivo,
-            (string) $data['estado_destino'],
-            $datosEjecucion,
-            'Cambio de estado aplicado desde Configuracion.',
-            (string) ($resultado['preview']['hash'] ?? ''),
-            [
-                'id' => (int) (auth()->user()?->id ?? 0),
-                'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
-            ]
-        );
+        try {
+            $ejecucion = $reversionService->ejecutarPorCodigoActivo(
+                $codigoActivo,
+                (string) $data['estado_destino'],
+                $datosEjecucion,
+                'Cambio de estado aplicado desde Configuracion.',
+                (string) ($resultado['preview']['hash'] ?? ''),
+                [
+                    'id' => (int) (auth()->user()?->id ?? 0),
+                    'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
+                ]
+            );
+        } catch (\Throwable $e) {
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente ?? false);
+            report($e);
+
+            return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+                'busqueda_usuario' => $data['busqueda_usuario'],
+                'codigo_activo' => $codigoActivo,
+                'estado_destino' => (string) $data['estado_destino'],
+            ])
+                ->withInput($request->except(['_token', 'constancia_pdf']))
+                ->with('panel_error', 'No fue posible aplicar el cambio de estado.');
+        }
 
         if (!($ejecucion['ok'] ?? false) && $rutaRelativa !== '') {
-            Storage::disk('public')->delete($rutaRelativa);
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente ?? false);
         }
 
         return $this->redirectConContexto($request, 'panel.configuracion.estados', [
@@ -1034,34 +1074,60 @@ class PanelController extends Controller
                 $nombreArchivo = 'constancia.pdf';
             }
 
-            $rutaRelativa = $pdf->storeAs(
-                'constancias/gestion/' . $codigoActivo,
-                $nombreArchivo,
-                'public'
-            );
+            $rutaDestino = 'constancias/gestion/' . $codigoActivo . '/' . $nombreArchivo;
+            $disco = Storage::disk('public');
+            $rutaPreexistente = $disco->exists($rutaDestino);
+
+            try {
+                $rutaRelativa = $pdf->storeAs(
+                    'constancias/gestion/' . $codigoActivo,
+                    $nombreArchivo,
+                    'public'
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+                    'busqueda_usuario' => $data['busqueda_usuario'],
+                    'codigo_activo' => $codigoActivo,
+                    'estado_destino' => (string) $data['estado_destino'],
+                ])->with('panel_error', 'No fue posible guardar la evidencia PDF.');
+            }
         }
 
-        $resultado = $reversionService->ejecutarPorCodigoActivo(
-            $codigoActivo,
-            (string) $data['estado_destino'],
-            [
-                'fecha_programada' => (string) ($data['fecha_programada'] ?? ''),
-                'fecha_ejecucion' => (string) ($data['fecha_ejecucion'] ?? ''),
-                'tecnico_id' => (int) ($data['tecnico_id'] ?? 0),
-                'observaciones' => (string) ($data['observaciones'] ?? ''),
-                'confirmar_ejecucion_antes_programacion' => $request->boolean('confirmar_ejecucion_antes_programacion'),
-                'constancia_pdf_path' => $rutaRelativa,
-            ],
-            (string) $data['motivo'],
-            (string) $data['preview_hash'],
-            [
-                'id' => (int) (auth()->user()?->id ?? 0),
-                'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
-            ]
-        );
+        try {
+            $resultado = $reversionService->ejecutarPorCodigoActivo(
+                $codigoActivo,
+                (string) $data['estado_destino'],
+                [
+                    'fecha_programada' => (string) ($data['fecha_programada'] ?? ''),
+                    'fecha_ejecucion' => (string) ($data['fecha_ejecucion'] ?? ''),
+                    'tecnico_id' => (int) ($data['tecnico_id'] ?? 0),
+                    'observaciones' => (string) ($data['observaciones'] ?? ''),
+                    'confirmar_ejecucion_antes_programacion' => $request->boolean('confirmar_ejecucion_antes_programacion'),
+                    'constancia_pdf_path' => $rutaRelativa,
+                ],
+                (string) $data['motivo'],
+                (string) $data['preview_hash'],
+                [
+                    'id' => (int) (auth()->user()?->id ?? 0),
+                    'nombre' => (string) (auth()->user()?->nombre ?? 'Administrador'),
+                ]
+            );
+        } catch (\Throwable $e) {
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente ?? false);
+            report($e);
+
+            return $this->redirectConContexto($request, 'panel.configuracion.estados', [
+                'busqueda_usuario' => $data['busqueda_usuario'],
+                'codigo_activo' => $codigoActivo,
+            ])
+                ->withInput($request->except(['_token', 'constancia_pdf']))
+                ->with('panel_error', 'No fue posible gestionar el estado del mantenimiento.');
+        }
 
         if (!($resultado['ok'] ?? false) && $rutaRelativa !== '') {
-            Storage::disk('public')->delete($rutaRelativa);
+            $this->limpiarEvidenciaCreada($rutaRelativa, $rutaPreexistente ?? false);
         }
 
         return $this->redirectConContexto($request, 'panel.configuracion', [
@@ -1228,6 +1294,19 @@ class PanelController extends Controller
         }
 
         return true;
+    }
+
+    private function limpiarEvidenciaCreada(string $rutaRelativa, bool $rutaPreexistente): void
+    {
+        if ($rutaPreexistente || trim($rutaRelativa) === '') {
+            return;
+        }
+
+        try {
+            Storage::disk('public')->delete($rutaRelativa);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
 }

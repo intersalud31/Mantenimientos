@@ -46,6 +46,57 @@ class PanelActionFlowTest extends TestCase
             ->assertDownload('evidencia.pdf');
     }
 
+    public function test_pdf_de_evidencia_faltante_redirecciona_con_error(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10011, 'Admin PDF Faltante', 'pdf-faltante@example.com', 'admin'));
+        Storage::fake('public');
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldReceive('obtenerEvidenciaPorMantenimientoId')
+            ->with(56)
+            ->andReturn(['evidencia_pdf' => 'constancias/faltante.pdf']);
+
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $this->get(route('panel.evidencia.pdf', ['mantenimientoId' => 56]))
+            ->assertRedirect(route('panel.hechos'))
+            ->assertSessionHas('panel_error', 'El archivo de evidencia ya no existe en el servidor.');
+    }
+
+    public function test_rechaza_archivo_que_no_es_pdf_y_no_crea_archivo(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10012, 'Admin PDF Invalido', 'pdf-invalido@example.com', 'admin'));
+        Storage::fake('public');
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => 123,
+            'fecha_ejecucion' => '2026-08-04',
+            'tecnico_id' => 7,
+            'observaciones' => 'Prueba de archivo invalido',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia.txt', 120, 'text/plain'),
+        ]);
+
+        $response->assertSessionHasErrors('constancia_pdf');
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_rechaza_pdf_que_supera_el_tamano_maximo(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10013, 'Admin PDF Grande', 'pdf-grande@example.com', 'admin'));
+        Storage::fake('public');
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => 123,
+            'fecha_ejecucion' => '2026-08-04',
+            'tecnico_id' => 7,
+            'observaciones' => 'Prueba de tamano excedido',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia-grande.pdf', 5121, 'application/pdf'),
+        ]);
+
+        $response->assertSessionHasErrors('constancia_pdf');
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
     public function test_programado_hecho_sube_pdf_y_redirecciona_con_contexto(): void
     {
         $this->actingAs($this->makeLegacyUser(1002, 'Admin Programados', 'programados@example.com', 'admin'));
@@ -93,6 +144,44 @@ class PanelActionFlowTest extends TestCase
             ['constancias/123/constancia.pdf'],
             Storage::disk('public')->allFiles('constancias/123')
         );
+    }
+
+    public function test_excepcion_inesperada_despues_de_guardar_pdf_elimina_archivo_nuevo(): void
+    {
+        $this->actingAs($this->makeLegacyUser(10014, 'Admin PDF Excepcion', 'pdf-excepcion@example.com', 'admin'));
+        Storage::fake('public');
+
+        $repo = Mockery::mock(MantenimientoRepository::class);
+        $repo->shouldReceive('obtenerMantenimientoPorId')
+            ->with(124)
+            ->andReturn([
+                'id' => 124,
+                'fecha_programada' => '2026-08-04',
+            ]);
+        $repo->shouldReceive('obtenerNombreTecnicoPorId')
+            ->with(7)
+            ->andReturn('Tecnico Uno');
+        $repo->shouldReceive('marcarProgramadoComoHechoDesdeProgramados')
+            ->once()
+            ->andThrow(new \RuntimeException('Fallo inesperado de prueba.'));
+
+        $this->instance(MantenimientoRepository::class, $repo);
+
+        $response = $this->post(route('panel.programados.hecho'), [
+            'mantenimiento_id' => 124,
+            'fecha_ejecucion' => '2026-08-04',
+            'tecnico_id' => 7,
+            'observaciones' => 'Prueba de excepcion',
+            'constancia_pdf' => UploadedFile::fake()->create('constancia-excepcion.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect(route('panel.programados', [
+            'q_programados' => '',
+            'programados_pagina' => 1,
+            'programados_por_pagina' => 10,
+        ]))
+            ->assertSessionHas('panel_error', 'No fue posible marcar como hecho.');
+        Storage::disk('public')->assertMissing('constancias/124/constancia-excepcion.pdf');
     }
 
     public function test_programados_renderiza_busqueda_y_contenedor_propios(): void
