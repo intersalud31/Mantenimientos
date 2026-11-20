@@ -68,14 +68,17 @@
             $placeholderUsuarios = html_entity_decode('Nombre, c&oacute;digo de activo, serial o &aacute;rea', ENT_QUOTES, 'UTF-8');
             $abrirCrearUsuario = old('form_context') === 'crear_usuario';
             $fechaBaseCrear = old('fecha_ultimo_mantenimiento_base', '');
-            $fechaBaseEditarAlmacenada = trim((string) ($usuarioEdicion['fecha_ultimo_mantenimiento_base'] ?? ''));
-            $fechaUltimaResumenEditar = trim((string) ($usuarioEdicion['ultima_fecha_mantenimiento'] ?? ''));
-            $fechaBaseEditar = old(
-                'fecha_ultimo_mantenimiento_base',
-                $fechaBaseEditarAlmacenada !== '' ? $fechaBaseEditarAlmacenada : $fechaUltimaResumenEditar
-            );
             $tipoEquipoCrear = old('tipo_equipo', 'normal');
             $tipoEquipoEditar = old('tipo_equipo', $usuarioEdicion['tipo_equipo'] ?? 'normal');
+            $fechaBaseEditarAlmacenada = trim((string) ($usuarioEdicion['fecha_ultimo_mantenimiento_base'] ?? ''));
+            $fechaUltimaResumenEditar = trim((string) ($usuarioEdicion['ultima_fecha_mantenimiento'] ?? ''));
+            $fechaMantenimientoEditar = $tipoEquipoEditar === 'normal' && $fechaUltimaResumenEditar !== ''
+                ? $fechaUltimaResumenEditar
+                : $fechaBaseEditarAlmacenada;
+            $fechaBaseEditar = old(
+                'fecha_ultimo_mantenimiento_base',
+                $fechaMantenimientoEditar
+            );
             $etiquetaFechaCrear = $tipoEquipoCrear === 'nuevo'
                 ? 'Fecha de compra'
                 : 'Fecha de &uacute;ltimo mantenimiento';

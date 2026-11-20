@@ -685,16 +685,16 @@ class PanelController extends Controller
         $fechaBaseFueEnviada = $request->has('fecha_ultimo_mantenimiento_base');
         $fechaBaseAlmacenada = trim((string) ($usuarioActual['fecha_ultimo_mantenimiento_base'] ?? ''));
         $fechaUltimaResumen = trim((string) ($usuarioActual['ultima_fecha_mantenimiento'] ?? ''));
+        $tipoEquipoAlmacenado = (string) ($usuarioActual['tipo_equipo'] ?? 'normal');
+        $fechaMostradaAntesDeEditar = $tipoEquipoAlmacenado === 'normal' && $fechaUltimaResumen !== ''
+            ? $fechaUltimaResumen
+            : $fechaBaseAlmacenada;
         $fechaBaseEnviada = trim((string) ($data['fecha_ultimo_mantenimiento_base'] ?? ''));
         $fechaBaseActual = $fechaBaseFueEnviada
             ? $fechaBaseEnviada
-            : $fechaBaseAlmacenada;
-        $fechaBaseCambioReal = $fechaBaseFueEnviada && $fechaBaseEnviada !== $fechaBaseAlmacenada;
-
-        $actualizarFechaBase = $fechaBaseFueEnviada;
-        if ($fechaBaseAlmacenada === '' && $fechaUltimaResumen !== '' && $fechaBaseEnviada === $fechaUltimaResumen) {
-            $actualizarFechaBase = false;
-        }
+            : $fechaMostradaAntesDeEditar;
+        $fechaBaseCambioReal = $fechaBaseFueEnviada && $fechaBaseEnviada !== $fechaMostradaAntesDeEditar;
+        $actualizarFechaBase = $fechaBaseCambioReal;
 
         if (
             ($data['tipo_equipo'] ?? 'normal') === 'normal'

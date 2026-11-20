@@ -798,7 +798,7 @@ class PanelActionFlowTest extends TestCase
             ->andReturn(true);
         $repo->shouldReceive('actualizarUsuario')
             ->once()
-            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal', null, true, false)
+            ->with(41, 'Usuario Editado', 556, 'SER-002', 3, 'normal', null, false, false)
             ->andReturn(true);
         $repo->shouldReceive('cambiarEstadoUsuario')
             ->once()
@@ -1333,6 +1333,82 @@ class PanelActionFlowTest extends TestCase
         $response->assertSee('data-user-last-maintenance-input', false);
         $response->assertSee('data-maintenance-date-trigger', false);
         $response->assertSee('data-maintenance-date-picker', false);
+    }
+
+    public function test_editar_usuario_muestra_ultima_fecha_resumen_aunque_exista_fecha_base_anterior(): void
+    {
+        $this->actingAs($this->makeLegacyUser(100451, 'Admin Fecha Vigente', 'fecha-vigente@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Fecha Vigente',
+            'codigo_activo' => 991245,
+            'serial_equipo' => 'SER-FECHA-VIGENTE',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-02-10',
+            'ultima_fecha_mantenimiento' => '2026-08-27',
+            'ultima_fecha_ejecucion' => '2026-08-27',
+            'proxima_fecha_mantenimiento' => '2027-03-01',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('panel.usuarios', ['editar_usuario_id' => $usuarioId]));
+
+        $response->assertOk();
+        $response->assertSee('id="fecha_ultimo_mantenimiento_base_editar"', false);
+        $response->assertSee('value="2026-08-27"', false);
+    }
+
+    public function test_guardar_ultima_fecha_mostrada_no_sobrescribe_fecha_base_anterior(): void
+    {
+        $this->actingAs($this->makeLegacyUser(100452, 'Admin Conserva Base', 'conserva-base@example.com', 'admin'));
+
+        $usuarioId = DB::table('usuarios')->insertGetId([
+            'nombre' => 'Usuario Conserva Base',
+            'codigo_activo' => 991246,
+            'serial_equipo' => 'SER-CONSERVA-BASE',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-02-10',
+            'ultima_fecha_mantenimiento' => '2026-08-27',
+            'ultima_fecha_ejecucion' => '2026-08-27',
+            'proxima_fecha_mantenimiento' => '2027-03-01',
+            'area_id' => null,
+            'estado_usuario' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('mantenimientos')->insert([
+            'usuario_id' => $usuarioId,
+            'fecha_programada' => '2026-08-27',
+            'hora_programada' => null,
+            'estado' => 'realizado',
+            'fecha_ejecucion' => '2026-08-27',
+            'tecnico_responsable' => 'Tecnico Fecha Vigente',
+            'observaciones' => 'Mantenimiento historico vigente.',
+            'evidencia_pdf' => null,
+            'created_at' => now()->subMonth(),
+            'updated_at' => now()->subMonth(),
+        ]);
+
+        $this->post(route('panel.usuarios.actualizar'), [
+            'usuario_id' => $usuarioId,
+            'nombre' => 'Usuario Conserva Base Editado',
+            'codigo_activo' => 991246,
+            'serial_equipo' => 'SER-CONSERVA-BASE',
+            'tipo_equipo' => 'normal',
+            'fecha_ultimo_mantenimiento_base' => '2026-08-27',
+            'form_context' => 'editar_usuario',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('usuarios', [
+            'id' => $usuarioId,
+            'nombre' => 'Usuario Conserva Base Editado',
+            'fecha_ultimo_mantenimiento_base' => '2026-02-10',
+            'ultima_fecha_mantenimiento' => '2026-08-27',
+        ]);
     }
 
     public function test_guardar_fecha_de_respaldo_sin_cambio_no_migra_fecha_base_automaticamente(): void
