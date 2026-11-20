@@ -1522,7 +1522,7 @@
         grid-template-columns: repeat(7, minmax(0, 1fr));
         gap: 6px;
         color: #64748b;
-        font-size: .78rem;
+        font-size: .7rem;
         font-weight: 700;
         text-align: center;
         letter-spacing: .02em;

@@ -30,7 +30,6 @@
                 'semestre' => $periodoConsulta['semestre'] ?? null,
             ], static fn ($valor) => $valor !== null && $valor !== '');
         }
-        $fechaMinimaProgramacion = \Illuminate\Support\Carbon::today()->toDateString();
     @endphp
     <section class="module-header" aria-label="{{ $titulo ?? 'Mantenimientos' }}">
         <div class="module-header-copy">
@@ -218,7 +217,7 @@
 
                         <div class="maintenance-modal-grid">
                             @php
-                                $fechaProgramadaInicial = old('fecha_programada', $fechaMinimaProgramacion);
+                                $fechaProgramadaInicial = old('fecha_programada', \Illuminate\Support\Carbon::today()->toDateString());
                                 $fechaProgramadaEtiqueta = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $fechaProgramadaInicial)->format('d/m/Y');
                             @endphp
                             <div class="field maintenance-date-field maintenance-modal-full" data-maintenance-date-field>
@@ -229,7 +228,6 @@
                                     name="fecha_programada"
                                     value="{{ $fechaProgramadaInicial }}"
                                     data-maintenance-date-input
-                                    data-maintenance-date-min="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
                                     data-maintenance-date-holidays='@json($festivosCalendario ?? [])'
                                     data-maintenance-date-preserve="{{ old('fecha_programada') !== null ? '1' : '0' }}"
                                 >
@@ -262,13 +260,13 @@
                                     </div>
 
                                     <div class="maintenance-date-picker-weekdays" aria-hidden="true">
-                                        <span>L</span>
-                                        <span>M</span>
-                                        <span>X</span>
-                                        <span>J</span>
-                                        <span>V</span>
-                                        <span>S</span>
-                                        <span>D</span>
+                                        <span>Lun</span>
+                                        <span>Mar</span>
+                                        <span>Mié</span>
+                                        <span>Jue</span>
+                                        <span>Vie</span>
+                                        <span>Sáb</span>
+                                        <span>Dom</span>
                                     </div>
 
                                     <div class="maintenance-date-picker-grid" data-maintenance-date-grid></div>
@@ -355,13 +353,13 @@
                                     </div>
 
                                     <div class="maintenance-date-picker-weekdays" aria-hidden="true">
-                                        <span>L</span>
-                                        <span>M</span>
-                                        <span>X</span>
-                                        <span>J</span>
-                                        <span>V</span>
-                                        <span>S</span>
-                                        <span>D</span>
+                                        <span>Lun</span>
+                                        <span>Mar</span>
+                                        <span>Mié</span>
+                                        <span>Jue</span>
+                                        <span>Vie</span>
+                                        <span>Sáb</span>
+                                        <span>Dom</span>
                                     </div>
 
                                     <div class="maintenance-date-picker-grid" data-maintenance-date-grid></div>

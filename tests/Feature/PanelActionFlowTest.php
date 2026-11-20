@@ -1479,17 +1479,32 @@ class PanelActionFlowTest extends TestCase
         $this->assertSame($esperada, (string) ($fila['proxima_fecha_programada'] ?? ''));
     }
 
-    public function test_no_permite_programar_mantenimiento_en_fecha_pasada(): void
+    public function test_permite_programar_mantenimiento_en_fecha_pasada_habil(): void
     {
         $this->actingAs($this->makeLegacyUser(1005, 'Admin Fecha', 'fecha@example.com', 'admin'));
 
+        $fechaPasada = now()->subWeekday()->format('Y-m-d');
+
+        $periodicidadService = Mockery::mock(\App\Services\Legacy\PeriodicidadMantenimientoService::class);
+        $periodicidadService->shouldReceive('esDiaHabil')
+            ->once()
+            ->with($fechaPasada)
+            ->andReturnTrue();
+        $this->instance(\App\Services\Legacy\PeriodicidadMantenimientoService::class, $periodicidadService);
+
         $repo = Mockery::mock(MantenimientoRepository::class);
-        $repo->shouldNotReceive('programarDesdeProximos');
+        $repo->shouldReceive('programarDesdeProximos')
+            ->once()
+            ->withArgs(static fn (int $mantenimientoId, string $fechaProgramada, ?int $usuarioSistemaId, ?string $ip): bool => $mantenimientoId === 123
+                && $fechaProgramada === $fechaPasada
+                && $usuarioSistemaId === 1005
+                && $ip !== null)
+            ->andReturn(['ok' => true, 'mensaje' => 'Mantenimiento programado correctamente.']);
         $this->instance(MantenimientoRepository::class, $repo);
 
         $response = $this->post(route('panel.proximos.programar'), [
             'mantenimiento_id' => 123,
-            'fecha_programada' => now()->subDay()->format('Y-m-d'),
+            'fecha_programada' => $fechaPasada,
             'q_proximos' => 'Filtro',
             'proximos_pagina' => 1,
             'proximos_por_pagina' => 10,

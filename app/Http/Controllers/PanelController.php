@@ -762,12 +762,6 @@ class PanelController extends Controller
                 : 10,
         ];
 
-        $fecha = \DateTimeImmutable::createFromFormat('!Y-m-d', $data['fecha_programada']);
-        $hoy = new \DateTimeImmutable('today');
-        if ($fecha === false || $fecha < $hoy) {
-            return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada no puede ser anterior a hoy.');
-        }
-
         if (!$periodicidadService->esDiaHabil($data['fecha_programada'])) {
             return $this->redirectConContexto($request, 'panel.proximos', $contexto)->with('panel_error', 'La fecha programada debe ser un dia habil.');
         }
