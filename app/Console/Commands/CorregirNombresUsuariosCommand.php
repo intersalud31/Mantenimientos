@@ -8,13 +8,16 @@ use Illuminate\Support\Facades\DB;
 
 class CorregirNombresUsuariosCommand extends Command
 {
-    protected $signature = 'usuarios:corregir-nombres {--dry-run : Solo muestra los cambios sin escribirlos}';
+    protected $signature = 'usuarios:corregir-nombres
+        {--dry-run : Solo muestra los cambios sin escribirlos}
+        {--apply : Aplica las correcciones despues de revisarlas}';
 
     protected $description = 'Corrige nombres de usuarios importados con caracteres perdidos en la base legacy.';
 
     public function handle(UsuarioNombreRepairService $repairService): int
     {
-        $dryRun = (bool) $this->option('dry-run');
+        $apply = (bool) $this->option('apply');
+        $dryRun = (bool) $this->option('dry-run') || !$apply;
         $cambios = 0;
 
         DB::table('usuarios')

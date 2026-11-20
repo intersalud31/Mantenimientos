@@ -4,19 +4,15 @@ namespace App\Services\Legacy;
 
 class UsuarioNombreRepairService
 {
-    /**
-     * Correcciones exactas para nombres importados con caracteres perdidos.
-     *
-     * @var array<string, string>
-     */
+    /** @var array<string, string> */
     private const CORRECCIONES = [
         'Santiago Hern??ndez' => 'Santiago Hernández',
         'Francy Elena S??nchez' => 'Francy Elena Sánchez',
         'Stephany Garc??a' => 'Stephany García',
         'M??nica Villafa??e' => 'Mónica Villafañe',
-        'Maria Fernanda Garc??a' => 'María Fernanda García',
+        'Maria Fernanda Garc??a' => 'Maria Fernanda García',
         'M??nica Luc??a Monta??o Cuenu' => 'Mónica Lucía Montaño Cuenu',
-        'Julian S??nchez' => 'Julián Sánchez',
+        'Julian S??nchez' => 'Julian Sánchez',
         'Diana Guti??rrez' => 'Diana Gutiérrez',
         'Port??til Pruebas' => 'Portátil Pruebas',
         'Recepci??n' => 'Recepción',
@@ -33,6 +29,7 @@ class UsuarioNombreRepairService
         'Mar??a Del Pilar Ibarra Rojas 2' => 'María Del Pilar Ibarra Rojas 2',
         'DA??ADO' => 'DAÑADO',
         'Lorena Brigitt G??mez' => 'Lorena Brigitt Gómez',
+        'Ana Ximena Guti??rrez' => 'Ana Ximena Gutiérrez',
     ];
 
     public function reparar(string $nombre): string
